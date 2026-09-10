@@ -2,7 +2,7 @@ import * as React from 'react'
 import ReactECharts from 'echarts-for-react'
 import { GridStack } from 'gridstack'
 import 'gridstack/dist/gridstack.min.css'
-import { Lock, LockOpen, Maximize, RefreshCw } from 'lucide-react'
+import { Lock, LockOpen, Maximize, Minimize, RefreshCw } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
@@ -209,6 +209,7 @@ export default function DashboardHome() {
   const [editable, setEditable] = React.useState(true)
   const [refreshKey, setRefreshKey] = React.useState(0)
   const [layout, setLayout] = React.useState(dashCharts[dash] ?? [])
+  const [fullscreen, setFullscreen] = React.useState(Boolean(document.fullscreenElement))
   const [filter, setFilter] = React.useState('全部')
   const [refreshInterval, setRefreshInterval] = React.useState('无')
 
@@ -216,6 +217,20 @@ export default function DashboardHome() {
     setLayout(dashCharts[dash] ?? [])
     setRefreshKey(0)
   }, [dash])
+
+  React.useEffect(() => {
+    const handleFullscreenChange = () => setFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen?.()
+      return
+    }
+    await document.documentElement.requestFullscreen?.()
+  }
 
   React.useEffect(() => {
     if (refreshInterval === '无') return
@@ -270,7 +285,7 @@ export default function DashboardHome() {
   }, [dash, layout, editable])
 
   return (
-    <AppLayout noPadding>
+    <AppLayout noPadding hideHeader={fullscreen}>
       <div className="px-4 pb-4 md:px-6 md:pb-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <DropdownMenu>
@@ -304,8 +319,8 @@ export default function DashboardHome() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="ghost" size="icon" title="全屏" onClick={() => document.documentElement.requestFullscreen?.()}>
-              <Maximize className="h-4 w-4" />
+            <Button variant="ghost" size="icon" title={fullscreen ? '退出全屏' : '全屏'} onClick={toggleFullscreen}>
+              {fullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             </Button>
 
             <DropdownMenu>
@@ -334,7 +349,7 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        <div className="mt-4 h-[calc(100vh-9rem)] min-h-[300px] overflow-auto">
+        <div className={cn('mt-4 min-h-[300px] overflow-auto', fullscreen ? 'h-[calc(100vh-7rem)]' : 'h-[calc(100vh-9rem)]')}>
           <div className="grid-stack" ref={gridRef}>
             {layout.map((chart) => (
               <ChartCard

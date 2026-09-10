@@ -28,6 +28,9 @@ const createItems = [
   { label: '产品', to: '/app/Product/list' },
 ]
 
+const headerActionClass =
+  'text-white/80 hover:bg-white/15 hover:text-white data-[state=open]:bg-white/20 data-[state=open]:text-white dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white'
+
 type PrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose'
 
 const primaryColors = [
@@ -80,31 +83,58 @@ export function TopHeader({
   }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/80 shadow-[0_1px_0_0] shadow-primary/10 backdrop-blur-xl">
+    <header
+      className={cn(
+        'fixed inset-x-0 top-0 z-40 border-b shadow-sm',
+        isDark
+          ? 'border-white/10 bg-[#0f172a] text-white'
+          : 'border-black/10 bg-primary text-primary-foreground',
+      )}
+    >
       <div className="flex h-16 items-center gap-2 px-4">
-        <Button variant="ghost" size="icon" onClick={onToggleSidebar} title="展开/收起">
+        <Button variant="ghost" size="icon" onClick={onToggleSidebar} title="展开/收起" className={headerActionClass}>
           <Menu className="h-5 w-5" />
         </Button>
         <Link to="/dashboard/home" className="mr-2 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-sm">
+          <span
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold shadow-sm',
+              isDark ? 'bg-primary/20 text-primary' : 'bg-white/20 text-primary-foreground',
+            )}
+          >
             N
           </span>
-          <span className="text-lg font-semibold text-primary">newbuild</span>
+          <span className="text-lg font-semibold">newbuild</span>
         </Link>
 
-        <nav className="ml-2 hidden items-center gap-1 md:flex">
+        <nav className="ml-2 hidden h-16 items-stretch md:flex">
           {topNavs.map((nav) => (
             <Link
               key={nav.id}
               to={nav.to}
               onClick={() => onTopNavChange(nav.id)}
-              className={
+              className={cn(
+                'relative flex h-16 items-center px-3 text-sm transition-colors',
                 activeTopId === nav.id
-                  ? 'rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary shadow-sm'
-                  : 'rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
-              }
+                  ? isDark
+                    ? 'bg-white/10 font-medium text-white'
+                    : 'bg-black/20 font-medium text-primary-foreground'
+                  : isDark
+                    ? 'text-white/65 hover:bg-white/5 hover:text-white'
+                    : 'text-primary-foreground/75 hover:bg-primary-foreground/15 hover:text-primary-foreground',
+              )}
             >
               {nav.text}
+              <span
+                className={cn(
+                  cn(
+                    'absolute bottom-0 left-1/2 h-[3px] w-3.5 -translate-x-1/2 rounded-full transition-opacity',
+                    isDark ? 'bg-primary/90' : 'bg-primary-foreground/90',
+                    activeTopId === nav.id ? 'opacity-100' : 'opacity-0',
+                  ),
+                  activeTopId === nav.id ? 'opacity-100' : 'opacity-0',
+                )}
+              />
             </Link>
           ))}
         </nav>
@@ -112,7 +142,7 @@ export function TopHeader({
         <div className="ml-auto flex items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" title="新建">
+              <Button variant="ghost" size="icon" title="新建" className={headerActionClass}>
                 <Plus className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -125,21 +155,21 @@ export function TopHeader({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="icon" title="搜索">
+          <Button variant="ghost" size="icon" title="搜索" className={headerActionClass}>
             <Search className="h-5 w-5" />
           </Button>
 
-          <Button variant="ghost" size="icon" title="后台设置" onClick={() => setAdminOpen(true)}>
+          <Button variant="ghost" size="icon" title="后台设置" onClick={() => setAdminOpen(true)} className={headerActionClass}>
             <Settings className="h-5 w-5" />
           </Button>
 
-          <Button variant="ghost" size="icon" title={isDark ? '切换到浅色模式' : '切换到夜间模式'} onClick={() => setIsDark((value) => !value)}>
+          <Button variant="ghost" size="icon" title={isDark ? '切换到浅色模式' : '切换到夜间模式'} onClick={() => setIsDark((value) => !value)} className={headerActionClass}>
             {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" title="通知" className="relative">
+              <Button variant="ghost" size="icon" title="通知" className={cn('relative', headerActionClass)}>
                 <Bell className="h-5 w-5" />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
               </Button>
@@ -172,7 +202,13 @@ export function TopHeader({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium transition-colors hover:bg-accent">
+              <button
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-white/80 transition-colors',
+                  'hover:bg-white/15 hover:text-white data-[state=open]:bg-white/20 data-[state=open]:text-white',
+                  'dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white',
+                )}
+              >
                 <UserAvatar name="超级管理员" size={30} />
                 <span className="hidden text-sm md:inline">超级管理员</span>
               </button>

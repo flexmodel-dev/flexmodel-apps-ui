@@ -8,10 +8,12 @@ export function LeftSidebar({
   navs = userNavs,
   sectionKey,
   collapsed,
+  headerHidden,
 }: {
   navs?: NavItem[]
   sectionKey?: string
   collapsed?: boolean
+  headerHidden?: boolean
 }) {
   const location = useLocation()
   const [openMenus, setOpenMenus] = React.useState<string[]>([])
@@ -36,7 +38,8 @@ export function LeftSidebar({
   return (
     <aside
       className={cn(
-        'fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-background transition-[width] duration-200 md:block',
+        'fixed left-0 z-30 hidden border-r bg-background transition-[width] duration-200 md:block',
+        headerHidden ? 'top-0 h-screen' : 'top-16 h-[calc(100vh-4rem)]',
         collapsed ? 'w-16' : 'w-64',
       )}
     >

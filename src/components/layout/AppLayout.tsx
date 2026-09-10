@@ -24,13 +24,14 @@ const adminNavs = [
   { id: 'recycle-bin', label: '回收站', to: '/admin/audit/recycle-bin', icon: Recycle },
 ]
 
-function AdminSidebar({ collapsed }: { collapsed?: boolean }) {
+function AdminSidebar({ collapsed, headerHidden }: { collapsed?: boolean; headerHidden?: boolean }) {
   const location = useLocation()
 
   return (
     <aside
       className={cn(
-        'fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-background transition-[width] duration-200 md:block',
+        'fixed left-0 z-30 hidden border-r bg-background transition-[width] duration-200 md:block',
+        headerHidden ? 'top-0 h-screen' : 'top-16 h-[calc(100vh-4rem)]',
         collapsed ? 'w-16' : 'w-64',
       )}
     >
@@ -79,6 +80,7 @@ export function AppLayout({
   noPadding,
   contentClassName,
   noOuterScroll,
+  hideHeader,
 }: {
   children: React.ReactNode
   admin?: boolean
@@ -86,6 +88,7 @@ export function AppLayout({
   noPadding?: boolean
   contentClassName?: string
   noOuterScroll?: boolean
+  hideHeader?: boolean
 }) {
   const location = useLocation()
   const [collapsed, setCollapsed] = React.useState(false)
@@ -107,17 +110,23 @@ export function AppLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <TopHeader
-        activeTopId={activeTop.id}
-        onTopNavChange={setActiveTopId}
-        onToggleSidebar={() => setCollapsed((value) => !value)}
-      />
+      {!hideHeader && (
+        <TopHeader
+          activeTopId={activeTop.id}
+          onTopNavChange={setActiveTopId}
+          onToggleSidebar={() => setCollapsed((value) => !value)}
+        />
+      )}
 
-      {useAdminSidebar ? <AdminSidebar collapsed={collapsed} /> : <LeftSidebar collapsed={collapsed} navs={activeTop.navs} sectionKey={activeTop.id} />}
+      {useAdminSidebar ? (
+        <AdminSidebar collapsed={collapsed} headerHidden={hideHeader} />
+      ) : (
+        <LeftSidebar collapsed={collapsed} navs={activeTop.navs} sectionKey={activeTop.id} headerHidden={hideHeader} />
+      )}
 
       <main
         className={cn(
-          'mt-16 h-[calc(100vh-4rem)] transition-[margin-left] duration-200',
+          hideHeader ? 'mt-0 h-screen' : 'mt-16 h-[calc(100vh-4rem)]',
           noOuterScroll ? 'overflow-hidden' : 'overflow-y-auto',
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
           collapsed ? 'md:ml-16' : 'md:ml-64',
