@@ -285,9 +285,9 @@ export default function DashboardHome() {
   }, [dash, layout, editable])
 
   return (
-    <AppLayout noPadding hideHeader={fullscreen}>
-      <div className="px-4 pb-4 md:px-6 md:pb-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <AppLayout noPadding noOuterScroll contentClassName="flex h-full min-h-0 flex-col" hideHeader={fullscreen}>
+      <div className="flex h-full min-h-0 flex-col px-4 pb-4 md:px-6 md:pb-6">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-10 text-xl font-medium">
@@ -349,7 +349,7 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        <div className={cn('mt-4 min-h-[300px] overflow-auto', fullscreen ? 'h-[calc(100vh-7rem)]' : 'h-[calc(100vh-9rem)]')}>
+        <div className="mt-4 min-h-0 flex-1 overflow-auto">
           <div className="grid-stack" ref={gridRef}>
             {layout.map((chart) => (
               <ChartCard

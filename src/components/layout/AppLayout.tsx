@@ -2,9 +2,10 @@ import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { getTopNavIdByPath, topNavs } from '@/data/mock'
-import { ClipboardCheck, LogIn, Recycle, Settings, Shapes, ShieldCheck, Users, Briefcase, Boxes } from 'lucide-react'
+import { Briefcase, Boxes, ChevronsLeft, ChevronsRight, ClipboardCheck, LogIn, Recycle, Settings, Shapes, ShieldCheck, Users } from 'lucide-react'
 import { TopHeader } from './TopHeader'
 import { LeftSidebar } from './LeftSidebar'
+import { Button } from '@/components/ui/button'
 
 const adminNavs = [
   { id: 'divider-systems', label: '系统', to: '' },
@@ -24,19 +25,18 @@ const adminNavs = [
   { id: 'recycle-bin', label: '回收站', to: '/admin/audit/recycle-bin', icon: Recycle },
 ]
 
-function AdminSidebar({ collapsed, headerHidden }: { collapsed?: boolean; headerHidden?: boolean }) {
+function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; onToggleCollapsed?: () => void }) {
   const location = useLocation()
 
   return (
     <aside
       className={cn(
-        'fixed left-0 z-30 hidden border-r bg-background transition-[width] duration-200 md:block',
-        headerHidden ? 'top-0 h-screen' : 'top-16 h-[calc(100vh-4rem)]',
+        'fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-background transition-[width] duration-200 md:block',
         collapsed ? 'w-16' : 'w-64',
       )}
     >
-      <nav className="h-full overflow-y-auto p-3">
-        <ul className="space-y-1">
+      <nav className="flex h-full flex-col overflow-hidden p-3">
+        <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto">
           {adminNavs.map((nav) => {
             if (!nav.to) {
               return (
@@ -68,6 +68,18 @@ function AdminSidebar({ collapsed, headerHidden }: { collapsed?: boolean; header
             )
           })}
         </ul>
+        <div className={cn('mt-2 flex shrink-0 border-t pt-2', collapsed ? 'justify-center' : 'justify-end')}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            onClick={onToggleCollapsed}
+            title={collapsed ? '展开菜单' : '折叠菜单'}
+          >
+            {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+          </Button>
+        </div>
       </nav>
     </aside>
   )
@@ -114,22 +126,27 @@ export function AppLayout({
         <TopHeader
           activeTopId={activeTop.id}
           onTopNavChange={setActiveTopId}
-          onToggleSidebar={() => setCollapsed((value) => !value)}
         />
       )}
 
-      {useAdminSidebar ? (
-        <AdminSidebar collapsed={collapsed} headerHidden={hideHeader} />
-      ) : (
-        <LeftSidebar collapsed={collapsed} navs={activeTop.navs} sectionKey={activeTop.id} headerHidden={hideHeader} />
-      )}
+      {!hideHeader &&
+        (useAdminSidebar ? (
+          <AdminSidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((value) => !value)} />
+        ) : (
+          <LeftSidebar
+            collapsed={collapsed}
+            navs={activeTop.navs}
+            sectionKey={activeTop.id}
+            onToggleCollapsed={() => setCollapsed((value) => !value)}
+          />
+        ))}
 
       <main
         className={cn(
-          hideHeader ? 'mt-0 h-screen' : 'mt-16 h-[calc(100vh-4rem)]',
+          hideHeader ? 'mt-0 h-screen md:ml-0' : 'mt-16 h-[calc(100vh-4rem)]',
           noOuterScroll ? 'overflow-hidden' : 'overflow-y-auto',
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
-          collapsed ? 'md:ml-16' : 'md:ml-64',
+          hideHeader ? '' : collapsed ? 'md:ml-16' : 'md:ml-64',
         )}
       >
         <div className={cn('w-full pt-4 md:pt-6', contentClassName)}>{children}</div>

@@ -76,24 +76,37 @@ export default function FilesDocs() {
                 <li className="-mb-px border-b-2 border-transparent px-3 py-1.5 text-sm text-muted-foreground">附件</li>
               </ul>
               <div className="rb-scroller max-h-[calc(100vh-150px)] overflow-y-auto py-2 text-[13px]">
-                <div className="cursor-pointer rounded-md px-2 py-1.5 hover:bg-accent">
-                  <Folder className="mr-1.5 h-4 w-4 text-[#fbbc05]" />全部文件
-                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent',
+                    current === '' && 'bg-accent text-accent-foreground',
+                  )}
+                  onClick={() => setCurrent('')}
+                >
+                  <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]" />
+                  <span className="min-w-0 flex-1 truncate">全部文件</span>
+                </button>
                 {(fileTree[''] ?? []).filter((n) => n.type === 'folder').map((f) => (
                   <div key={f.id} className="pl-1">
                     <div
-                      className={cn('cursor-pointer rounded-md px-2 py-1.5 hover:bg-accent', current === f.id && 'bg-accent text-accent-foreground')}
+                      className={cn('flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent', current === f.id && 'bg-accent text-accent-foreground')}
                       onClick={() => setCurrent(f.id)}
                     >
-                      <Folder className="mr-1.5 h-4 w-4 text-[#fbbc05]" />
-                      {f.name}
-                      <span className="ml-1 text-xs text-[#bbb]">{f.fileCount}</span>
+                      <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]" />
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                      <span className="shrink-0 text-xs text-[#bbb]">{f.fileCount}</span>
                     </div>
                     {/* 二级 */}
                     {(fileTree[f.id] ?? []).filter((n) => n.type === 'folder').map((s) => (
-                      <div key={s.id} className="cursor-pointer rounded-md py-1.5 pl-7 pr-2 hover:bg-accent">
-                        <Folder className="mr-1.5 h-4 w-4 text-[#fbbc05]" />{s.name}
-                        <span className="ml-1 text-xs text-[#bbb]">{s.fileCount}</span>
+                      <div
+                        key={s.id}
+                        className={cn('flex w-full cursor-pointer items-center gap-2 rounded-md py-1.5 pl-7 pr-2 text-left hover:bg-accent', current === s.id && 'bg-accent text-accent-foreground')}
+                        onClick={() => setCurrent(s.id)}
+                      >
+                        <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]" />
+                        <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                        <span className="shrink-0 text-xs text-[#bbb]">{s.fileCount}</span>
                       </div>
                     ))}
                   </div>

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, Menu, Moon, Plus, Search, Settings, Sun } from 'lucide-react'
+import { Bell, Moon, Plus, Search, Settings, Sun } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
@@ -31,7 +31,7 @@ const createItems = [
 const headerActionClass =
   'text-white/80 hover:bg-white/15 hover:text-white data-[state=open]:bg-white/20 data-[state=open]:text-white dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white'
 
-type PrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose'
+type PrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose' | 'black'
 
 const primaryColors = [
   { value: 'blue', label: '蓝', swatch: 'hsl(217 91% 60%)' },
@@ -39,16 +39,15 @@ const primaryColors = [
   { value: 'green', label: '绿', swatch: 'hsl(160 84% 39%)' },
   { value: 'amber', label: '橙', swatch: 'hsl(38 92% 50%)' },
   { value: 'rose', label: '玫', swatch: 'hsl(350 89% 60%)' },
+  { value: 'black', label: '黑', swatch: 'hsl(0 0% 9%)' },
 ] as const
 
 export function TopHeader({
   activeTopId,
   onTopNavChange,
-  onToggleSidebar,
 }: {
   activeTopId: string
   onTopNavChange: (id: string) => void
-  onToggleSidebar: () => void
 }) {
   const navigate = useNavigate()
   const [adminOpen, setAdminOpen] = React.useState(false)
@@ -92,9 +91,6 @@ export function TopHeader({
       )}
     >
       <div className="flex h-16 items-center gap-2 px-4">
-        <Button variant="ghost" size="icon" onClick={onToggleSidebar} title="展开/收起" className={headerActionClass}>
-          <Menu className="h-5 w-5" />
-        </Button>
         <Link to="/dashboard/home" className="mr-2 flex items-center gap-2">
           <span
             className={cn(
