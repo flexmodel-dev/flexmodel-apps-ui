@@ -22,6 +22,9 @@ type DashChart = (typeof dashCharts)['dash-0'][number]
 function buildOption(type: string, refreshKey = 0, filter = '全部') {
   const filterWeight = filter.length
   const jitter = (value: number, offset: number) => value + ((refreshKey * 3 + offset + filterWeight) % 7) - 3
+  const primaryHsl = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
+  const primary = `hsl(${primaryHsl})`
+  const primaryMuted = `hsl(${primaryHsl} / 0.12)`
 
   if (type === 'line') {
     return {
@@ -35,20 +38,8 @@ function buildOption(type: string, refreshKey = 0, filter = '全部') {
           smooth: true,
           symbolSize: 6,
           data: chartData.newCustomers12m.values.map(jitter),
-          itemStyle: { color: '#4f46e5' },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(79, 70, 229, 0.28)' },
-                { offset: 1, color: 'rgba(79, 70, 229, 0.02)' },
-              ],
-            },
-          },
+          itemStyle: { color: primary },
+          areaStyle: { color: primaryMuted },
         },
       ],
     }
@@ -67,7 +58,11 @@ function buildOption(type: string, refreshKey = 0, filter = '全部') {
           data: chartData.industryDist.map((item, index) => ({
             ...item,
             value: jitter(item.value, index),
-            itemStyle: { color: ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b'][index], borderColor: '#fff', borderWidth: 2 },
+            itemStyle: {
+              color: `hsl(${primaryHsl} / ${[1, 0.72, 0.48, 0.28][index] ?? 0.2})`,
+              borderColor: '#fff',
+              borderWidth: 2,
+            },
           })),
         },
       ],
@@ -87,17 +82,7 @@ function buildOption(type: string, refreshKey = 0, filter = '全部') {
           data: chartData.monthlyPayment.values.map(jitter),
           itemStyle: {
             borderRadius: 4,
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: '#67e8f9' },
-                { offset: 1, color: '#0891b2' },
-              ],
-            },
+            color: primary,
           },
         },
       ],
@@ -116,17 +101,7 @@ function buildOption(type: string, refreshKey = 0, filter = '全部') {
         data: chartData.stageAmount.values.map(jitter),
         itemStyle: {
           borderRadius: 4,
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: '#a5b4fc' },
-              { offset: 1, color: '#4338ca' },
-            ],
-          },
+            color: primary,
         },
       },
     ],
@@ -159,7 +134,7 @@ function ChartCard({
     }
     body = (
       <div className="flex h-full flex-col items-center justify-center">
-        <div className="bg-gradient-to-br from-primary to-cyan-500 bg-clip-text text-4xl font-light text-transparent">
+        <div className="text-4xl font-light text-primary">
           {(values[chart.id] ?? 0) + (refreshKey % 5) + filter.length}
         </div>
         <div className="mt-2 text-sm text-muted-foreground">{labels[chart.id] ?? '指标'}</div>
@@ -266,7 +241,7 @@ export default function DashboardHome() {
         margin: 5,
         animate: true,
         auto: true,
-        float: true,
+        float: false,
         handle: '.chart-title',
         disableDrag: !editable,
         disableResize: !editable,
@@ -276,7 +251,10 @@ export default function DashboardHome() {
     )
 
     if (!initialized) return
-    const handleResizeStop = () => setRefreshKey((key) => key + 1)
+    const handleResizeStop = () => {
+      initialized.compact()
+      setRefreshKey((key) => key + 1)
+    }
     initialized.on('resizestop', handleResizeStop)
 
     const resizeObserver = new ResizeObserver(() => {

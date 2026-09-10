@@ -5,21 +5,34 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RbLoading } from '@/components/rb/RbLoading'
 import { fileTree, type FileNode } from '@/data/mock'
 import { cn } from '@/lib/utils'
+import {
+  ChevronDown,
+  ChevronRight,
+  File,
+  FileText,
+  Folder,
+  Image,
+  Presentation,
+  Search,
+  Share,
+  Upload,
+  type LucideIcon,
+} from 'lucide-react'
 
-function fileIconCls(name: string, type: 'folder' | 'file') {
-  if (type === 'folder') return 'zmdi-folder text-[#fbbc05] text-[34px]'
+function fileIconMeta(name: string, type: 'folder' | 'file') {
+  if (type === 'folder') return { icon: Folder, className: 'text-[#fbbc05]' }
   const ext = name.split('.').pop()?.toLowerCase()
-  const map: Record<string, string> = {
-    pdf: 'zmdi-file-text text-[#ea4335]',
-    docx: 'zmdi-file-text text-primary',
-    doc: 'zmdi-file-text text-primary',
-    xlsx: 'zmdi-file text-[#34a853]',
-    xls: 'zmdi-file text-[#34a853]',
-    pptx: 'zmdi-collection-text text-[#ff6d00]',
-    png: 'zmdi-image text-[#9575cd]',
-    jpg: 'zmdi-image text-[#9575cd]',
+  const map: Record<string, { icon: LucideIcon; className: string }> = {
+    pdf: { icon: FileText, className: 'text-[#ea4335]' },
+    docx: { icon: FileText, className: 'text-primary' },
+    doc: { icon: FileText, className: 'text-primary' },
+    xlsx: { icon: File, className: 'text-[#34a853]' },
+    xls: { icon: File, className: 'text-[#34a853]' },
+    pptx: { icon: Presentation, className: 'text-[#ff6d00]' },
+    png: { icon: Image, className: 'text-[#9575cd]' },
+    jpg: { icon: Image, className: 'text-[#9575cd]' },
   }
-  return `${map[ext ?? ''] ?? 'zmdi-file text-[#8a8a8a]'} text-[30px]`
+  return map[ext ?? ''] ?? { icon: File, className: 'text-[#8a8a8a]' }
 }
 
 /** 文件管理（复刻 files/docs.html：左侧目录树 + 文件面包屑/操作/网格视图） */
@@ -64,7 +77,7 @@ export default function FilesDocs() {
               </ul>
               <div className="rb-scroller max-h-[calc(100vh-150px)] overflow-y-auto py-2 text-[13px]">
                 <div className="cursor-pointer rounded-md px-2 py-1.5 hover:bg-accent">
-                  <i className="zmdi zmdi-folder mr-1.5 text-[#fbbc05]" />全部文件
+                  <Folder className="mr-1.5 h-4 w-4 text-[#fbbc05]" />全部文件
                 </div>
                 {(fileTree[''] ?? []).filter((n) => n.type === 'folder').map((f) => (
                   <div key={f.id} className="pl-1">
@@ -72,14 +85,14 @@ export default function FilesDocs() {
                       className={cn('cursor-pointer rounded-md px-2 py-1.5 hover:bg-accent', current === f.id && 'bg-accent text-accent-foreground')}
                       onClick={() => setCurrent(f.id)}
                     >
-                      <i className="zmdi zmdi-folder mr-1.5 text-[#fbbc05]" />
+                      <Folder className="mr-1.5 h-4 w-4 text-[#fbbc05]" />
                       {f.name}
                       <span className="ml-1 text-xs text-[#bbb]">{f.fileCount}</span>
                     </div>
                     {/* 二级 */}
                     {(fileTree[f.id] ?? []).filter((n) => n.type === 'folder').map((s) => (
                       <div key={s.id} className="cursor-pointer rounded-md py-1.5 pl-7 pr-2 hover:bg-accent">
-                        <i className="zmdi zmdi-folder mr-1.5 text-[#fbbc05]" />{s.name}
+                        <Folder className="mr-1.5 h-4 w-4 text-[#fbbc05]" />{s.name}
                         <span className="ml-1 text-xs text-[#bbb]">{s.fileCount}</span>
                       </div>
                     ))}
@@ -98,7 +111,7 @@ export default function FilesDocs() {
               <ol className="m-0 flex list-none items-center gap-1 bg-transparent text-sm text-muted-foreground">
                 {breadcrumb.map((b, i) => (
                   <li key={b.id} className="flex items-center gap-1">
-                    {i > 0 && <i className="zmdi zmdi-chevron-right text-[14px] text-[#ccc]" />}
+                    {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-[#ccc]" />}
                     <a className={cn(i === breadcrumb.length - 1 ? 'text-foreground' : 'cursor-pointer hover:text-primary')} onClick={() => i < breadcrumb.length - 1 && setCurrent(b.id)}>
                       {b.name}
                     </a>
@@ -117,17 +130,17 @@ export default function FilesDocs() {
                     placeholder="搜索"
                   />
                   <Button variant="secondary" className="rounded-l-none border-l border-[#d5d5d5]">
-                    <i className="icon zmdi zmdi-search" />
+                    <Search className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button><i className="icon zmdi zmdi-upload text-[16px]" /> 上传文件</Button>
+                <Button><Upload className="h-4 w-4" /> 上传文件</Button>
                 <Button variant="secondary" className="!px-2">
-                  <i className="icon zmdi zmdi-chevron-down text-[16px]" />
+                  <ChevronDown className="h-4 w-4" />
                 </Button>
-                <Button variant="secondary">默认排序 <i className="icon zmdi zmdi-chevron-down text-[16px]" /></Button>
-                <Button variant="secondary"><i className="icon zmdi zmdi-share text-[15px]" /> 分享列表</Button>
+                <Button variant="secondary">默认排序 <ChevronDown className="h-4 w-4" /></Button>
+                <Button variant="secondary"><Share className="h-4 w-4" /> 分享列表</Button>
               </div>
             </div>
           </div>
@@ -149,7 +162,10 @@ export default function FilesDocs() {
                       )}
                       onClick={() => setCurrent(f.id)}
                     >
-                      <i className={cn('zmdi text-[34px]', fileIconCls(f.name, 'folder'))} />
+                      {(() => {
+                        const icon = fileIconMeta(f.name, 'folder')
+                        return <icon.icon className={cn('h-8 w-8', icon.className)} />
+                      })()}
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">{f.name}</div>
                         <div className="text-xs text-muted-foreground">{f.fileCount} 个文件</div>
@@ -169,7 +185,10 @@ export default function FilesDocs() {
                       )}
                       onClick={() => setSelected((s) => (s.includes(f.id) ? s.filter((x) => x !== f.id) : [...s, f.id]))}
                     >
-                      <i className={cn('zmdi', fileIconCls(f.name, 'file'))} />
+                      {(() => {
+                        const icon = fileIconMeta(f.name, 'file')
+                        return <icon.icon className={cn('h-8 w-8', icon.className)} />
+                      })()}
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">{f.name}</div>
                         <div className="text-xs text-muted-foreground">{f.size} · {f.modifiedOn.slice(0, 10)}</div>

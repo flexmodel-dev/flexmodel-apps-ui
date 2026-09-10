@@ -4,6 +4,16 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { feeds } from '@/data/mock'
 import { cn } from '@/lib/utils'
+import {
+  ChevronDown,
+  ChevronRight,
+  Image,
+  MessageSquare,
+  Paperclip,
+  Smile,
+  ThumbsUp,
+  UserPlus,
+} from 'lucide-react'
 
 /** 动态页（复刻 feeds/home.html：左侧动态流 + 右侧搜索/类型/团队折叠面板） */
 export default function FeedsHome() {
@@ -23,7 +33,7 @@ export default function FeedsHome() {
         className="flex w-full items-center gap-1 px-3 py-2 text-[13px] text-[#555] dark:text-[#ccc]"
         onClick={() => togglePanel(id)}
       >
-        <i className={cn('zmdi text-[15px] transition-transform', openPanel.includes(id) ? 'zmdi-chevron-down' : 'zmdi-chevron-right')} />
+        {openPanel.includes(id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         {title}
       </button>
       {openPanel.includes(id) && <div className="card-body px-3 pb-3">{children}</div>}
@@ -48,10 +58,10 @@ export default function FeedsHome() {
                   />
                   <div className="mt-2 flex items-center justify-between">
                     <div className="flex gap-3 text-muted-foreground">
-                      <a className="cursor-pointer hover:text-primary" title="附件"><i className="zmdi zmdi-attachment-alt" /></a>
-                      <a className="cursor-pointer hover:text-primary" title="表情"><i className="zmdi zmdi-mood" /></a>
-                      <a className="cursor-pointer hover:text-primary" title="图片"><i className="zmdi zmdi-image" /></a>
-                      <a className="cursor-pointer hover:text-primary" title="提及"><i className="zmdi zmdi-account-add" /></a>
+                      <a className="cursor-pointer hover:text-primary" title="附件"><Paperclip className="h-4 w-4" /></a>
+                      <a className="cursor-pointer hover:text-primary" title="表情"><Smile className="h-4 w-4" /></a>
+                      <a className="cursor-pointer hover:text-primary" title="图片"><Image className="h-4 w-4" /></a>
+                      <a className="cursor-pointer hover:text-primary" title="提及"><UserPlus className="h-4 w-4" /></a>
                     </div>
                     <Button size="sm">发布</Button>
                   </div>
@@ -75,12 +85,12 @@ export default function FeedsHome() {
                     </div>
                     <div className="mt-1.5 text-[13px] leading-relaxed text-[#444] dark:text-[#ccc]" dangerouslySetInnerHTML={{ __html: f.contentHtml }} />
                     <div className="mt-2.5 flex gap-4 border-t pt-2 text-xs text-muted-foreground">
-                      <a className="cursor-pointer hover:text-primary"><i className="zmdi zmdi-favorite-outline mr-1" />赞 {f.likes}</a>
+                      <a className="flex cursor-pointer items-center gap-1 hover:text-primary"><ThumbsUp className="h-3.5 w-3.5" />赞 {f.likes}</a>
                       <a
                         className="cursor-pointer hover:text-primary"
                         onClick={() => setCommentOpen((o) => (o.includes(f.id) ? o.filter((x) => x !== f.id) : [...o, f.id]))}
                       >
-                        <i className="zmdi zmdi-comment-outline mr-1" />评论 {f.comments.length}
+                        <MessageSquare className="h-3.5 w-3.5" />评论 {f.comments.length}
                       </a>
                     </div>
                     {commentOpen.includes(f.id) && (

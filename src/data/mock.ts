@@ -1,3 +1,17 @@
+import {
+  BookUser,
+  ClipboardCheck,
+  Folder,
+  Home,
+  PieChart,
+  Shapes,
+  ShoppingCart,
+  Tags,
+  TrendingUp,
+  User,
+  type LucideIcon,
+} from 'lucide-react'
+
 /**
  * 假数据层
  * 模拟业务实体（客户/商机/...）、记录、用户、部门等
@@ -24,7 +38,8 @@ export interface EntityField {
 export interface EntityMeta {
   name: string
   label: string
-  icon: string
+  icon: LucideIcon
+  nameField: string
   detail?: { name: string; label: string; icon: string }[]
   fields: EntityField[]
   description?: string
@@ -79,7 +94,8 @@ export const entities: EntityMeta[] = [
   {
     name: 'Customer',
     label: '客户',
-    icon: 'account',
+    icon: User,
+    nameField: 'customerName',
     description: '客户信息管理',
     badge: 'CRM',
     fields: [
@@ -103,7 +119,8 @@ export const entities: EntityMeta[] = [
   {
     name: 'Opportunity',
     label: '商机',
-    icon: 'money',
+    icon: TrendingUp,
+    nameField: 'opportunityName',
     description: '销售机会管理',
     badge: 'CRM',
     fields: [
@@ -128,7 +145,8 @@ export const entities: EntityMeta[] = [
   {
     name: 'Product',
     label: '产品',
-    icon: 'shopping-cart',
+    icon: ShoppingCart,
+    nameField: 'productName',
     description: '产品信息管理',
     badge: 'CRM',
     fields: [
@@ -219,6 +237,43 @@ const recordSets: Record<string, RbRecord[]> = {
 
 export function getRecords(entity: string): RbRecord[] {
   return recordSets[entity] ?? []
+}
+
+export function getRecord(entity: string, id: string): RbRecord | undefined {
+  return getRecords(entity).find((record) => record.id === id)
+}
+
+export function createRecord(entity: string, values: Record<string, unknown>): RbRecord | undefined {
+  const meta = getEntity(entity)
+  const records = getRecords(entity)
+  if (!meta) return undefined
+
+  const now = new Date()
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const record: RbRecord = {
+    id: `${entity.slice(0, 3).toUpperCase()}-${records.length + 1001}`,
+    ...values,
+    createdOn: stamp,
+    modifiedOn: stamp,
+  }
+  records.unshift(record)
+  return record
+}
+
+export function updateRecord(entity: string, id: string, values: Record<string, unknown>): RbRecord | undefined {
+  const records = getRecords(entity)
+  const index = records.findIndex((record) => record.id === id)
+  if (index < 0) return undefined
+
+  const now = new Date()
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const updated: RbRecord = {
+    ...records[index],
+    ...values,
+    modifiedOn: stamp,
+  }
+  records[index] = updated
+  return updated
 }
 
 /* ---------------- 审批 ---------------- */
@@ -384,8 +439,8 @@ export interface ProjectTask {
 }
 
 export const projects = [
-  { id: '040-001', code: 'PRJ', name: 'v4.5 发布', icon: 'shape', scope: 1, status: 1, progress: 62, plans: 2 },
-  { id: '040-002', code: 'OPS', name: '华辰科技 ERP 实施', icon: 'city-alt', scope: 2, status: 1, progress: 35, plans: 3 },
+  { id: '040-001', code: 'PRJ', name: 'v4.5 发布', icon: Shapes, scope: 1, status: 1, progress: 62, plans: 2 },
+  { id: '040-002', code: 'OPS', name: '华辰科技 ERP 实施', icon: Shapes, scope: 2, status: 1, progress: 35, plans: 3 },
 ]
 
 export const projectPlans: ProjectPlan[] = [
@@ -471,27 +526,27 @@ export const chartData = {
 
 export interface NavItem {
   id: string
-  icon: string
+  icon?: LucideIcon
   text: string
   to?: string
   sub?: NavItem[]
 }
 
 export const userNavs: NavItem[] = [
-  { id: 'dashboard-home', icon: 'zmdi zmdi-home', text: '首页', to: '/dashboard/home' },
-  { id: 'nav_entity-Customer', icon: 'zmdi zmdi-account', text: '客户', to: '/app/Customer/list' },
-  { id: 'nav_entity-Opportunity', icon: 'zmdi zmdi-money', text: '商机', to: '/app/Opportunity/list' },
-  { id: 'nav_entity-Product', icon: 'zmdi zmdi-shopping-cart', text: '产品', to: '/app/Product/list' },
-  { id: 'divider-1', icon: '', text: '常用', to: '' },
-  { id: 'nav_entity--FEEDS', icon: 'zmdi zmdi-chart-donut', text: '动态', to: '/feeds/home' },
-  { id: 'nav_entity--ATTACHMENT', icon: 'zmdi zmdi-folder', text: '文件', to: '/files/home' },
-  { id: 'nav_entity--CONTACTS', icon: 'zmdi zmdi-account-box-phone', text: '通讯录', to: '/contacts/home' },
-  { id: 'nav_entity--APPROVAL', icon: 'mdi mdi-progress-check', text: '审批中心', to: '/approval/home' },
+  { id: 'dashboard-home', icon: Home, text: '首页', to: '/dashboard/home' },
+  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/Customer/list' },
+  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/Opportunity/list' },
+  { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/Product/list' },
+  { id: 'divider-1', text: '常用', to: '' },
+  { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
+  { id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home' },
+  { id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home' },
+  { id: 'nav_entity--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home' },
   {
     id: 'nav_entity--PROJECT',
-    icon: 'zmdi zmdi-shape',
+    icon: Shapes,
     text: '项目',
-    sub: projects.map((p) => ({ id: `nav_project-${p.id}`, icon: 'zmdi zmdi-label', text: p.name, to: `/project/${p.id}/tasks` })),
+    sub: projects.map((p) => ({ id: `nav_project-${p.id}`, icon: Tags, text: p.name, to: `/project/${p.id}/tasks` })),
   },
 ]
 
@@ -504,22 +559,22 @@ export interface TopNavItem {
 }
 
 const customerNavs: NavItem[] = [
-  { id: 'nav_entity-Customer', icon: 'zmdi zmdi-account', text: '客户', to: '/app/Customer/list' },
-  { id: 'nav_entity-Opportunity', icon: 'zmdi zmdi-money', text: '商机', to: '/app/Opportunity/list' },
-  { id: 'nav_entity--CONTACTS', icon: 'zmdi zmdi-account-box-phone', text: '通讯录', to: '/contacts/home' },
-  { id: 'divider-customer', icon: '', text: '协作' },
-  { id: 'nav_entity--FEEDS', icon: 'zmdi zmdi-chart-donut', text: '动态', to: '/feeds/home' },
-  { id: 'nav_entity--ATTACHMENT', icon: 'zmdi zmdi-folder', text: '文件', to: '/files/home' },
-  { id: 'nav_entity--APPROVAL', icon: 'mdi mdi-progress-check', text: '审批中心', to: '/approval/home' },
+  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/Customer/list' },
+  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/Opportunity/list' },
+  { id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home' },
+  { id: 'divider-customer', text: '协作' },
+  { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
+  { id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home' },
+  { id: 'nav_entity--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home' },
 ]
 
 const salesNavs: NavItem[] = [
-  { id: 'nav_entity-Opportunity', icon: 'zmdi zmdi-money', text: '商机', to: '/app/Opportunity/list' },
-  { id: 'nav_entity-Product', icon: 'zmdi zmdi-shopping-cart', text: '产品', to: '/app/Product/list' },
-  { id: 'nav_entity-Customer', icon: 'zmdi zmdi-account', text: '客户', to: '/app/Customer/list' },
-  { id: 'divider-sales', icon: '', text: '跟进' },
-  { id: 'nav_entity--FEEDS', icon: 'zmdi zmdi-chart-donut', text: '动态', to: '/feeds/home' },
-  { id: 'nav_entity--ATTACHMENT', icon: 'zmdi zmdi-folder', text: '文件', to: '/files/home' },
+  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/Opportunity/list' },
+  { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/Product/list' },
+  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/Customer/list' },
+  { id: 'divider-sales', text: '跟进' },
+  { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
+  { id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home' },
 ]
 
 export const topNavs: TopNavItem[] = [

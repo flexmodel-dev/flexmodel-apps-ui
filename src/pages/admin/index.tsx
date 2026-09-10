@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { entities, users, departments, teams, projects, loginLogs, recycleBin } from '@/data/mock'
 import { cn } from '@/lib/utils'
+import { CirclePlus } from 'lucide-react'
 
 /** 通用配置 */
 export function AdminSystems() {
@@ -51,7 +52,7 @@ export function AdminEntities() {
               <Link key={e.name} to={`/app/${e.name}/list`} className="block rounded-md border bg-card transition-colors hover:bg-accent">
                 <div className="card-body p-3">
                   <div className="float-left w-[30px] text-center">
-                    <i className={cn('icon zmdi', `zmdi-${e.icon}`, 'text-[30px] text-primary')} />
+                    <e.icon className="h-7 w-7 text-primary" />
                   </div>
                   <div className="ml-7">
                     <span className="block truncate text-sm font-medium">{e.label}</span>
@@ -65,7 +66,7 @@ export function AdminEntities() {
             ))}
             <a className="block cursor-pointer rounded-md border border-dashed border-input transition-colors hover:border-primary">
               <div className="card-body p-3 pt-1 text-center">
-                <i className="icon zmdi zmdi-plus-circle text-[26px] text-primary" />
+                <CirclePlus className="h-6 w-6 text-primary" />
                 <span className="mt-1 block text-xs text-muted-foreground">新建实体</span>
               </div>
             </a>
@@ -101,11 +102,11 @@ export function AdminUsers() {
       ]}
       rowActions={() => (
         <div className="flex gap-1.5">
-          <Button variant="secondary" size="sm" className="!h-[24px] !px-2">编辑</Button>
-          <Button variant="secondary" size="sm" className="!h-[24px] !px-2">分配角色</Button>
+          <Button variant="secondary" size="sm" className="!h-8 !px-3">编辑</Button>
+          <Button variant="secondary" size="sm" className="!h-8 !px-3">分配角色</Button>
         </div>
       )}
-      toolbar={<Button><i className="icon zmdi zmdi-plus text-[16px]" /> 新建用户</Button>}
+      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建用户</Button>}
     />
   )
 }
@@ -129,8 +130,8 @@ export function AdminRoles() {
         { key: 'users', label: '用户数', render: (r) => <span className="badge-primary">{r.users}</span> },
         { key: 'modifiedOn', label: '修改时间' },
       ]}
-      rowActions={() => <Button variant="secondary" size="sm" className="!h-[24px] !px-2">配置权限</Button>}
-      toolbar={<Button><i className="icon zmdi zmdi-plus text-[16px]" /> 新建角色</Button>}
+      rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">配置权限</Button>}
+      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建角色</Button>}
     />
   )
 }
@@ -148,8 +149,8 @@ export function AdminTeams() {
         { key: 'members', label: '成员数', render: (t) => <span className="badge-primary">{t.members}</span> },
         { key: 'modifiedOn', label: '修改时间' },
       ]}
-      rowActions={() => <Button variant="secondary" size="sm" className="!h-[24px] !px-2">查看成员</Button>}
-      toolbar={<Button><i className="icon zmdi zmdi-plus text-[16px]" /> 新建团队</Button>}
+      rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">查看成员</Button>}
+      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建团队</Button>}
     />
   )
 }
@@ -176,8 +177,8 @@ export function AdminApprovals() {
         ) },
         { key: 'modifiedOn', label: '修改时间' },
       ]}
-      rowActions={() => <Button variant="secondary" size="sm" className="!h-[24px] !px-2">设计流程</Button>}
-      toolbar={<Button><i className="icon zmdi zmdi-plus text-[16px]" /> 新建流程</Button>}
+      rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">设计流程</Button>}
+      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建流程</Button>}
     />
   )
 }
@@ -204,8 +205,8 @@ export function AdminTriggers() {
         ) },
         { key: 'modifiedOn', label: '修改时间' },
       ]}
-      rowActions={() => <Button variant="secondary" size="sm" className="!h-[24px] !px-2">编辑</Button>}
-      toolbar={<Button><i className="icon zmdi zmdi-plus text-[16px]" /> 新建触发器</Button>}
+      rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">编辑</Button>}
+      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建触发器</Button>}
     />
   )
 }
@@ -227,8 +228,8 @@ export function AdminProjects() {
         ) },
         { key: 'progress', label: '完成度' },
       ]}
-      rowActions={() => <Button variant="secondary" size="sm" className="!h-[24px] !px-2">配置</Button>}
-      toolbar={<Button><i className="icon zmdi zmdi-plus text-[16px]" /> 新建项目</Button>}
+      rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">配置</Button>}
+      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建项目</Button>}
     />
   )
 }
@@ -275,8 +276,8 @@ export function AdminRecycleBin() {
       ]}
       rowActions={() => (
         <div className="flex gap-1.5">
-          <Button size="sm" className="!h-[24px] !px-2">恢复</Button>
-          <Button variant="secondary" size="sm" className="!h-[24px] !px-2">彻底删除</Button>
+          <Button size="sm" className="!h-8 !px-3">恢复</Button>
+          <Button variant="secondary" size="sm" className="!h-8 !px-3">彻底删除</Button>
         </div>
       )}
     />

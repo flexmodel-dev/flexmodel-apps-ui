@@ -6,6 +6,7 @@ import { UserAvatar } from '@/components/ui/avatar'
 import { RbLoading } from '@/components/rb/RbLoading'
 import { approvals } from '@/data/mock'
 import { cn } from '@/lib/utils'
+import { CheckCheck, ChevronDown } from 'lucide-react'
 
 const TABS = [
   { type: 1, text: '待处理', count: 5 },
@@ -91,10 +92,10 @@ export default function ApprovalHome() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button disabled={!selected.length}>
-                    <i className="icon mdi mdi-check-all text-[16px]" /> 审批
+                    <CheckCheck className="h-4 w-4" /> 审批
                   </Button>
                   <Button variant="secondary">
-                    默认排序 <i className="icon zmdi zmdi-chevron-down text-[16px]" />
+                    默认排序 <ChevronDown className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -106,7 +107,7 @@ export default function ApprovalHome() {
             {loading ? (
               <RbLoading center />
             ) : (
-              <div className="overflow-x-auto">
+              <div className="rb-table-scroll overflow-x-auto">
                 <table className="rb-table w-full min-w-[760px]">
                   <thead>
                     <tr>
@@ -145,9 +146,9 @@ export default function ApprovalHome() {
                         <td>{statusBadge(a.status)}</td>
                         <td>
                           {a.status === '待审批' ? (
-                            <Button size="sm" className="!h-[24px] !px-2">审批</Button>
+                            <Button size="sm" className="!h-8 !px-3">审批</Button>
                           ) : (
-                            <Button size="sm" variant="secondary" className="!h-[24px] !px-2">查看</Button>
+                            <Button size="sm" variant="secondary" className="!h-8 !px-3">查看</Button>
                           )}
                         </td>
                       </tr>

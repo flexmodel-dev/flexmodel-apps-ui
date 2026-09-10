@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { contactsList } from '@/data/mock'
+import { Plus } from 'lucide-react'
 
 /** 通讯录 */
 export default function ContactsHome() {
@@ -21,10 +22,10 @@ export default function ContactsHome() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
-            <Button><i className="icon zmdi zmdi-plus text-[16px]" /> 新建联系人</Button>
+            <Button><Plus className="h-4 w-4" /> 新建联系人</Button>
           </div>
         </div>
-        <div className="overflow-x-auto p-4">
+        <div className="rb-table-scroll overflow-x-auto p-4">
           <table className="rb-table w-full min-w-[700px]">
             <thead>
               <tr>
@@ -50,7 +51,7 @@ export default function ContactsHome() {
                     </span>
                   </td>
                   <td>
-                    <Button variant="secondary" size="sm" className="!h-[24px] !px-2">查看</Button>
+                    <Button variant="secondary" size="sm" className="!h-8 !px-3">查看</Button>
                   </td>
                 </tr>
               ))}

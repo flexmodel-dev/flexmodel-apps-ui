@@ -48,6 +48,62 @@
     --ring: 243 75% 66%;
   }
 
+  :root[data-primary='blue'] {
+    --primary: 217 91% 60%;
+    --ring: 217 91% 60%;
+    --secondary-foreground: 217 91% 60%;
+    --accent-foreground: 217 91% 46%;
+  }
+
+  .dark[data-primary='blue'] {
+    --primary: 217 91% 70%;
+    --ring: 217 91% 70%;
+    --secondary-foreground: 217 91% 70%;
+    --accent-foreground: 217 91% 70%;
+  }
+
+  :root[data-primary='green'] {
+    --primary: 160 84% 39%;
+    --ring: 160 84% 39%;
+    --secondary-foreground: 160 84% 39%;
+    --accent-foreground: 160 84% 32%;
+  }
+
+  .dark[data-primary='green'] {
+    --primary: 160 84% 60%;
+    --ring: 160 84% 60%;
+    --secondary-foreground: 160 84% 60%;
+    --accent-foreground: 160 84% 60%;
+  }
+
+  :root[data-primary='amber'] {
+    --primary: 38 92% 50%;
+    --ring: 38 92% 50%;
+    --secondary-foreground: 38 92% 50%;
+    --accent-foreground: 38 92% 40%;
+  }
+
+  .dark[data-primary='amber'] {
+    --primary: 38 92% 65%;
+    --ring: 38 92% 65%;
+    --secondary-foreground: 38 92% 65%;
+    --accent-foreground: 38 92% 65%;
+  }
+
+  :root[data-primary='rose'] {
+    --primary: 350 89% 60%;
+    --ring: 350 89% 60%;
+    --secondary-foreground: 350 89% 60%;
+    --accent-foreground: 350 89% 46%;
+  }
+
+  .dark[data-primary='rose'] {
+    --primary: 350 89% 70%;
+    --ring: 350 89% 70%;
+    --secondary-foreground: 350 89% 70%;
+    --accent-foreground: 350 89% 70%;
+  }
+
   * {
     @apply border-border;
   }
@@ -55,16 +111,13 @@
   html,
   body,
   #root {
-    min-height: 100%;
+    height: 100%;
+    overflow: hidden;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
-    background-image:
-      radial-gradient(circle at 10% 0%, rgba(99, 102, 241, 0.22), transparent 38%),
-      radial-gradient(circle at 92% 6%, rgba(6, 182, 212, 0.16), transparent 32%),
-      linear-gradient(180deg, hsl(var(--background)), hsl(222 46% 96%));
   }
 }
 
@@ -74,19 +127,31 @@
   }
 
   .rb-table {
-    @apply w-full border-collapse text-sm;
+    @apply w-full border-collapse text-sm leading-6;
   }
 
   .rb-table thead th {
-    @apply bg-primary/5 px-3 py-2 text-left font-medium text-foreground/80;
+    @apply h-12 bg-card px-4 py-3 text-left font-medium text-foreground/80;
   }
 
   .rb-table tbody td {
-    @apply border-b border-border px-3 py-2;
+    @apply border-b border-border px-4 py-3.5;
   }
 
   .rb-table tbody tr:hover td {
     @apply bg-primary/5;
+  }
+
+  .rb-table-scroll {
+    position: relative;
+    max-height: 70vh;
+    overflow: auto;
+  }
+
+  .rb-table-scroll .rb-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
 
   .badge-primary {
@@ -94,7 +159,7 @@
   }
 
   .badge-secondary {
-    @apply inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary ring-1 ring-inset ring-primary/20;
+    @apply inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary;
   }
 
   .view-form dl {
@@ -110,15 +175,6 @@
   }
 
   .rb-card {
-    @apply overflow-hidden rounded-xl border border-border/70 bg-card/90 shadow-sm ring-1 ring-white/50 backdrop-blur-sm;
-  }
-
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-primary/20;
+    @apply overflow-hidden rounded-xl border bg-card shadow-sm;
   }
 }

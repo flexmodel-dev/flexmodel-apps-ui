@@ -31,7 +31,7 @@ export function AdminTablePage<T extends { id: string }>({
   rowActions?: (row: T) => React.ReactNode
 }) {
   const [page, setPage] = React.useState(1)
-  const [size, setSize] = React.useState(10)
+  const [size, setSize] = React.useState(30)
   const [q, setQ] = React.useState('')
   const filtered = rows.filter((r) => Object.values(r).some((v) => String(v ?? '').includes(q)))
   const { rows: pageRows, pages, total } = paginate(filtered, page, size)
@@ -57,7 +57,7 @@ export function AdminTablePage<T extends { id: string }>({
             {toolbar}
           </div>
         </div>
-        <div className="overflow-x-auto p-4">
+        <div className="rb-table-scroll overflow-x-auto p-4">
           <table className="rb-table w-full min-w-[760px]">
             <thead>
               <tr>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { notifications } from '@/data/mock'
 import { cn } from '@/lib/utils'
+import { AlarmCheck, Bell, CheckCheck } from 'lucide-react'
 
 const TYPE_TABS = [
   { t: 1, label: '未读通知' },
@@ -34,16 +35,16 @@ export default function Notifications() {
               to="/notifications"
               className="-mb-px inline-flex items-center gap-1.5 border-b-2 border-primary px-3 py-2.5 text-sm"
             >
-              <span className="icon zmdi zmdi-notifications text-[16px]" /> 通知
+              <Bell className="h-4 w-4" /> 通知
             </Link>
             <Link
               to="/notifications/todo"
               className="-mb-px inline-flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground"
             >
-              <span className="icon zmdi zmdi-alarm-check text-[16px]" /> 待办
+              <AlarmCheck className="h-4 w-4" /> 待办
             </Link>
             <Button variant="secondary" size="sm" className="absolute right-0 top-1.5" onClick={() => setReadAll(true)}>
-              <i className="icon mdi mdi-broom text-[15px]" /> 已读全部
+              <CheckCheck className="h-4 w-4" /> 已读全部
             </Button>
           </div>
 

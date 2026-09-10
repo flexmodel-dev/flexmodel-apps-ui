@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RbDialog } from '@/components/ui/dialog'
+import { Globe, Smartphone } from 'lucide-react'
 
 /** 用户登录页（复刻 signup/login.html） */
 export default function Login() {
@@ -112,7 +113,7 @@ export default function Login() {
                     onClick={() => setShowMobile(true)}
                   >
                     <span className="flex h-[25px] w-[25px] items-center justify-center rounded-full bg-[#fc9a00] text-white">
-                      <i className="icon zmdi zmdi-smartphone-iphone text-[14px]" />
+                      <Smartphone className="h-4 w-4" />
                     </span>
                     <span className="mt-[3px]">手机版</span>
                   </button>
@@ -122,7 +123,7 @@ export default function Login() {
                       className="flex items-center gap-1 text-[13px] text-[#404040]"
                       onClick={() => setLangOpen((o) => !o)}
                     >
-                      <i className="icon zmdi zmdi-globe-alt text-[15px]" />
+                      <Globe className="h-4 w-4" />
                       <span>中文</span>
                     </button>
                     {langOpen && (
@@ -149,7 +150,7 @@ export default function Login() {
       <RbDialog open={showMobile} onOpenChange={setShowMobile} title="手机版" width={320}>
         <div className="flex flex-col items-center gap-3 py-2">
           <div className="flex h-[180px] w-[180px] items-center justify-center rounded border bg-muted text-muted-foreground">
-            <i className="zmdi zmdi-smartphone-iphone text-[64px]" />
+            <Smartphone className="h-14 w-14" />
           </div>
           <div className="text-sm text-muted-foreground">使用手机浏览器扫描二维码访问</div>
         </div>

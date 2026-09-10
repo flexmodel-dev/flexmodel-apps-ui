@@ -1,12 +1,29 @@
 import * as React from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AppLayout } from '@/components/layout/AppLayout'
+import { useNavigate, useParams } from 'react-router-dom'
+import {
+  AlertCircle,
+  Edit,
+  FileSpreadsheet,
+  ListPlus,
+  MessageSquare,
+  MoreVertical,
+  Paperclip,
+  Plus,
+  Printer,
+  ReplyAll,
+  Share,
+  Smile,
+  ThumbsUp,
+  Trash2,
+  UserPlus,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RbDialog } from '@/components/ui/dialog'
 import { getEntity, getRecords, feeds } from '@/data/mock'
 import { cn } from '@/lib/utils'
+import { RecordFormModal } from '@/components/rb/RecordFormModal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,16 +32,37 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-/** 记录详情页（复刻 general/record-view.html：左侧详情 + 右侧操作/用户/日期/动态） */
-export default function RecordView() {
-  const { entity, id } = useParams<{ entity: string; id: string }>()
-  const navigate = useNavigate()
-  const meta = getEntity(entity ?? 'Customer')
-  const record = React.useMemo(() => getRecords(entity ?? 'Customer').find((r) => r.id === id), [entity, id])
+function SectionLine({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-4 mt-6">
+      <div className="text-sm text-muted-foreground">{children}</div>
+      <div className="mt-1 h-px bg-border" />
+    </div>
+  )
+}
+
+/** 记录详情内容（供独立详情页和列表 Drawer 复用） */
+export function RecordDetailContent({
+  entity,
+  id,
+  onDeleted,
+}: {
+  entity: string
+  id: string
+  onDeleted?: () => void
+}) {
+  const meta = getEntity(entity)
   const [showDelete, setShowDelete] = React.useState(false)
+  const [editOpen, setEditOpen] = React.useState(false)
+  const [refreshTick, setRefreshTick] = React.useState(0)
   const [feedText, setFeedText] = React.useState('')
 
-  if (!meta) return <AppLayout>未知实体</AppLayout>
+  const record = React.useMemo(
+    () => getRecords(entity).find((r) => r.id === id),
+    [entity, id, refreshTick],
+  )
+
+  if (!meta) return <div className="p-4 text-sm text-muted-foreground">未知实体</div>
 
   const owningUser = String(record?.owningUser ?? '超级管理员')
 
@@ -63,17 +101,18 @@ export default function RecordView() {
     return String(v)
   }
 
+  const recordName = record ? String(record[meta.nameField] ?? id) : id
+
   return (
-    <AppLayout>
+    <div>
       {/* 详情页签 */}
-      <div className="tab-container">
-        <Tabs defaultValue="detail">
+        <div className="tab-container">
+          <Tabs defaultValue="detail">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <i className={cn('icon zmdi text-[26px] text-primary', `zmdi-${meta.icon}`)} />
-              <h3 className="m-0 text-2xl font-normal">
-                {meta.label}详情
-                <span className="ml-2 text-sm font-normal text-muted-foreground">{record ? (record[meta.fields[1].name] as string) : id}</span>
+              <meta.icon className="h-6 w-6 text-primary" />
+              <h3 className="m-0 truncate text-2xl font-normal">
+                {recordName}
               </h3>
             </div>
           </div>
@@ -119,9 +158,9 @@ export default function RecordView() {
                       />
                       <div className="mt-2 flex items-center justify-between">
                         <div className="flex gap-2 text-muted-foreground">
-                          <a className="cursor-pointer hover:text-primary" title="附件"><i className="zmdi zmdi-attachment-alt" /></a>
-                          <a className="cursor-pointer hover:text-primary" title="表情"><i className="zmdi zmdi-mood" /></a>
-                          <a className="cursor-pointer hover:text-primary" title="提及"><i className="zmdi zmdi-account-add" /></a>
+                          <a className="cursor-pointer hover:text-primary" title="附件"><Paperclip className="h-4 w-4" /></a>
+                          <a className="cursor-pointer hover:text-primary" title="表情"><Smile className="h-4 w-4" /></a>
+                          <a className="cursor-pointer hover:text-primary" title="提及"><UserPlus className="h-4 w-4" /></a>
                         </div>
                         <Button size="sm" className="!h-[28px]" disabled={!feedText.trim()}>发布</Button>
                       </div>
@@ -139,8 +178,8 @@ export default function RecordView() {
                           </div>
                           <div className="mt-1 text-[13px] leading-relaxed text-[#555] dark:text-[#bbb]" dangerouslySetInnerHTML={{ __html: f.contentHtml }} />
                           <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
-                            <a className="cursor-pointer hover:text-primary"><i className="zmdi zmdi-favorite-outline mr-1" />赞 {f.likes}</a>
-                            <a className="cursor-pointer hover:text-primary"><i className="zmdi zmdi-comment-outline mr-1" />评论 {f.comments.length}</a>
+                            <a className="flex cursor-pointer items-center gap-1 hover:text-primary"><ThumbsUp className="h-3.5 w-3.5" />赞 {f.likes}</a>
+                            <a className="flex cursor-pointer items-center gap-1 hover:text-primary"><MessageSquare className="h-3.5 w-3.5" />评论 {f.comments.length}</a>
                           </div>
                         </div>
                       </div>
@@ -159,71 +198,69 @@ export default function RecordView() {
             {/* 右侧操作栏 */}
             <div className="view-operating w-full shrink-0 md:w-[280px]">
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary"><i className="icon zmdi zmdi-edit text-[16px]" /> 编辑</Button>
+                <Button variant="secondary" onClick={() => setEditOpen(true)}>
+                  <Edit className="h-4 w-4" /> 编辑
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary">更多 <i className="icon zmdi zmdi-more-vert text-[16px]" /></Button>
+                    <Button variant="secondary">更多 <MoreVertical className="h-4 w-4" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setShowDelete(true)}><i className="icon zmdi zmdi-delete text-[16px]" /> 删除</DropdownMenuItem>
-                    <DropdownMenuItem><i className="icon zmdi zmdi-mail-reply-all text-[16px]" /> 分配</DropdownMenuItem>
-                    <DropdownMenuItem><i className="icon zmdi zmdi-portable-wifi text-[16px]" /> 共享</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowDelete(true)}><Trash2 className="h-4 w-4" /> 删除</DropdownMenuItem>
+                    <DropdownMenuItem><ReplyAll className="h-4 w-4" /> 分配</DropdownMenuItem>
+                    <DropdownMenuItem><Share className="h-4 w-4" /> 共享</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem><i className="icon zmdi zmdi-print text-[16px]" /> 打印</DropdownMenuItem>
-                    <DropdownMenuItem><i className="icon mdi mdi-microsoft-excel text-[16px]" /> 报表</DropdownMenuItem>
+                    <DropdownMenuItem><Printer className="h-4 w-4" /> 打印</DropdownMenuItem>
+                    <DropdownMenuItem><FileSpreadsheet className="h-4 w-4" /> 报表</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="secondary"><i className="icon mdi mdi-playlist-plus text-[16px]" /> 添加明细</Button>
-                <Button variant="secondary"><i className="icon zmdi zmdi-plus text-[16px]" /> 新建相关</Button>
+                <Button variant="secondary"><ListPlus className="h-4 w-4" /> 添加明细</Button>
+                <Button variant="secondary"><Plus className="h-4 w-4" /> 新建相关</Button>
               </div>
 
-              {/* 用户 */}
-              <div className="view-user mt-5">
-                <div className="form-line">
-                  <fieldset><legend>用户</legend></fieldset>
-                </div>
-                <dl className="flex text-[13px]">
-                  <dt className="w-[84px] text-[#8a8a8a]">所属用户</dt>
-                  <dd className="flex items-center gap-1.5 text-primary">
-                    <UserAvatar name={owningUser} size={20} />
-                    {owningUser}
+              <SectionLine>用户</SectionLine>
+              <dl className="m-0 space-y-3 text-sm">
+                <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-3">
+                  <dt className="text-muted-foreground">所属用户</dt>
+                  <dd className="m-0 flex min-w-0 items-center gap-2 text-primary">
+                    <UserAvatar name={owningUser} size={22} />
+                    <span className="truncate">{owningUser}</span>
                   </dd>
-                </dl>
-                <dl className="flex text-[13px]">
-                  <dt className="w-[84px] text-[#8a8a8a]">共享用户</dt>
-                  <dd className="text-[#ccc]">-</dd>
-                </dl>
-              </div>
-
-              {/* 日期 */}
-              <div className="view-date mt-4">
-                <div className="form-line">
-                  <fieldset><legend>日期</legend></fieldset>
                 </div>
-                <dl className="flex text-[13px]">
-                  <dt className="w-[84px] text-[#8a8a8a]">创建时间</dt>
-                  <dd>{String(record?.createdOn ?? '-')}</dd>
-                </dl>
-                <dl className="flex text-[13px]">
-                  <dt className="w-[84px] text-[#8a8a8a]">修改时间</dt>
-                  <dd>{String(record?.modifiedOn ?? '-')}</dd>
-                </dl>
-              </div>
-
-              {/* 修改历史 */}
-              <div className="view-history mt-4">
-                <div className="form-line">
-                  <fieldset><legend>修改历史</legend></fieldset>
+                <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-3">
+                  <dt className="text-muted-foreground">共享用户</dt>
+                  <dd className="m-0 text-muted-foreground">-</dd>
                 </div>
-                <ul className="m-0 list-none text-xs text-muted-foreground">
-                  <li className="py-1.5 border-b border-dashed border-[#f0f0f0]">2026-09-05 14:20 由 钱迅 修改了「商机阶段」</li>
-                  <li className="py-1.5 border-b border-dashed border-[#f0f0f0]">2026-09-02 09:12 由 超级管理员 创建了记录</li>
-                </ul>
-              </div>
+              </dl>
+
+              <SectionLine>日期</SectionLine>
+              <dl className="m-0 space-y-3 text-sm">
+                <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-3">
+                  <dt className="text-muted-foreground">创建时间</dt>
+                  <dd className="m-0 truncate">{String(record?.createdOn ?? '-')}</dd>
+                </div>
+                <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-3">
+                  <dt className="text-muted-foreground">修改时间</dt>
+                  <dd className="m-0 truncate">{String(record?.modifiedOn ?? '-')}</dd>
+                </div>
+              </dl>
+
+              <SectionLine>修改历史</SectionLine>
+              <ul className="relative m-0 list-none space-y-3 border-l border-border pl-4">
+                {[
+                  '2026-09-05 14:20 由 钱迅 修改了「商机阶段」',
+                  '2026-09-02 09:12 由 超级管理员 创建了记录',
+                ].map((item) => (
+                  <li key={item} className="relative text-xs leading-5 text-muted-foreground">
+                    <span className="absolute -left-[21px] top-1 h-3 w-3 rounded-full border-2 border-card bg-primary/30" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-        </Tabs>
-      </div>
+          </Tabs>
+        </div>
 
       {/* 删除确认框 */}
       <RbDialog
@@ -237,7 +274,7 @@ export default function RecordView() {
               variant="danger"
               onClick={() => {
                 setShowDelete(false)
-                navigate(`/app/${meta.name}/list`)
+                onDeleted?.()
               }}
             >
               删除
@@ -246,12 +283,33 @@ export default function RecordView() {
         }
       >
         <div className="flex items-start gap-3 py-2">
-          <i className="zmdi zmdi-alert-circle-o mt-0.5 text-[22px] text-[#fbbc05]" />
+          <AlertCircle className="mt-0.5 h-5 w-5 text-[#fbbc05]" />
           <div>
             确认删除这条「{meta.label}」记录吗？删除后可在回收站中找回。
           </div>
         </div>
       </RbDialog>
-    </AppLayout>
+
+      <RecordFormModal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        entity={meta.name}
+        recordId={id}
+        onSaved={() => setRefreshTick((tick) => tick + 1)}
+      />
+    </div>
+  )
+}
+
+export default function RecordView() {
+  const { entity, id } = useParams<{ entity: string; id: string }>()
+  const navigate = useNavigate()
+
+  return (
+    <RecordDetailContent
+      entity={entity ?? 'Customer'}
+      id={id ?? ''}
+      onDeleted={() => navigate(`/app/${entity ?? 'Customer'}/list`)}
+    />
   )
 }

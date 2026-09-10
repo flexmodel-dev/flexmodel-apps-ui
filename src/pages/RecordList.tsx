@@ -1,5 +1,24 @@
 import * as React from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Columns3,
+  Edit,
+  FileInput,
+  FileSpreadsheet,
+  Filter,
+  FolderOpen,
+  ListChecks,
+  MoreVertical,
+  Plus,
+  ReplyAll,
+  Search,
+  Share,
+  ScreenShareOff,
+  Trash2,
+} from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,8 +26,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Pagination } from '@/components/rb/Pagination'
 import { RbNoData } from '@/components/rb/RbLoading'
+import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import { RecordDetailContent } from '@/pages/RecordView'
 import { getEntity, getRecords } from '@/data/mock'
 import { cn, paginate } from '@/lib/utils'
+import { RecordFormModal } from '@/components/rb/RecordFormModal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,16 +42,19 @@ import {
 /** 记录列表页（复刻 general/record-list.html + rb-datalist） */
 export default function RecordList() {
   const { entity } = useParams<{ entity: string }>()
-  const navigate = useNavigate()
   const meta = getEntity(entity ?? 'Customer')
   const [rows, setRows] = React.useState(() => getRecords(entity ?? 'Customer'))
   const [q, setQ] = React.useState('')
   const [page, setPage] = React.useState(1)
-  const [size] = React.useState(10)
+  const [size] = React.useState(30)
   const [selected, setSelected] = React.useState<string[]>([])
   const [sortKey, setSortKey] = React.useState('')
   const [sortAsc, setSortAsc] = React.useState(true)
   const [filterName, setFilterName] = React.useState('全部数据')
+  const [detailId, setDetailId] = React.useState<string | null>(null)
+  const [formOpen, setFormOpen] = React.useState(false)
+  const [formRecordId, setFormRecordId] = React.useState<string | null>(null)
+  const [refreshTick, setRefreshTick] = React.useState(0)
 
   // 过滤 + 排序（hooks 须在条件返回之前）
   React.useEffect(() => {
@@ -46,7 +71,7 @@ export default function RecordList() {
     }
     setRows(f)
     setPage(1)
-  }, [q, sortKey, sortAsc, meta])
+  }, [q, sortKey, sortAsc, meta, refreshTick])
 
   if (!meta) return <AppLayout>未知实体</AppLayout>
 
@@ -100,7 +125,7 @@ export default function RecordList() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
       {/* 实体页签 */}
       <ul className="nav nav-tabs-classic mb-0 flex list-none items-center gap-1 border-b border-[#e3e3e3] pb-0 dark:border-[#2e3340]">
         {['Customer', 'Opportunity', 'Product'].map((e) => {
@@ -114,7 +139,7 @@ export default function RecordList() {
                   e === meta.name ? 'border-primary text-foreground' : 'border-transparent'
                 )}
               >
-                <i className={cn('icon zmdi', `zmdi-${m.icon}`)} />
+                <m.icon className="h-4 w-4" />
                 {m.label}
               </Link>
             </li>
@@ -122,8 +147,8 @@ export default function RecordList() {
         })}
       </ul>
 
-      <div className="mt-[-1px] rounded-b-xl border bg-card text-card-foreground shadow-sm">
-        <div className="p-3">
+      <div className="mt-[-1px] flex min-h-0 flex-1 flex-col rounded-b-xl border bg-card text-card-foreground shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col p-3">
           {/* 表头工具行 */}
           <div className="rb-datatable-header mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -133,7 +158,7 @@ export default function RecordList() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="secondary" className="rounded-r-none !pr-2" title="常用查询">
                       <span className="max-w-[140px] truncate">{filterName}</span>
-                      <i className="icon zmdi zmdi-caret-down text-[16px]" />
+                      <ChevronDown className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
@@ -143,7 +168,7 @@ export default function RecordList() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button variant="secondary" className="rounded-l-none border-l border-[#d5d5d5]" title="高级查询">
-                  <i className="icon mdi mdi-filter text-[17px]" />
+                  <Filter className="h-4 w-4" />
                 </Button>
               </div>
               {/* 快速查询 */}
@@ -155,45 +180,58 @@ export default function RecordList() {
                   className="w-[220px] rounded-r-none"
                 />
                 <Button variant="secondary" className="rounded-l-none border-l border-[#d5d5d5]">
-                  <i className="icon zmdi zmdi-search" />
+                  <Search className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
             {/* 右侧操作 */}
             <div className="flex items-center gap-2">
-              <Button variant="secondary" disabled={!selected.length} onClick={() => navigate(`/app/${meta.name}/view/${selected[0]}`)}>
-                <i className="icon mdi mdi-folder-open text-[17px]" /> 打开
+              <Button variant="secondary" disabled={!selected.length} onClick={() => setDetailId(selected[0])}>
+                <FolderOpen className="h-4 w-4" /> 打开
               </Button>
-              <Button variant="secondary" disabled={!selected.length}>
-                <i className="icon zmdi zmdi-edit text-[16px]" /> 编辑
+              <Button
+                variant="secondary"
+                disabled={selected.length !== 1}
+                title={selected.length === 1 ? '编辑选中记录' : '请选择一条记录'}
+                onClick={() => {
+                  setFormRecordId(selected[0] ?? null)
+                  setFormOpen(true)
+                }}
+              >
+                <Edit className="h-4 w-4" /> 编辑
               </Button>
-              <Button onClick={() => navigate(`/app/${meta.name}/form`)}>
-                <i className="icon zmdi zmdi-plus text-[16px]" /> 新建
+              <Button
+                onClick={() => {
+                  setFormRecordId(null)
+                  setFormOpen(true)
+                }}
+              >
+                <Plus className="h-4 w-4" /> 新建
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="secondary">
-                    更多 <i className="icon zmdi zmdi-more-vert text-[16px]" />
+                    更多 <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem><i className="icon zmdi zmdi-delete text-[16px]" /> 删除</DropdownMenuItem>
-                  <DropdownMenuItem><i className="icon zmdi zmdi-mail-reply-all text-[16px]" /> 分配</DropdownMenuItem>
-                  <DropdownMenuItem><i className="icon zmdi zmdi-portable-wifi text-[16px]" /> 共享</DropdownMenuItem>
-                  <DropdownMenuItem><i className="icon zmdi zmdi-portable-wifi-off text-[16px]" /> 取消共享</DropdownMenuItem>
+                  <DropdownMenuItem><Trash2 className="h-4 w-4" /> 删除</DropdownMenuItem>
+                  <DropdownMenuItem><ReplyAll className="h-4 w-4" /> 分配</DropdownMenuItem>
+                  <DropdownMenuItem><Share className="h-4 w-4" /> 共享</DropdownMenuItem>
+                  <DropdownMenuItem><ScreenShareOff className="h-4 w-4" /> 取消共享</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem><i className="icon mdi mdi-microsoft-excel text-[16px]" /> 数据导出</DropdownMenuItem>
-                  <DropdownMenuItem><i className="icon mdi mdi-table-arrow-right text-[16px]" /> 数据导入</DropdownMenuItem>
-                  <DropdownMenuItem><i className="icon mdi mdi-playlist-edit text-[16px]" /> 批量修改</DropdownMenuItem>
-                  <DropdownMenuItem><i className="icon mdi mdi-view-column-outline text-[16px]" /> 列显示</DropdownMenuItem>
+                  <DropdownMenuItem><FileSpreadsheet className="h-4 w-4" /> 数据导出</DropdownMenuItem>
+                  <DropdownMenuItem><FileInput className="h-4 w-4" /> 数据导入</DropdownMenuItem>
+                  <DropdownMenuItem><ListChecks className="h-4 w-4" /> 批量修改</DropdownMenuItem>
+                  <DropdownMenuItem><Columns3 className="h-4 w-4" /> 列显示</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
 
           {/* 数据表格 */}
-          <div className="data-list overflow-x-auto">
+          <div className="data-list rb-table-scroll min-h-0 flex-1 overflow-x-auto">
             <table className="rb-table w-full min-w-[900px] border-collapse bg-background">
               <thead>
                 <tr>
@@ -204,7 +242,7 @@ export default function RecordList() {
                     <th key={c.name} className="cursor-pointer select-none hover:text-primary" onClick={() => sortBy(c.name)}>
                       {c.label}
                       {sortKey === c.name && (
-                        <i className={cn('zmdi ml-1 text-[12px] not-italic', sortAsc ? 'zmdi-long-arrow-down' : 'zmdi-long-arrow-up')} />
+                        sortAsc ? <ArrowDown className="ml-1 h-3 w-3" /> : <ArrowUp className="ml-1 h-3 w-3" />
                       )}
                     </th>
                   ))}
@@ -212,22 +250,17 @@ export default function RecordList() {
               </thead>
               <tbody>
                 {pageRows.map((row) => (
-                  <tr key={row.id} className={cn(selected.includes(row.id) && 'bg-primary/10')}>
-                    <td>
+                  <tr
+                    key={row.id}
+                    className={cn('cursor-pointer transition-colors hover:bg-muted/40', selected.includes(row.id) && 'bg-primary/10')}
+                    onClick={() => setDetailId(row.id)}
+                  >
+                    <td onClick={(event) => event.stopPropagation()}>
                       <Checkbox checked={selected.includes(row.id)} onCheckedChange={() => toggleOne(row.id)} />
                     </td>
                     {columns.map((c, i) => (
                       <td key={c.name}>
-                        {i === 0 ? (
-                          <Link
-                            to={`/app/${meta.name}/view/${row.id}`}
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {renderCell(row, c.name)}
-                          </Link>
-                        ) : (
-                          renderCell(row, c.name)
-                        )}
+                        {renderCell(row, c.name)}
                       </td>
                     ))}
                   </tr>
@@ -244,6 +277,28 @@ export default function RecordList() {
           </div>
         </div>
       </div>
+
+      <Drawer open={Boolean(detailId)} onOpenChange={(open) => !open && setDetailId(null)}>
+        <DrawerContent className="w-full overflow-y-auto md:w-[calc(100vw-16rem)]">
+          <div className="p-4 md:p-5">
+            {detailId && (
+              <RecordDetailContent
+                entity={meta.name}
+                id={detailId}
+                onDeleted={() => setDetailId(null)}
+              />
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      <RecordFormModal
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        entity={meta.name}
+        recordId={formRecordId}
+        onSaved={() => setRefreshTick((tick) => tick + 1)}
+      />
     </AppLayout>
   )
 }

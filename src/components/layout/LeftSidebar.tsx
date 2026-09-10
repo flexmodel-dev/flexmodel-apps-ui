@@ -36,7 +36,7 @@ export function LeftSidebar({
   return (
     <aside
       className={cn(
-        'fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-gradient-to-b from-primary/[0.08] via-background/90 to-background/85 backdrop-blur transition-[width] duration-200 md:block',
+        'fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-background transition-[width] duration-200 md:block',
         collapsed ? 'w-16' : 'w-64',
       )}
     >
@@ -64,7 +64,7 @@ export function LeftSidebar({
                     title={nav.text}
                   >
                     <span className="flex min-w-0 items-center gap-3">
-                      <i className={cn('icon', nav.icon)} />
+                      {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
                       {!collapsed && <span className="truncate">{nav.text}</span>}
                     </span>
                     {!collapsed && <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />}
@@ -101,7 +101,7 @@ export function LeftSidebar({
                       : 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
                   }
                 >
-                  <i className={cn('icon', nav.icon)} />
+                  {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
                   {!collapsed && <span className="truncate">{nav.text}</span>}
                 </Link>
               </li>

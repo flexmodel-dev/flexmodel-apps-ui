@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { UserAvatar } from '@/components/ui/avatar'
 import { projectPlans, projects } from '@/data/mock'
 import { cn } from '@/lib/utils'
+import { Columns3, Kanban, Search } from 'lucide-react'
 
 /** 项目任务看板（复刻 project/project-tasks.html） */
 export default function ProjectTasks() {
@@ -49,10 +50,10 @@ export default function ProjectTasks() {
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <a className="flex cursor-pointer items-center gap-1 hover:text-primary">
-              <i className="icon mdi mdi-view-carousel-outline text-[17px]" /> 显示方式
+              <Columns3 className="h-4 w-4" /> 显示方式
             </a>
             <a className="flex cursor-pointer items-center gap-1 hover:text-primary">
-              <i className="icon mdi mdi-view-week text-[17px]" /> 看板
+              <Kanban className="h-4 w-4" /> 看板
             </a>
             <div className="flex">
               <input
@@ -60,7 +61,7 @@ export default function ProjectTasks() {
                 placeholder="搜索标题和 ID"
               />
               <button className="rounded-r-md border border-l-0 border-input bg-muted px-2 text-muted-foreground">
-                <i className="zmdi zmdi-search" />
+                <Search className="h-4 w-4" />
               </button>
             </div>
           </div>

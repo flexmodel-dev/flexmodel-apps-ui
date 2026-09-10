@@ -1,10 +1,12 @@
 import * as React from 'react'
-import { Link } from 'react-router-dom'
-import { Bell, HelpCircle, Menu, Plus, Search } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Bell, Menu, Moon, Plus, Search, Settings, Sun } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { RbDialog } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,13 +28,15 @@ const createItems = [
   { label: '产品', to: '/app/Product/list' },
 ]
 
-const themes = [
-  { name: '默认', className: 'bg-primary' },
-  { name: '浅色', className: 'bg-secondary' },
-  { name: '深色', className: 'bg-zinc-800' },
-  { name: '蓝色', className: 'bg-blue-600' },
-  { name: '绿色', className: 'bg-emerald-600' },
-]
+type PrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose'
+
+const primaryColors = [
+  { value: 'blue', label: '蓝', swatch: 'hsl(217 91% 60%)' },
+  { value: 'indigo', label: '靛', swatch: 'hsl(243 75% 59%)' },
+  { value: 'green', label: '绿', swatch: 'hsl(160 84% 39%)' },
+  { value: 'amber', label: '橙', swatch: 'hsl(38 92% 50%)' },
+  { value: 'rose', label: '玫', swatch: 'hsl(350 89% 60%)' },
+] as const
 
 export function TopHeader({
   activeTopId,
@@ -43,6 +47,38 @@ export function TopHeader({
   onTopNavChange: (id: string) => void
   onToggleSidebar: () => void
 }) {
+  const navigate = useNavigate()
+  const [adminOpen, setAdminOpen] = React.useState(false)
+  const [isDark, setIsDark] = React.useState(() => {
+    const stored = window.localStorage.getItem('night')
+    if (stored === 'true' || stored === 'false') return stored === 'true'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
+
+  const [primary, setPrimary] = React.useState<PrimaryColor>(() => {
+    const stored = window.localStorage.getItem('primary')
+    return primaryColors.some((item) => item.value === stored) ? (stored as PrimaryColor) : 'blue'
+  })
+
+  React.useEffect(() => {
+    const root = document.documentElement
+    root.classList.toggle('dark', isDark)
+    root.style.colorScheme = isDark ? 'dark' : 'light'
+    window.localStorage.setItem('night', String(isDark))
+  }, [isDark])
+
+  React.useEffect(() => {
+    const root = document.documentElement
+    root.dataset.primary = primary
+    window.localStorage.setItem('primary', primary)
+  }, [primary])
+
+  const submitAdminPassword = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setAdminOpen(false)
+    navigate('/admin/systems')
+  }
+
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/80 shadow-[0_1px_0_0] shadow-primary/10 backdrop-blur-xl">
       <div className="flex h-16 items-center gap-2 px-4">
@@ -50,7 +86,7 @@ export function TopHeader({
           <Menu className="h-5 w-5" />
         </Button>
         <Link to="/dashboard/home" className="mr-2 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary via-primary to-cyan-500 text-sm font-bold text-primary-foreground shadow-sm">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-sm">
             N
           </span>
           <span className="text-lg font-semibold text-primary">newbuild</span>
@@ -93,10 +129,12 @@ export function TopHeader({
             <Search className="h-5 w-5" />
           </Button>
 
-          <Button variant="ghost" size="icon" title="管理中心" asChild>
-            <Link to="/admin/systems">
-              <HelpCircle className="h-5 w-5" />
-            </Link>
+          <Button variant="ghost" size="icon" title="后台设置" onClick={() => setAdminOpen(true)}>
+            <Settings className="h-5 w-5" />
+          </Button>
+
+          <Button variant="ghost" size="icon" title={isDark ? '切换到浅色模式' : '切换到夜间模式'} onClick={() => setIsDark((value) => !value)}>
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
           <DropdownMenu>
@@ -153,10 +191,21 @@ export function TopHeader({
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <div className="px-2 py-2">
-                <p className="text-xs font-medium text-muted-foreground">主题</p>
+                <p className="text-xs font-medium text-muted-foreground">主色</p>
                 <div className="mt-2 flex items-center gap-2">
-                  {themes.map((theme) => (
-                    <span key={theme.name} title={theme.name} className={`h-5 w-5 rounded-full border ${theme.className}`} />
+                  {primaryColors.map(({ value, label, swatch }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setPrimary(value)}
+                      className={cn(
+                        'flex h-7 w-7 items-center justify-center rounded-full border border-border/60 transition-all hover:scale-105',
+                        primary === value && 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background',
+                      )}
+                      style={{ backgroundColor: swatch }}
+                      title={label}
+                    >
+                    </button>
                   ))}
                 </div>
               </div>
@@ -164,6 +213,34 @@ export function TopHeader({
           </DropdownMenu>
         </div>
       </div>
+
+      <RbDialog
+        open={adminOpen}
+        onOpenChange={setAdminOpen}
+        title="后台设置"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setAdminOpen(false)}>
+              取消
+            </Button>
+            <Button form="admin-password-form" type="submit">
+              进入后台
+            </Button>
+          </>
+        }
+      >
+        <form id="admin-password-form" className="space-y-2" onSubmit={submitAdminPassword}>
+          <label htmlFor="admin-password" className="text-sm font-medium text-foreground">
+            管理员密码
+          </label>
+          <Input
+            id="admin-password"
+            type="password"
+            placeholder="请输入管理员密码"
+            autoComplete="current-password"
+          />
+        </form>
+      </RbDialog>
     </header>
   )
 }
