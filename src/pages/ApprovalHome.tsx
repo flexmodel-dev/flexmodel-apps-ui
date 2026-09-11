@@ -2,160 +2,290 @@ import * as React from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import { UserAvatar } from '@/components/ui/avatar'
 import { RbLoading } from '@/components/rb/RbLoading'
-import { approvals } from '@/data/mock'
+import { approvals, currentUser } from '@/data/mock'
 import { cn } from '@/lib/utils'
-import { CheckCheck, ChevronDown } from 'lucide-react'
+import {
+  CheckCheck,
+  ClipboardCheck,
+  Inbox,
+  RotateCcw,
+  Search,
+} from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const TABS = [
-  { type: 1, text: '待处理', count: 5 },
-  { type: 2, text: '已处理', count: 3 },
-  { type: 3, text: '我提交的', count: 3 },
-  { type: 4, text: '抄送我的', count: 1 },
+  { type: 1, text: '待处理' },
+  { type: 2, text: '已处理' },
+  { type: 3, text: '我提交的' },
+  { type: 4, text: '抄送我的' },
 ]
 
-/** 审批中心（复刻 approval/home.html） */
+function statusBadge(status: string) {
+  if (status === '待审批') {
+    return (
+      <Badge className="bg-primary/10 text-primary">待审批</Badge>
+    )
+  }
+  if (status === '已通过') {
+    return (
+      <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300">
+        已通过
+      </Badge>
+    )
+  }
+  return (
+    <Badge className="border border-red-200 bg-red-50 text-red-600 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300">
+      已驳回
+    </Badge>
+  )
+}
+
+/** 审批中心（参考 approval/home.html 的分类列表布局） */
 export default function ApprovalHome() {
   const [tab, setTab] = React.useState(1)
+  const [entity, setEntity] = React.useState('all')
+  const [sort, setSort] = React.useState('newer')
   const [loading, setLoading] = React.useState(true)
   const [selected, setSelected] = React.useState<string[]>([])
 
   React.useEffect(() => {
     setLoading(true)
-    const t = setTimeout(() => setLoading(false), 400)
-    return () => clearTimeout(t)
-  }, [tab])
+    setSelected([])
+    const timer = setTimeout(() => setLoading(false), 400)
+    return () => clearTimeout(timer)
+  }, [tab, entity, sort])
+
+  const entityOptions = React.useMemo(
+    () => Array.from(new Set(approvals.map((item) => item.entityLabel))),
+    [],
+  )
 
   const list = React.useMemo(() => {
-    if (tab === 1) return approvals.filter((a) => a.status === '待审批')
-    if (tab === 2) return approvals.filter((a) => a.status !== '待审批')
-    if (tab === 3) return approvals.filter((a) => a.applicant === 'admin')
-    return approvals.slice(0, 1)
-  }, [tab])
+    const matchesEntity = (item: (typeof approvals)[number]) =>
+      entity === 'all' || item.entityLabel === entity
 
-  const statusBadge = (s: string) => {
-    if (s === '待审批') return <span className="badge-primary">待审批</span>
-    if (s === '已通过') return <span className="inline-block rounded-full bg-green-100 px-2 py-0.5 text-[11px] text-green-700">已通过</span>
-    return <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-[11px] text-red-600">已驳回</span>
-  }
+    let next = approvals.filter(matchesEntity)
+    if (tab === 1) next = next.filter((item) => item.status === '待审批')
+    if (tab === 2) next = next.filter((item) => item.status !== '待审批')
+    if (tab === 3) next = next.filter((item) => item.applicant === currentUser.fullName)
+    if (tab === 4) next = next.slice(0, 1)
+
+    return [...next].sort((a, b) =>
+      sort === 'newer'
+        ? b.submittedOn.localeCompare(a.submittedOn)
+        : a.submittedOn.localeCompare(b.submittedOn),
+    )
+  }, [tab, entity, sort])
+
+  const counts = React.useMemo(
+    () => ({
+      1: approvals.filter((item) => item.status === '待审批').length,
+      2: approvals.filter((item) => item.status !== '待审批').length,
+      3: approvals.filter((item) => item.applicant === currentUser.fullName).length,
+      4: 1,
+    }),
+    [],
+  )
+
+  const allSelected = list.length > 0 && selected.length === list.length
+  const toggleAll = () =>
+    setSelected(allSelected ? [] : list.map((item) => item.id))
+  const toggleOne = (id: string) =>
+    setSelected((previous) =>
+      previous.includes(id)
+        ? previous.filter((item) => item !== id)
+        : [...previous, id],
+    )
 
   return (
-    <AppLayout noPadding>
-      <div className="flex h-full">
-        {/* 左侧栏 */}
-        <aside className="hidden w-[220px] shrink-0 border-r bg-card md:block">
-          <div className="aside-content flex h-full flex-col">
-            <div className="content px-[22px] pb-[9px] pt-[17px]">
-              <span className="m-0 block text-2xl font-light leading-[27px]">审批中心</span>
-            </div>
-            <div className="aside-nav py-0">
-              <ul className="nav m-0 list-none p-0">
-                {TABS.map((t) => (
-                  <li key={t.type}>
-                    <a
-                      className={cn(
-                        'flex cursor-pointer items-center justify-between px-[22px] py-[12px] text-[13px]',
-                        tab === t.type ? 'font-medium text-primary' : 'text-muted-foreground hover:bg-accent'
-                      )}
-                      onClick={() => setTab(t.type)}
-                    >
-                      {t.text}
-                      <span className="badge-primary">{t.count}</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
+    <AppLayout noPadding noOuterScroll contentClassName="h-full min-h-0">
+      <div className="flex h-full min-h-0">
+        <aside className="hidden w-[240px] shrink-0 flex-col border-r bg-card md:flex">
+          <div className="border-b px-5 pb-5 pt-6">
+            <h1 className="m-0 text-xl font-semibold">审批中心</h1>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              集中处理审批、查看进度与结果
+            </p>
           </div>
+
+          <nav className="min-h-0 flex-1 overflow-y-auto p-2">
+            {TABS.map((item) => (
+              <button
+                key={item.type}
+                type="button"
+                onClick={() => setTab(item.type)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors',
+                  tab === item.type
+                    ? 'bg-primary/10 font-medium text-primary'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                )}
+              >
+                <ClipboardCheck className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{item.text}</span>
+                <span
+                  className={cn(
+                    'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs',
+                    tab === item.type ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  {counts[item.type as 1 | 2 | 3 | 4]}
+                </span>
+              </button>
+            ))}
+          </nav>
         </aside>
 
-        {/* 主内容 */}
-        <div className="main-content container-fluid min-w-0 flex-1">
-          {/* 头部操作 */}
-          <div className="file-header">
-            <div className="border-b bg-card px-[20px] py-[13px]">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-4">
-                  <label className="flex cursor-pointer items-center" title="全选/反选">
-                    <Checkbox
-                      checked={selected.length === list.length && list.length > 0}
-                      onCheckedChange={() => setSelected(selected.length === list.length ? [] : list.map((a) => a.id))}
-                    />
-                  </label>
-                  <select className="h-8 rounded-md border border-input bg-background px-2 text-sm text-muted-foreground">
-                    <option>业务实体</option>
-                    <option>报销单</option>
-                    <option>请假单</option>
-                    <option>报价单</option>
-                  </select>
+        <div className="flex min-w-0 flex-1 flex-col bg-muted/30">
+          <div className="shrink-0 border-b bg-card px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleAll}
+                  aria-label="全选/反选"
+                />
+                <Select value={entity} onValueChange={setEntity}>
+                  <SelectTrigger className="h-9 w-[176px]">
+                    <SelectValue placeholder="业务实体" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部业务实体</SelectItem>
+                    {entityOptions.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="relative hidden lg:block">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    className="h-9 w-[200px] rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+                    placeholder="搜索审批内容"
+                  />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button disabled={!selected.length}>
-                    <CheckCheck className="h-4 w-4" /> 审批
-                  </Button>
-                  <Button variant="secondary">
-                    默认排序 <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button disabled={!selected.length}>
+                  <CheckCheck className="h-4 w-4" />
+                  审批 {selected.length > 0 && `(${selected.length})`}
+                </Button>
+                <Select value={sort} onValueChange={setSort}>
+                  <SelectTrigger className="h-9 w-[126px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newer">最近提交</SelectItem>
+                    <SelectItem value="older">最早提交</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" size="icon" title="重置筛选" onClick={() => { setEntity('all'); setSort('newer') }}>
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>
 
-          {/* 审批列表 */}
-          <div className="approval-viewport p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {loading ? (
-              <RbLoading center />
+              <RbLoading center className="min-h-[320px]" />
             ) : (
-              <div className="rb-table-scroll overflow-x-auto">
-                <table className="rb-table w-full min-w-[760px]">
-                  <thead>
-                    <tr>
-                      <th className="w-[36px]">
+              <div className="mx-auto max-w-[1280px] space-y-3">
+                {list.map((item) => {
+                  const checked = selected.includes(item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleOne(item.id)}
+                      className={cn(
+                        'cursor-pointer rounded-xl border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-sm',
+                        checked && 'border-primary/60 bg-primary/5 shadow-sm',
+                      )}
+                    >
+                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
                         <Checkbox
-                          checked={selected.length === list.length && list.length > 0}
-                          onCheckedChange={() => setSelected(selected.length === list.length ? [] : list.map((a) => a.id))}
+                          checked={checked}
+                          onCheckedChange={() => toggleOne(item.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label="选择审批"
                         />
-                      </th>
-                      <th className="w-[90px]">类型</th>
-                      <th>审批内容</th>
-                      <th className="w-[120px]">申请人</th>
-                      <th className="w-[150px]">提交时间</th>
-                      <th className="w-[130px]">当前节点</th>
-                      <th className="w-[80px]">状态</th>
-                      <th className="w-[80px]">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.map((a) => (
-                      <tr key={a.id} className={cn(selected.includes(a.id) && 'bg-[#f0f6ff]')}>
-                        <td><Checkbox checked={selected.includes(a.id)} onCheckedChange={() => setSelected((s) => (s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id]))} /></td>
-                        <td><span className="badge-secondary">{a.entityLabel}</span></td>
-                        <td>
-                          <span className="font-medium">{a.recordName}</span>
-                          <div className="text-xs text-muted-foreground">{a.content}</div>
-                        </td>
-                        <td>
-                          <span className="flex items-center gap-1.5">
-                            <UserAvatar name={a.applicant} size={20} />
-                            {a.applicant}
-                          </span>
-                        </td>
-                        <td className="text-muted-foreground">{a.submittedOn}</td>
-                        <td>{a.currentNode}</td>
-                        <td>{statusBadge(a.status)}</td>
-                        <td>
-                          {a.status === '待审批' ? (
-                            <Button size="sm" className="!h-8 !px-3">审批</Button>
-                          ) : (
-                            <Button size="sm" variant="secondary" className="!h-8 !px-3">查看</Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {list.length === 0 && <div className="py-14 text-center text-sm text-muted-foreground">暂无数据</div>}
+
+                        <div className="flex min-w-[180px] items-center gap-3 xl:w-[210px]">
+                          <UserAvatar name={item.applicant} size={36} />
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">{item.applicant}</div>
+                            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {item.submittedOn}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge className="bg-muted text-muted-foreground">{item.entityLabel}</Badge>
+                            <span className="truncate text-sm font-medium text-foreground">
+                              {item.recordName}
+                            </span>
+                          </div>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{item.content}</p>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            当前节点：<span className="text-foreground">{item.currentNode}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 xl:w-[180px] xl:flex-col xl:items-end xl:justify-center">
+                          {statusBadge(item.status)}
+                          <div className="flex items-center gap-2">
+                            {item.status === '待审批' ? (
+                              <Button
+                                size="sm"
+                                className="h-8 px-3"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                审批
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-8 px-3"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                查看
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {list.length === 0 && (
+                  <div className="rounded-xl border bg-card py-16 text-center">
+                    <Inbox className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-3 text-sm font-medium">暂无审批</p>
+                    <p className="mt-1 text-xs text-muted-foreground">当前筛选条件下没有可展示的数据</p>
+                  </div>
+                )}
+
+                {list.length > 0 && (
+                  <div className="pb-1 text-center text-xs text-muted-foreground">
+                    已显示全部 {list.length} 条
+                  </div>
+                )}
               </div>
             )}
           </div>

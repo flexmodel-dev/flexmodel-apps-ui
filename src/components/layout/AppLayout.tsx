@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { getTopNavIdByPath, topNavs } from '@/data/mock'
+import { getEntity, getTopNavIdByPath, topNavs } from '@/data/mock'
 import { Briefcase, Boxes, ChevronsLeft, ChevronsRight, ClipboardCheck, LogIn, Recycle, Settings, Shapes, ShieldCheck, Users } from 'lucide-react'
 import { TopHeader } from './TopHeader'
 import { LeftSidebar } from './LeftSidebar'
@@ -27,6 +27,9 @@ const adminNavs = [
 
 function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; onToggleCollapsed?: () => void }) {
   const location = useLocation()
+  const entityDesignMatch = location.pathname.match(/^\/admin\/entity\/([^/]+)/)
+  const currentEntity = entityDesignMatch?.[1]
+  const showEntitySubmenu = Boolean(entityDesignMatch)
 
   return (
     <aside
@@ -49,21 +52,24 @@ function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; o
               )
             }
 
-            const active = location.pathname === nav.to
+            const active = location.pathname === nav.to || (nav.id === 'entities' && showEntitySubmenu)
             return (
               <li key={nav.id}>
-                <Link
-                  to={nav.to}
-                  title={nav.label}
-                  className={
-                    active
-                      ? 'flex items-center gap-3 rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary shadow-sm'
-                      : 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
-                  }
-                >
-                  {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
-                  {!collapsed && <span className="truncate">{nav.label}</span>}
-                </Link>
+                <div className="flex items-center">
+                  <Link
+                    to={nav.to}
+                    title={nav.label}
+                    className={cn(
+                      'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-primary/10 text-primary shadow-sm'
+                        : 'text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                    )}
+                  >
+                    {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
+                    {!collapsed && <span className="truncate">{nav.label}</span>}
+                  </Link>
+                </div>
               </li>
             )
           })}
@@ -119,6 +125,9 @@ export function AppLayout({
 
   const activeTop = topNavs.find((nav) => nav.id === activeTopId) ?? topNavs[0]
   const useAdminSidebar = admin || activeTop.id === 'top-admin'
+  const showEntitySidebar = useAdminSidebar && /^\/admin\/entity\//.test(location.pathname)
+  const currentEntity = location.pathname.match(/^\/admin\/entity\/([^/]+)/)?.[1]
+  const currentEntityMeta = currentEntity ? getEntity(currentEntity) : undefined
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -126,6 +135,7 @@ export function AppLayout({
         <TopHeader
           activeTopId={activeTop.id}
           onTopNavChange={setActiveTopId}
+          isAdmin={useAdminSidebar}
         />
       )}
 
@@ -141,12 +151,68 @@ export function AppLayout({
           />
         ))}
 
+      {showEntitySidebar && (
+        <aside
+          className={cn(
+            'fixed top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 border-r bg-background md:block',
+            collapsed ? 'left-16' : 'left-64',
+          )}
+        >
+          <div className="flex h-full flex-col">
+            <div className="border-b px-4 py-4">
+              <div className="text-xl font-semibold text-foreground">
+                {currentEntityMeta?.label ?? '实体'}
+              </div>
+              {currentEntityMeta?.description && (
+                <p className="mb-0 mt-1 text-xs text-muted-foreground">
+                  {currentEntityMeta.description}
+                </p>
+              )}
+            </div>
+            <nav className="min-h-0 flex-1 overflow-y-auto p-3">
+              <ul className="space-y-1">
+                {[
+                  { key: 'base', label: '基本信息', to: `/admin/entity/${currentEntity}/base` },
+                  { key: 'fields', label: '字段管理', to: `/admin/entity/${currentEntity}/fields` },
+                  { key: 'form-design', label: '表单设计', to: `/admin/entity/${currentEntity}/form-design` },
+                  { key: 'easy-action', label: '自定义操作', to: `/admin/entity/${currentEntity}/easy-action` },
+                  { key: 'record-alerts', label: '记录锁定', to: `/admin/entity/${currentEntity}/record-alerts` },
+                  { key: 'advanced', label: '高级配置', to: `/admin/entity/${currentEntity}/advanced` },
+                ].map((item) => (
+                  <li key={item.key}>
+                    <Link
+                      to={item.to}
+                      className={cn(
+                        'block rounded-md px-3 py-2 text-sm transition-colors',
+                        location.pathname === item.to
+                          ? 'bg-primary/10 font-medium text-primary'
+                          : 'text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+        </aside>
+      )}
+
       <main
         className={cn(
           hideHeader ? 'mt-0 h-screen md:ml-0' : 'mt-16 h-[calc(100vh-4rem)]',
           noOuterScroll ? 'overflow-hidden' : 'overflow-y-auto',
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
-          hideHeader ? '' : collapsed ? 'md:ml-16' : 'md:ml-64',
+          hideHeader
+            ? ''
+            : showEntitySidebar
+              ? collapsed
+                ? 'md:ml-[20rem]'
+                : 'md:ml-[32rem]'
+              : collapsed
+                ? 'md:ml-16'
+                : 'md:ml-64',
         )}
       >
         <div className={cn('w-full pt-4 md:pt-6', contentClassName)}>{children}</div>

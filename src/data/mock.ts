@@ -30,7 +30,7 @@ export interface User {
 export interface EntityField {
   name: string
   label: string
-  type: 'TEXT' | 'DATE' | 'DATETIME' | 'NUMBER' | 'DECIMAL' | 'REFERENCE' | 'SELECT' | 'MULTISELECT' | 'BOOL' | 'EMAIL' | 'PHONE' | 'URL' | 'LOCATION'
+  type: string
   options?: { id: string; text: string; color?: string; 'default'?: boolean }[]
   refEntity?: string
 }

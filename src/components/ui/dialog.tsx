@@ -39,6 +39,7 @@ export function RbDialog({
   width,
   children,
   footer,
+  headerExtra,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
@@ -46,15 +47,19 @@ export function RbDialog({
   width?: number
   children: React.ReactNode
   footer?: React.ReactNode
+  headerExtra?: React.ReactNode
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent style={{ maxWidth: width ?? 520 }} hideClose>
         <div className="flex items-center justify-between border-b border-border pb-4">
           <h5 className="text-lg font-semibold">{title}</h5>
-          <DialogPrimitive.Close className="text-muted-foreground transition-colors hover:text-foreground">
-            <X className="h-4 w-4" />
-          </DialogPrimitive.Close>
+          <div className="flex items-center gap-1">
+            {headerExtra}
+            <DialogPrimitive.Close className="rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground">
+              <X className="h-4 w-4" />
+            </DialogPrimitive.Close>
+          </div>
         </div>
         <div className="max-h-[70vh] overflow-y-auto py-4 text-sm text-muted-foreground">{children}</div>
         {footer && (

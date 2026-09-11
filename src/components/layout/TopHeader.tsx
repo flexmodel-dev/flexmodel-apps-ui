@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, Moon, Plus, Search, Settings, Sun } from 'lucide-react'
+import { Bell, Moon, Plus, Search, Settings, Sun, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { topNavs } from '@/data/mock'
+import { entities, topNavs } from '@/data/mock'
 
 const notificationItems = [
   { id: 1, from: '钱迅', text: '提交的《华辰科技 - ERP 报价》需要你审批', time: '10 分钟前' },
@@ -28,14 +28,26 @@ const createItems = [
   { label: '产品', to: '/app/Product/list' },
 ]
 
+const searchSuggestions = [
+  { label: '工作台', to: '/dashboard/home' },
+  ...entities.map((entity) => ({ label: entity.label, to: `/app/${entity.name}/list` })),
+  { label: '审批中心', to: '/approval/home' },
+  { label: '动态', to: '/feeds/home' },
+  { label: '文件', to: '/files/home' },
+  { label: '通知', to: '/notifications' },
+]
+
 const headerActionClass =
   'text-white/80 hover:bg-white/15 hover:text-white data-[state=open]:bg-white/20 data-[state=open]:text-white dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white'
 
 type PrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose' | 'black'
 
+const primaryColorVersion = 'v2'
+const defaultPrimaryColor: PrimaryColor = 'indigo'
+
 const primaryColors = [
-  { value: 'blue', label: '蓝', swatch: 'hsl(217 91% 60%)' },
   { value: 'indigo', label: '靛', swatch: 'hsl(243 75% 59%)' },
+  { value: 'blue', label: '蓝', swatch: 'hsl(217 91% 60%)' },
   { value: 'green', label: '绿', swatch: 'hsl(160 84% 39%)' },
   { value: 'amber', label: '橙', swatch: 'hsl(38 92% 50%)' },
   { value: 'rose', label: '玫', swatch: 'hsl(350 89% 60%)' },
@@ -45,12 +57,17 @@ const primaryColors = [
 export function TopHeader({
   activeTopId,
   onTopNavChange,
+  isAdmin = false,
 }: {
   activeTopId: string
   onTopNavChange: (id: string) => void
+  isAdmin?: boolean
 }) {
   const navigate = useNavigate()
   const [adminOpen, setAdminOpen] = React.useState(false)
+  const [searchOpen, setSearchOpen] = React.useState(false)
+  const [searchValue, setSearchValue] = React.useState('')
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
   const [isDark, setIsDark] = React.useState(() => {
     const stored = window.localStorage.getItem('night')
     if (stored === 'true' || stored === 'false') return stored === 'true'
@@ -58,8 +75,16 @@ export function TopHeader({
   })
 
   const [primary, setPrimary] = React.useState<PrimaryColor>(() => {
+    const storedVersion = window.localStorage.getItem('primaryVersion')
     const stored = window.localStorage.getItem('primary')
-    return primaryColors.some((item) => item.value === stored) ? (stored as PrimaryColor) : 'blue'
+    if (storedVersion === primaryColorVersion) {
+      return primaryColors.some((item) => item.value === stored)
+        ? (stored as PrimaryColor)
+        : defaultPrimaryColor
+    }
+    return stored && stored !== 'blue'
+      ? (stored as PrimaryColor)
+      : defaultPrimaryColor
   })
 
   React.useEffect(() => {
@@ -73,12 +98,32 @@ export function TopHeader({
     const root = document.documentElement
     root.dataset.primary = primary
     window.localStorage.setItem('primary', primary)
+    window.localStorage.setItem('primaryVersion', primaryColorVersion)
   }, [primary])
+
+  React.useEffect(() => {
+    if (!searchOpen) return
+    searchInputRef.current?.focus()
+  }, [searchOpen])
+
+  const filteredSuggestions = searchValue.trim()
+    ? searchSuggestions.filter((item) => item.label.toLowerCase().includes(searchValue.trim().toLowerCase()))
+    : searchSuggestions
 
   const submitAdminPassword = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setAdminOpen(false)
     navigate('/admin/systems')
+  }
+
+  const closeSearch = () => {
+    setSearchOpen(false)
+    setSearchValue('')
+  }
+
+  const navigateToSearchResult = (to: string) => {
+    navigate(to)
+    closeSearch()
   }
 
   return (
@@ -100,40 +145,79 @@ export function TopHeader({
           >
             N
           </span>
-          <span className="text-lg font-semibold">newbuild</span>
+          <span className="text-lg font-semibold">
+            {isAdmin ? 'NEWBUILD管理后台' : 'NEWBUILD'}
+          </span>
         </Link>
 
-        <nav className="ml-2 hidden h-16 items-stretch md:flex">
-          {topNavs.map((nav) => (
-            <Link
-              key={nav.id}
-              to={nav.to}
-              onClick={() => onTopNavChange(nav.id)}
-              className={cn(
-                'relative flex h-16 items-center px-3 text-sm transition-colors',
-                activeTopId === nav.id
-                  ? isDark
-                    ? 'bg-white/10 font-medium text-white'
-                    : 'bg-black/20 font-medium text-primary-foreground'
-                  : isDark
-                    ? 'text-white/65 hover:bg-white/5 hover:text-white'
-                    : 'text-primary-foreground/75 hover:bg-primary-foreground/15 hover:text-primary-foreground',
-              )}
-            >
-              {nav.text}
-              <span
+        {!isAdmin && (
+          <nav className="ml-2 hidden h-16 items-stretch md:flex">
+            {topNavs.map((nav) => (
+              <Link
+                key={nav.id}
+                to={nav.to}
+                onClick={() => onTopNavChange(nav.id)}
                 className={cn(
-                  cn(
+                  'relative flex h-16 items-center px-3 text-sm transition-colors',
+                  activeTopId === nav.id
+                    ? isDark
+                      ? 'bg-white/10 font-medium text-white'
+                      : 'bg-black/20 font-medium text-primary-foreground'
+                    : isDark
+                      ? 'text-white/65 hover:bg-white/5 hover:text-white'
+                      : 'text-primary-foreground/75 hover:bg-primary-foreground/15 hover:text-primary-foreground',
+                )}
+              >
+                {nav.text}
+                <span
+                  className={cn(
                     'absolute bottom-0 left-1/2 h-[3px] w-3.5 -translate-x-1/2 rounded-full transition-opacity',
                     isDark ? 'bg-primary/90' : 'bg-primary-foreground/90',
                     activeTopId === nav.id ? 'opacity-100' : 'opacity-0',
-                  ),
-                  activeTopId === nav.id ? 'opacity-100' : 'opacity-0',
-                )}
-              />
-            </Link>
-          ))}
-        </nav>
+                  )}
+                />
+              </Link>
+            ))}
+          </nav>
+        )}
+
+        {searchOpen && (
+          <div className="relative ml-auto flex min-w-0 flex-1 items-center gap-2 md:ml-4">
+            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              value={searchValue}
+              placeholder="搜索菜单或业务"
+              className="h-10 rounded-full pl-9"
+              onChange={(event) => setSearchValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') closeSearch()
+                if (event.key === 'Enter' && filteredSuggestions.length > 0) {
+                  navigate(filteredSuggestions[0].to)
+                  closeSearch()
+                }
+              }}
+            />
+            {searchValue && filteredSuggestions.length > 0 && (
+              <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md">
+                {filteredSuggestions.slice(0, 6).map((item) => (
+                  <button
+                    key={item.to}
+                    type="button"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
+                    onClick={() => {
+                      navigate(item.to)
+                      closeSearch()
+                    }}
+                  >
+                    <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="ml-auto flex items-center gap-1">
           <DropdownMenu>
@@ -151,9 +235,17 @@ export function TopHeader({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="icon" title="搜索" className={headerActionClass}>
+          {!searchOpen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              title="搜索"
+              className={headerActionClass}
+              onClick={() => setSearchOpen(true)}
+            >
             <Search className="h-5 w-5" />
           </Button>
+          )}
 
           <Button variant="ghost" size="icon" title="后台设置" onClick={() => setAdminOpen(true)} className={headerActionClass}>
             <Settings className="h-5 w-5" />

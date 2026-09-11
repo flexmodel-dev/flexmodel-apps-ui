@@ -13,6 +13,7 @@ import FilesDocs from '@/pages/FilesDocs'
 import Notifications from '@/pages/Notifications'
 import ProjectTasks from '@/pages/ProjectTasks'
 import ContactsHome from '@/pages/ContactsHome'
+import FormDesign from '@/pages/FormDesign'
 import {
   AdminSystems,
   AdminEntities,
@@ -47,6 +48,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         {/* 管理中心 */}
         <Route path="/admin/systems" element={<AdminSystems />} />
         <Route path="/admin/entities" element={<AdminEntities />} />
+        <Route path="/admin/entity/:entity/form-design" element={<FormDesign />} />
         <Route path="/admin/bizuser/users" element={<AdminUsers />} />
         <Route path="/admin/bizuser/role-privileges" element={<AdminRoles />} />
         <Route path="/admin/bizuser/teams" element={<AdminTeams />} />

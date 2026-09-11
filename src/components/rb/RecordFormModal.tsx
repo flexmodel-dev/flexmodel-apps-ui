@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Info, Settings } from 'lucide-react'
 import { RbDialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import { createRecord, getEntity, getRecords, updateRecord, users, type EntityField } from '@/data/mock'
+import {
+  formFieldWidthClasses,
+  getStoredFormLayout,
+  type StoredCustomField,
+  isFormDividerField,
+  type FormItemProperties,
+  type FormFieldWidth,
+} from '@/lib/form-layout'
 
 type FormValues = Record<string, string | boolean>
 
@@ -37,14 +48,16 @@ function FieldControl({
   field,
   value,
   onChange,
+  disabled,
 }: {
   field: EntityField
   value: string | boolean
   onChange: (value: string | boolean) => void
+  disabled?: boolean
 }) {
   if (field.type === 'SELECT') {
     return (
-      <Select value={String(value)} onValueChange={onChange}>
+      <Select value={String(value)} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger>
           <SelectValue placeholder={`请选择${field.label}`} />
         </SelectTrigger>
@@ -62,7 +75,7 @@ function FieldControl({
   if (field.type === 'REFERENCE') {
     const options = getReferenceOptions(field)
     return (
-      <Select value={String(value)} onValueChange={onChange}>
+      <Select value={String(value)} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger>
           <SelectValue placeholder={`请选择${field.label}`} />
         </SelectTrigger>
@@ -80,7 +93,11 @@ function FieldControl({
   if (field.type === 'BOOL') {
     return (
       <label className="flex h-10 items-center gap-2 text-sm">
-        <Checkbox checked={value === true} onCheckedChange={(checked) => onChange(checked === true)} />
+        <Checkbox
+          checked={value === true}
+          disabled={disabled}
+          onCheckedChange={(checked) => onChange(checked === true)}
+        />
         {value === true ? '是' : '否'}
       </label>
     )
@@ -104,6 +121,7 @@ function FieldControl({
     <Input
       type={inputType}
       value={String(value)}
+      disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
       placeholder={`请输入${field.label}`}
     />
@@ -123,6 +141,7 @@ export function RecordFormModal({
   recordId?: string | null
   onSaved?: (id: string) => void
 }) {
+  const navigate = useNavigate()
   const meta = getEntity(entity)
   const editing = React.useMemo(
     () => meta && recordId ? getRecords(meta.name).find((record) => record.id === recordId) : undefined,
@@ -130,6 +149,10 @@ export function RecordFormModal({
   )
   const [values, setValues] = React.useState<FormValues>({})
   const [error, setError] = React.useState('')
+  const [fieldWidths, setFieldWidths] = React.useState<Record<string, FormFieldWidth>>({})
+  const [layout, setLayout] = React.useState<string[]>([])
+  const [itemProperties, setItemProperties] = React.useState<Record<string, FormItemProperties>>({})
+  const [customFields, setCustomFields] = React.useState<StoredCustomField[]>([])
 
   React.useEffect(() => {
     if (!meta || !open) return
@@ -139,14 +162,35 @@ export function RecordFormModal({
       .forEach((field) => {
         next[field.name] = toInputValue(field, editing?.[field.name])
       })
+    const storedLayout = getStoredFormLayout(meta.name)
+    const nextCustomFields = storedLayout?.customFields ?? []
+    nextCustomFields
+      .filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
+      .forEach((field) => {
+        next[field.name] = toInputValue(field, editing?.[field.name])
+      })
     setValues(next)
     setError('')
+    setCustomFields(nextCustomFields)
+    const visibleDefaultFields = meta.fields
+      .filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
+      .map((field) => field.name)
+    setLayout(storedLayout ? storedLayout.fields : visibleDefaultFields)
+    setFieldWidths(storedLayout?.widths ?? {})
+    setItemProperties(storedLayout?.properties ?? {})
   }, [editing, meta, open])
 
   if (!meta) return null
 
-  const fields = meta.fields.filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
-
+  const allFields = [...meta.fields, ...customFields]
+  const fields = layout
+    .filter((name) => !isFormDividerField(name))
+    .map((name) => allFields.find((field) => field.name === name))
+    .filter((field): field is EntityField => Boolean(field))
+    .filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
+  const getDisplayLabel = (field: EntityField) =>
+    itemProperties[field.name]?.label?.trim() || field.label
+  const getItemTip = (name: string) => itemProperties[name]?.tip?.trim() || ''
   const handleSubmit = () => {
     const nameValue = String(values[meta.nameField] ?? '').trim()
     if (!nameValue) {
@@ -169,6 +213,20 @@ export function RecordFormModal({
       onOpenChange={onOpenChange}
       width={760}
       title={editing ? `编辑${meta.label}` : `新建${meta.label}`}
+      headerExtra={
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-primary"
+          title="表单设计"
+          onClick={() => {
+            onOpenChange(false)
+            navigate(`/admin/entity/${meta.name}/form-design`)
+          }}
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      }
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>取消</Button>
@@ -176,20 +234,47 @@ export function RecordFormModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {fields.map((field) => (
-          <div key={field.name} className="space-y-1.5">
-            <label className="block text-sm font-medium text-foreground">
-              {field.label}
-              {field.name === meta.nameField && <span className="ml-1 text-destructive">*</span>}
-            </label>
-            <FieldControl
-              field={field}
-              value={values[field.name] ?? ''}
-              onChange={(value) => setValues((prev) => ({ ...prev, [field.name]: value }))}
-            />
-          </div>
-        ))}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+        {layout.map((fieldName) => {
+          if (isFormDividerField(fieldName)) {
+            return (
+              <div key={fieldName} className="md:col-span-12">
+                <hr className="my-1 border-border" />
+              </div>
+            )
+          }
+
+          const sourceField = fields.find((item) => item.name === fieldName)
+          if (!sourceField) return null
+          if (itemProperties[sourceField.name]?.hidden === true) return null
+          const field = {
+            ...sourceField,
+            label: getDisplayLabel(sourceField),
+          }
+
+          return (
+            <div
+              key={field.name}
+              className={cn('space-y-1.5', formFieldWidthClasses[fieldWidths[field.name] ?? 50])}
+            >
+              <label className="block text-sm font-medium text-foreground">
+                {getDisplayLabel(field)}
+                {getItemTip(field.name) && (
+                  <span title={getItemTip(field.name)}>
+                    <Info className="ml-1 inline-block h-3.5 w-3.5 align-[-2px] text-muted-foreground" />
+                  </span>
+                )}
+                {field.name === meta.nameField && <span className="ml-1 text-destructive">*</span>}
+              </label>
+              <FieldControl
+                field={field}
+                disabled={itemProperties[field.name]?.readonly === true}
+                value={values[field.name] ?? ''}
+                onChange={(value) => setValues((prev) => ({ ...prev, [field.name]: value }))}
+              />
+            </div>
+          )
+        })}
       </div>
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
     </RbDialog>
