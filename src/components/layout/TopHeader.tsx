@@ -68,6 +68,7 @@ export function TopHeader({
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState('')
   const searchInputRef = React.useRef<HTMLInputElement>(null)
+  const searchWrapperRef = React.useRef<HTMLDivElement>(null)
   const [isDark, setIsDark] = React.useState(() => {
     const stored = window.localStorage.getItem('night')
     if (stored === 'true' || stored === 'false') return stored === 'true'
@@ -106,6 +107,18 @@ export function TopHeader({
     searchInputRef.current?.focus()
   }, [searchOpen])
 
+  React.useEffect(() => {
+    if (!searchOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target as Node)) {
+        setSearchOpen(false)
+        setSearchValue('')
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [searchOpen])
+
   const filteredSuggestions = searchValue.trim()
     ? searchSuggestions.filter((item) => item.label.toLowerCase().includes(searchValue.trim().toLowerCase()))
     : searchSuggestions
@@ -115,6 +128,13 @@ export function TopHeader({
     setAdminOpen(false)
     navigate('/admin/systems')
   }
+
+  React.useEffect(() => {
+    if (isAdmin) {
+      setSearchOpen(false)
+      setSearchValue('')
+    }
+  }, [isAdmin])
 
   const closeSearch = () => {
     setSearchOpen(false)
@@ -181,46 +201,46 @@ export function TopHeader({
           </nav>
         )}
 
-        {searchOpen && (
-          <div className="relative ml-auto flex min-w-0 flex-1 items-center gap-2 md:ml-4">
-            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              value={searchValue}
-              placeholder="搜索菜单或业务"
-              className="h-10 rounded-full pl-9"
-              onChange={(event) => setSearchValue(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') closeSearch()
-                if (event.key === 'Enter' && filteredSuggestions.length > 0) {
-                  navigate(filteredSuggestions[0].to)
-                  closeSearch()
-                }
-              }}
-            />
-            {searchValue && filteredSuggestions.length > 0 && (
-              <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md">
-                {filteredSuggestions.slice(0, 6).map((item) => (
-                  <button
-                    key={item.to}
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
-                    onClick={() => {
-                      navigate(item.to)
-                      closeSearch()
-                    }}
-                  >
-                    <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="truncate">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="ml-auto flex items-center gap-1">
-          <DropdownMenu>
+          {!isAdmin && searchOpen && (
+            <div ref={searchWrapperRef} className="relative mr-1 w-[min(18rem,46vw)]">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                value={searchValue}
+                placeholder="搜索菜单或业务"
+                className="h-9 rounded-full border-transparent bg-white/90 pl-8 text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:ring-offset-primary"
+                onChange={(event) => setSearchValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') closeSearch()
+                  if (event.key === 'Enter' && filteredSuggestions.length > 0) {
+                    navigate(filteredSuggestions[0].to)
+                    closeSearch()
+                  }
+                }}
+              />
+              {searchValue && filteredSuggestions.length > 0 && (
+                <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md">
+                  {filteredSuggestions.slice(0, 6).map((item) => (
+                    <button
+                      key={item.to}
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                      onClick={() => {
+                        navigate(item.to)
+                        closeSearch()
+                      }}
+                    >
+                      <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {!isAdmin && (
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" title="新建" className={headerActionClass}>
                 <Plus className="h-5 w-5" />
@@ -233,9 +253,10 @@ export function TopHeader({
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
+          )}
 
-          {!searchOpen && (
+          {!isAdmin && !searchOpen && (
             <Button
               variant="ghost"
               size="icon"
@@ -247,9 +268,11 @@ export function TopHeader({
           </Button>
           )}
 
-          <Button variant="ghost" size="icon" title="后台设置" onClick={() => setAdminOpen(true)} className={headerActionClass}>
-            <Settings className="h-5 w-5" />
-          </Button>
+          {!isAdmin && (
+            <Button variant="ghost" size="icon" title="后台设置" onClick={() => setAdminOpen(true)} className={headerActionClass}>
+              <Settings className="h-5 w-5" />
+            </Button>
+          )}
 
           <Button variant="ghost" size="icon" title={isDark ? '切换到浅色模式' : '切换到夜间模式'} onClick={() => setIsDark((value) => !value)} className={headerActionClass}>
             {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -308,7 +331,7 @@ export function TopHeader({
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/login">个人设置</Link>
+                <Link to="/settings/user">个人设置</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/login">退出登录</Link>

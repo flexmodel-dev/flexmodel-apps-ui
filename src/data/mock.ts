@@ -6,6 +6,7 @@ import {
   PieChart,
   Shapes,
   ShoppingCart,
+  Settings,
   Tags,
   TrendingUp,
   User,
@@ -25,6 +26,8 @@ export interface User {
   dept: string
   role: string
   active: boolean
+  workphone?: string
+  teams?: string[]
 }
 
 export interface EntityField {
@@ -61,6 +64,8 @@ export const currentUser: User = {
   dept: '总部',
   role: '管理员',
   active: true,
+  workphone: '0755-8899-0001',
+  teams: ['研发团队', '销售团队'],
 }
 
 export const users: User[] = [

@@ -13,6 +13,7 @@ import FilesDocs from '@/pages/FilesDocs'
 import Notifications from '@/pages/Notifications'
 import ProjectTasks from '@/pages/ProjectTasks'
 import ContactsHome from '@/pages/ContactsHome'
+import UserSettings from '@/pages/UserSettings'
 import FormDesign from '@/pages/FormDesign'
 import {
   AdminSystems,
@@ -33,6 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard/home" replace />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/settings/user" element={<UserSettings />} />
         <Route path="/dashboard/home" element={<DashboardHome />} />
         {/* 业务实体 */}
         <Route path="/app/:entity/list" element={<RecordList />} />

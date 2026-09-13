@@ -116,12 +116,25 @@ export function RecordDetailContent({
               </h3>
             </div>
           </div>
-          <TabsList className="mt-2">
-            <TabsTrigger value="detail">
+          <TabsList className="mt-2 h-auto w-full justify-start rounded-none border-b bg-transparent p-0">
+            <TabsTrigger
+              value="detail"
+              className="h-10 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            >
               详情
             </TabsTrigger>
-            <TabsTrigger value="dynamic">动态 (2)</TabsTrigger>
-            <TabsTrigger value="related">相关记录</TabsTrigger>
+            <TabsTrigger
+              value="dynamic"
+              className="h-10 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            >
+              动态 (2)
+            </TabsTrigger>
+            <TabsTrigger
+              value="related"
+              className="h-10 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            >
+              相关记录
+            </TabsTrigger>
           </TabsList>
 
           <div className="row mt-4 flex gap-5">
