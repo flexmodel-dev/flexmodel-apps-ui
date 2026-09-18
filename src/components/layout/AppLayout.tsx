@@ -1,28 +1,28 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { getEntity, getTopNavIdByPath, topNavs } from '@/data/mock'
+import { getEntity, getTopNavIdByPath, topNavs, type NavItem } from '@/data/mock'
 import { Briefcase, Boxes, ChevronsLeft, ChevronsRight, ClipboardCheck, LogIn, Recycle, Settings, Shapes, ShieldCheck, Users } from 'lucide-react'
 import { TopHeader } from './TopHeader'
 import { LeftSidebar } from './LeftSidebar'
 import { Button } from '@/components/ui/button'
 
-const adminNavs = [
-  { id: 'divider-systems', label: '系统', to: '' },
-  { id: 'systems', label: '通用配置', to: '/admin/systems', icon: Settings },
-  { id: 'divider-entities', label: '业务实体', to: '' },
-  { id: 'entities', label: '实体管理', to: '/admin/entities', icon: Boxes },
-  { id: 'approvals', label: '审批流程', to: '/admin/robot/approvals', icon: ClipboardCheck },
-  { id: 'triggers', label: '触发器', to: '/admin/robot/triggers', icon: Settings },
-  { id: 'divider-features', label: '更多功能', to: '' },
-  { id: 'projects', label: '项目', to: '/admin/projects', icon: Shapes },
-  { id: 'divider-users', label: '用户', to: '' },
-  { id: 'users', label: '部门用户', to: '/admin/bizuser/users', icon: Users },
-  { id: 'roles', label: '角色权限', to: '/admin/bizuser/role-privileges', icon: ShieldCheck },
-  { id: 'teams', label: '团队', to: '/admin/bizuser/teams', icon: Briefcase },
-  { id: 'divider-audit', label: '审计', to: '' },
-  { id: 'login-logs', label: '登录日志', to: '/admin/audit/login-logs', icon: LogIn },
-  { id: 'recycle-bin', label: '回收站', to: '/admin/audit/recycle-bin', icon: Recycle },
+const adminNavs: NavItem[] = [
+  { id: 'divider-systems', text: '系统', to: '' },
+  { id: 'systems', text: '通用配置', to: '/admin/systems', icon: Settings },
+  { id: 'divider-entities', text: '业务对象', to: '' },
+  { id: 'entities', text: '实体管理', to: '/admin/entities', icon: Boxes },
+  { id: 'approvals', text: '审批流程', to: '/admin/robot/approvals', icon: ClipboardCheck },
+  { id: 'triggers', text: '触发器', to: '/admin/robot/triggers', icon: Settings },
+  { id: 'divider-features', text: '更多功能', to: '' },
+  { id: 'projects', text: '项目', to: '/admin/projects', icon: Shapes },
+  { id: 'divider-users', text: '用户', to: '' },
+  { id: 'users', text: '部门用户', to: '/admin/bizuser/users', icon: Users },
+  { id: 'roles', text: '角色权限', to: '/admin/bizuser/role-privileges', icon: ShieldCheck },
+  { id: 'teams', text: '团队', to: '/admin/bizuser/teams', icon: Briefcase },
+  { id: 'divider-audit', text: '审计', to: '' },
+  { id: 'login-logs', text: '登录日志', to: '/admin/audit/login-logs', icon: LogIn },
+  { id: 'recycle-bin', text: '回收站', to: '/admin/audit/recycle-bin', icon: Recycle },
 ]
 
 function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; onToggleCollapsed?: () => void }) {
@@ -47,7 +47,7 @@ function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; o
                   key={nav.id}
                   className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                 >
-                  {!collapsed && nav.label}
+                  {!collapsed && nav.text}
                 </li>
               )
             }
@@ -58,7 +58,7 @@ function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; o
                 <div className="flex items-center">
                   <Link
                     to={nav.to}
-                    title={nav.label}
+                    title={nav.text}
                     className={cn(
                       'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       active
@@ -67,7 +67,7 @@ function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; o
                     )}
                   >
                     {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
-                    {!collapsed && <span className="truncate">{nav.label}</span>}
+                    {!collapsed && <span className="truncate">{nav.text}</span>}
                   </Link>
                 </div>
               </li>
@@ -128,6 +128,25 @@ export function AppLayout({
   const showEntitySidebar = useAdminSidebar && /^\/admin\/entity\//.test(location.pathname)
   const currentEntity = location.pathname.match(/^\/admin\/entity\/([^/]+)/)?.[1]
   const currentEntityMeta = currentEntity ? getEntity(currentEntity) : undefined
+  const mobileNavs = useAdminSidebar
+    ? showEntitySidebar && currentEntity
+      ? [
+          ...adminNavs,
+          {
+            id: 'mobile-entity',
+            text: currentEntityMeta?.label ?? '实体',
+            sub: [
+              { id: 'mobile-entity-base', text: '基本信息', to: `/admin/entity/${currentEntity}/base` },
+              { id: 'mobile-entity-fields', text: '字段管理', to: `/admin/entity/${currentEntity}/fields` },
+              { id: 'mobile-entity-form-design', text: '表单设计', to: `/admin/entity/${currentEntity}/form-design` },
+              { id: 'mobile-entity-easy-action', text: '自定义操作', to: `/admin/entity/${currentEntity}/easy-action` },
+              { id: 'mobile-entity-record-alerts', text: '记录锁定', to: `/admin/entity/${currentEntity}/record-alerts` },
+              { id: 'mobile-entity-advanced', text: '高级配置', to: `/admin/entity/${currentEntity}/advanced` },
+            ],
+          },
+        ]
+      : adminNavs
+    : activeTop.navs
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -136,6 +155,7 @@ export function AppLayout({
           activeTopId={activeTop.id}
           onTopNavChange={setActiveTopId}
           isAdmin={useAdminSidebar}
+          mobileNavs={mobileNavs}
         />
       )}
 

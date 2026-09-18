@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, Moon, Plus, Search, Settings, Sun, X } from 'lucide-react'
+import { Bell, Menu, Moon, Plus, Search, Settings, Sun, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
@@ -16,6 +16,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { entities, topNavs } from '@/data/mock'
+import { MobileNavDrawer } from './MobileNavDrawer'
+import type { NavItem } from '@/data/mock'
 
 const notificationItems = [
   { id: 1, from: '钱迅', text: '提交的《华辰科技 - ERP 报价》需要你审批', time: '10 分钟前' },
@@ -58,13 +60,16 @@ export function TopHeader({
   activeTopId,
   onTopNavChange,
   isAdmin = false,
+  mobileNavs = [],
 }: {
   activeTopId: string
   onTopNavChange: (id: string) => void
   isAdmin?: boolean
+  mobileNavs?: NavItem[]
 }) {
   const navigate = useNavigate()
   const [adminOpen, setAdminOpen] = React.useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState('')
   const searchInputRef = React.useRef<HTMLInputElement>(null)
@@ -155,8 +160,17 @@ export function TopHeader({
           : 'border-black/10 bg-primary text-primary-foreground',
       )}
     >
-      <div className="flex h-16 items-center gap-2 px-4">
-        <Link to="/dashboard/home" className="mr-2 flex items-center gap-2">
+      <div className="flex h-16 min-w-0 items-center gap-2 px-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          title="打开导航菜单"
+          className={cn('shrink-0 md:hidden', headerActionClass)}
+          onClick={() => setMobileNavOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <Link to="/dashboard/home" className="mr-2 flex min-w-0 items-center gap-2">
           <span
             className={cn(
               'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold shadow-sm',
@@ -165,7 +179,7 @@ export function TopHeader({
           >
             N
           </span>
-          <span className="text-lg font-semibold">
+          <span className="max-w-[34vw] truncate text-base font-semibold sm:text-lg">
             {isAdmin ? 'NEWBUILD管理后台' : 'NEWBUILD'}
           </span>
         </Link>
@@ -360,6 +374,16 @@ export function TopHeader({
           </DropdownMenu>
         </div>
       </div>
+
+      <MobileNavDrawer
+        open={mobileNavOpen}
+        onOpenChange={setMobileNavOpen}
+        title={isAdmin ? '后台菜单' : '菜单'}
+        navs={mobileNavs}
+        topNavs={isAdmin ? undefined : topNavs}
+        activeTopId={isAdmin ? undefined : activeTopId}
+        onTopNavChange={isAdmin ? undefined : onTopNavChange}
+      />
 
       <RbDialog
         open={adminOpen}

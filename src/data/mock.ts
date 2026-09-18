@@ -15,7 +15,7 @@ import {
 
 /**
  * 假数据层
- * 模拟业务实体（客户/商机/...）、记录、用户、部门等
+ * 模拟业务对象（客户/商机/...）、记录、用户、部门等
  */
 
 export interface User {
@@ -527,7 +527,7 @@ export const chartData = {
   ],
 }
 
-/* ---------------- 导航配置（NavBuilder 默认 + 业务实体） ---------------- */
+/* ---------------- 导航配置（NavBuilder 默认 + 业务对象） ---------------- */
 
 export interface NavItem {
   id: string

@@ -46,7 +46,7 @@ export function AdminEntities() {
     <AppLayout admin adminActive="/admin/entities">
       <div className="row -mx-2.5" id="entityList">
         <div className="new-entity mb-5 w-full px-2.5">
-          <h3 className="mb-4 text-base font-normal text-muted-foreground">业务实体</h3>
+          <h3 className="mb-4 text-base font-normal text-muted-foreground">业务对象</h3>
           <div className="grid grid-cols-2 gap-5 md:grid-cols-4 xl:grid-cols-6">
             {entities.map((e) => (
               <Link key={e.name} to={`/app/${e.name}/list`} className="block rounded-md border bg-card transition-colors hover:bg-accent">
@@ -160,7 +160,7 @@ export function AdminApprovals() {
   return (
     <AdminTablePage
       title="审批流程"
-      desc="业务实体审批流程配置"
+      desc="业务对象审批流程配置"
       adminActive="/admin/robot/approvals"
       rows={[
         { id: 'a1', name: '报销审批流程', entity: '报销单', applies: '全部', state: '启用', modifiedOn: '2026-08-30 16:40' },

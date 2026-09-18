@@ -36,7 +36,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/login" element={<Login />} />
         <Route path="/settings/user" element={<UserSettings />} />
         <Route path="/dashboard/home" element={<DashboardHome />} />
-        {/* 业务实体 */}
+        {/* 业务对象 */}
         <Route path="/app/:entity/list" element={<RecordList />} />
         <Route path="/app/:entity/view/:id" element={<RecordView />} />
         {/* 内置模块 */}

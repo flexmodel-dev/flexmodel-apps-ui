@@ -156,10 +156,10 @@ export default function ApprovalHome() {
                 />
                 <Select value={entity} onValueChange={setEntity}>
                   <SelectTrigger className="h-9 w-[176px]">
-                    <SelectValue placeholder="业务实体" />
+                    <SelectValue placeholder="业务对象" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">全部业务实体</SelectItem>
+                    <SelectItem value="all">全部业务对象</SelectItem>
                     {entityOptions.map((item) => (
                       <SelectItem key={item} value={item}>
                         {item}
