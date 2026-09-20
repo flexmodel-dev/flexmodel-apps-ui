@@ -1,19 +1,16 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { getEntity, getTopNavIdByPath, topNavs, type NavItem } from '@/data/mock'
-import { Briefcase, Boxes, ChevronsLeft, ChevronsRight, ClipboardCheck, LogIn, Recycle, Settings, Shapes, ShieldCheck, Users } from 'lucide-react'
+import { getAppById, getAppMenus, getEntity, getTopNavIdByPath, topNavs, type NavItem } from '@/data/mock'
+import { Briefcase, ChevronsLeft, ChevronsRight, LayoutGrid, LogIn, Recycle, Settings, Shapes, ShieldCheck, Users } from 'lucide-react'
 import { TopHeader } from './TopHeader'
 import { LeftSidebar } from './LeftSidebar'
 import { Button } from '@/components/ui/button'
 
 const adminNavs: NavItem[] = [
+  { id: 'apps', text: '应用管理', to: '/admin/apps', icon: LayoutGrid },
   { id: 'divider-systems', text: '系统', to: '' },
   { id: 'systems', text: '通用配置', to: '/admin/systems', icon: Settings },
-  { id: 'divider-entities', text: '业务对象', to: '' },
-  { id: 'entities', text: '实体管理', to: '/admin/entities', icon: Boxes },
-  { id: 'approvals', text: '审批流程', to: '/admin/robot/approvals', icon: ClipboardCheck },
-  { id: 'triggers', text: '触发器', to: '/admin/robot/triggers', icon: Settings },
   { id: 'divider-features', text: '更多功能', to: '' },
   { id: 'projects', text: '项目', to: '/admin/projects', icon: Shapes },
   { id: 'divider-users', text: '用户', to: '' },
@@ -112,6 +109,9 @@ export function AppLayout({
   const [collapsed, setCollapsed] = React.useState(false)
   const [activeTopId, setActiveTopId] = React.useState(() => getTopNavIdByPath(location.pathname))
 
+  const appId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
+  const activeApp = getAppById(appId)
+
   React.useEffect(() => {
     const currentTop = topNavs.find((nav) => nav.id === activeTopId)
     const currentContains = currentTop?.navs.some(
@@ -124,6 +124,14 @@ export function AppLayout({
   }, [location.pathname, activeTopId])
 
   const activeTop = topNavs.find((nav) => nav.id === activeTopId) ?? topNavs[0]
+  const appNavs: NavItem[] = activeApp
+    ? getAppMenus(activeApp.id).map((item) => ({
+        id: item.id,
+        icon: item.icon,
+        text: item.label,
+        to: `/app/${activeApp.id}/${item.id}`,
+      }))
+    : []
   const useAdminSidebar = admin || activeTop.id === 'top-admin'
   const showEntitySidebar = useAdminSidebar && /^\/admin\/entity\//.test(location.pathname)
   const currentEntity = location.pathname.match(/^\/admin\/entity\/([^/]+)/)?.[1]
@@ -146,7 +154,9 @@ export function AppLayout({
           },
         ]
       : adminNavs
-    : activeTop.navs
+    : activeApp
+      ? appNavs
+      : activeTop.navs
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -165,8 +175,8 @@ export function AppLayout({
         ) : (
           <LeftSidebar
             collapsed={collapsed}
-            navs={activeTop.navs}
-            sectionKey={activeTop.id}
+            navs={activeApp ? appNavs : activeTop.navs}
+            sectionKey={activeApp ? `app-${activeApp.id}` : activeTop.id}
             onToggleCollapsed={() => setCollapsed((value) => !value)}
           />
         ))}

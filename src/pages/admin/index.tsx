@@ -1,7 +1,6 @@
-import * as React from 'react'
-import { Link } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AdminTablePage } from './AdminTablePage'
+import { EntityManagementContent } from './AdminContent'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { entities, users, departments, teams, projects, loginLogs, recycleBin } from '@/data/mock'
@@ -41,40 +40,9 @@ export function AdminSystems() {
 }
 
 /** 实体管理（admin/metadata/entities.html：卡片网格） */
-export function AdminEntities() {
-  return (
-    <AppLayout admin adminActive="/admin/entities">
-      <div className="row -mx-2.5" id="entityList">
-        <div className="new-entity mb-5 w-full px-2.5">
-          <h3 className="mb-4 text-base font-normal text-muted-foreground">业务对象</h3>
-          <div className="grid grid-cols-2 gap-5 md:grid-cols-4 xl:grid-cols-6">
-            {entities.map((e) => (
-              <Link key={e.name} to={`/app/${e.name}/list`} className="block rounded-md border bg-card transition-colors hover:bg-accent">
-                <div className="card-body p-3">
-                  <div className="float-left w-[30px] text-center">
-                    <e.icon className="h-7 w-7 text-primary" />
-                  </div>
-                  <div className="ml-7">
-                    <span className="block truncate text-sm font-medium">{e.label}</span>
-                    <p className="mb-0 mt-0.5 truncate text-xs text-muted-foreground">{e.description}</p>
-                  </div>
-                </div>
-                <div className="badge-wrap absolute right-[11px] top-[13px]">
-                  <span className="badge-secondary">{e.badge}</span>
-                </div>
-              </Link>
-            ))}
-            <a className="block cursor-pointer rounded-md border border-dashed border-input transition-colors hover:border-primary">
-              <div className="card-body p-3 pt-1 text-center">
-                <CirclePlus className="h-6 w-6 text-primary" />
-                <span className="mt-1 block text-xs text-muted-foreground">新建实体</span>
-              </div>
-            </a>
-          </div>
-        </div>
-      </div>
-    </AppLayout>
-  )
+export function AdminEntities({ embedded = false }: { embedded?: boolean } = {}) {
+  const content = <EntityManagementContent entities={entities} />
+  return embedded ? content : <AppLayout admin adminActive="/admin/entities">{content}</AppLayout>
 }
 
 /** 部门用户（admin/bizuser/user-list.html） */
@@ -156,12 +124,13 @@ export function AdminTeams() {
 }
 
 /** 审批流程列表（admin/robot/approval-list.html） */
-export function AdminApprovals() {
+export function AdminApprovals({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <AdminTablePage
       title="审批流程"
       desc="业务对象审批流程配置"
       adminActive="/admin/robot/approvals"
+      bare={embedded}
       rows={[
         { id: 'a1', name: '报销审批流程', entity: '报销单', applies: '全部', state: '启用', modifiedOn: '2026-08-30 16:40' },
         { id: 'a2', name: '请假审批流程', entity: '请假单', applies: '全部', state: '启用', modifiedOn: '2026-08-30 16:42' },
@@ -184,12 +153,13 @@ export function AdminApprovals() {
 }
 
 /** 触发器（admin/robot/trigger-list.html） */
-export function AdminTriggers() {
+export function AdminTriggers({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <AdminTablePage
       title="触发器"
       desc="数据自动化处理规则"
       adminActive="/admin/robot/triggers"
+      bare={embedded}
       rows={[
         { id: 't1', name: '新客户自动分配', entity: '客户', when: '新建时', action: '数据分配', state: '启用', modifiedOn: '2026-08-18 11:20' },
         { id: 't2', name: '赢单发送通知', entity: '商机', when: '字段更新', action: '发送通知', state: '启用', modifiedOn: '2026-08-22 09:35' },

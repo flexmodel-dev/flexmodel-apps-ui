@@ -5,6 +5,8 @@ import './index.css'
 
 import Login from '@/pages/Login'
 import DashboardHome from '@/pages/DashboardHome'
+import AppManagement from '@/pages/AppManagement'
+import AppSettings from '@/pages/AppSettings'
 import RecordList from '@/pages/RecordList'
 import RecordView from '@/pages/RecordView'
 import ApprovalHome from '@/pages/ApprovalHome'
@@ -27,6 +29,15 @@ import {
   AdminLoginLogs,
   AdminRecycleBin,
 } from '@/pages/admin'
+import { getAppById, getAppMenus } from '@/data/mock'
+
+function AppHomeRedirect() {
+  const { appId } = { appId: window.location.hash.split('/')[2] }
+  const firstMenu = getAppMenus(appId)[0]
+  return getAppById(appId) && firstMenu
+    ? <Navigate to={`/app/${appId}/${firstMenu.id}`} replace />
+    : <Navigate to="/dashboard/home" replace />
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -37,8 +48,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/settings/user" element={<UserSettings />} />
         <Route path="/dashboard/home" element={<DashboardHome />} />
         {/* 业务对象 */}
-        <Route path="/app/:entity/list" element={<RecordList />} />
-        <Route path="/app/:entity/view/:id" element={<RecordView />} />
+        <Route path="/app/:appId" element={<AppHomeRedirect />} />
+        <Route path="/app/:appId/:menuId" element={<RecordList />} />
+        <Route path="/app/:appId/:menuId/view/:recordId" element={<RecordView />} />
+        <Route path="/admin/apps" element={<AppManagement />} />
+        <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic" />} />
+        <Route path="/admin/apps/:appId/settings/entities" element={<AppSettings section="entities" />} />
+        <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals" />} />
+        <Route path="/admin/apps/:appId/settings/triggers" element={<AppSettings section="triggers" />} />
         {/* 内置模块 */}
         <Route path="/approval/home" element={<ApprovalHome />} />
         <Route path="/feeds/home" element={<FeedsHome />} />

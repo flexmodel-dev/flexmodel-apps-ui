@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { entities, topNavs } from '@/data/mock'
+import { entities, getAppMenuForEntity, topNavs } from '@/data/mock'
 import { MobileNavDrawer } from './MobileNavDrawer'
 import type { NavItem } from '@/data/mock'
 
@@ -25,14 +25,18 @@ const notificationItems = [
 ]
 
 const createItems = [
-  { label: '客户', to: '/app/Customer/list' },
-  { label: '商机', to: '/app/Opportunity/list' },
-  { label: '产品', to: '/app/Product/list' },
+  ...entities.flatMap((entity) => {
+    const menu = getAppMenuForEntity(entity.name)
+    return menu ? [{ label: entity.label, to: `/app/${menu.appId}/${menu.menuId}` }] : []
+  }),
 ]
 
 const searchSuggestions = [
   { label: '工作台', to: '/dashboard/home' },
-  ...entities.map((entity) => ({ label: entity.label, to: `/app/${entity.name}/list` })),
+  ...entities.flatMap((entity) => {
+    const menu = getAppMenuForEntity(entity.name)
+    return menu ? [{ label: entity.label, to: `/app/${menu.appId}/${menu.menuId}` }] : []
+  }),
   { label: '审批中心', to: '/approval/home' },
   { label: '动态', to: '/feeds/home' },
   { label: '文件', to: '/files/home' },

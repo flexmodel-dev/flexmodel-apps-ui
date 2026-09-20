@@ -28,7 +28,7 @@ import { Pagination } from '@/components/rb/Pagination'
 import { RbNoData } from '@/components/rb/RbLoading'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { RecordDetailContent } from '@/pages/RecordView'
-import { getEntity, getRecords } from '@/data/mock'
+import { getAppMenuItem, getEntity, getRecords } from '@/data/mock'
 import { cn, paginate } from '@/lib/utils'
 import { RecordFormModal } from '@/components/rb/RecordFormModal'
 import {
@@ -41,9 +41,10 @@ import {
 
 /** 记录列表页（复刻 general/record-list.html + rb-datalist） */
 export default function RecordList() {
-  const { entity } = useParams<{ entity: string }>()
-  const meta = getEntity(entity ?? 'Customer')
-  const [rows, setRows] = React.useState(() => getRecords(entity ?? 'Customer'))
+  const { appId, menuId } = useParams<{ appId: string; menuId: string }>()
+  const menuItem = getAppMenuItem(appId, menuId)
+  const meta = getEntity(menuItem?.entityId ?? '')
+  const [rows, setRows] = React.useState(() => getRecords(menuItem?.entityId ?? ''))
   const [q, setQ] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [size] = React.useState(30)
@@ -72,6 +73,16 @@ export default function RecordList() {
     setRows(f)
     setPage(1)
   }, [q, sortKey, sortAsc, meta, refreshTick])
+
+  React.useEffect(() => {
+    setSelected([])
+    setDetailId(null)
+    setFormOpen(false)
+    setFormRecordId(null)
+    setQ('')
+    setSortKey('')
+    setSortAsc(true)
+  }, [appId, menuId])
 
   if (!meta) return <AppLayout>未知实体</AppLayout>
 
@@ -128,15 +139,15 @@ export default function RecordList() {
     <AppLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
       {/* 实体页签 */}
       <ul className="nav nav-tabs-classic mb-0 flex list-none items-center gap-1 border-b border-[#e3e3e3] pb-0 dark:border-[#2e3340]">
-        {['Customer', 'Opportunity', 'Product'].map((e) => {
-          const m = getEntity(e)!
+        {(menuItem ? [menuItem] : []).map((item) => {
+          const m = getEntity(item.entityId)!
           return (
-            <li key={e}>
+            <li key={item.id}>
               <Link
-                to={`/app/${e}/list`}
+                to={`/app/${appId}/${item.id}`}
                 className={cn(
                   '-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground',
-                  e === meta.name ? 'border-primary text-foreground' : 'border-transparent'
+                  item.entityId === meta.name ? 'border-primary text-foreground' : 'border-transparent'
                 )}
               >
                 <m.icon className="h-4 w-4" />

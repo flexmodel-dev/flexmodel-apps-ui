@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RbDialog } from '@/components/ui/dialog'
-import { getEntity, getRecords, feeds } from '@/data/mock'
+import { getAppMenuItem, getEntity, getRecords, feeds } from '@/data/mock'
 import { cn } from '@/lib/utils'
 import { RecordFormModal } from '@/components/rb/RecordFormModal'
 import {
@@ -315,14 +315,16 @@ export function RecordDetailContent({
 }
 
 export default function RecordView() {
-  const { entity, id } = useParams<{ entity: string; id: string }>()
+  const { appId, menuId, id } = useParams<{ appId: string; menuId: string; id: string }>()
   const navigate = useNavigate()
+  const menuItem = getAppMenuItem(appId, menuId)
+  const entity = menuItem?.entityId ?? ''
 
   return (
     <RecordDetailContent
-      entity={entity ?? 'Customer'}
+      entity={entity}
       id={id ?? ''}
-      onDeleted={() => navigate(`/app/${entity ?? 'Customer'}/list`)}
+      onDeleted={() => navigate(`/app/${appId}/${menuId}`)}
     />
   )
 }

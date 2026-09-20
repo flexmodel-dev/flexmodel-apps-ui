@@ -17,6 +17,7 @@ export function AdminTablePage<T extends { id: string }>({
   title,
   desc,
   adminActive,
+  bare = false,
   rows,
   columns,
   toolbar,
@@ -25,6 +26,7 @@ export function AdminTablePage<T extends { id: string }>({
   title: string
   desc?: string
   adminActive?: string
+  bare?: boolean
   rows: T[]
   columns: AdminColumn<T>[]
   toolbar?: React.ReactNode
@@ -36,9 +38,8 @@ export function AdminTablePage<T extends { id: string }>({
   const filtered = rows.filter((r) => Object.values(r).some((v) => String(v ?? '').includes(q)))
   const { rows: pageRows, pages, total } = paginate(filtered, page, size)
 
-  return (
-    <AppLayout admin adminActive={adminActive}>
-      <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+  const content = (
+    <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <div>
             <h4 className="m-0 text-base font-medium">{title}</h4>
@@ -86,6 +87,13 @@ export function AdminTablePage<T extends { id: string }>({
           </div>
         </div>
       </div>
+  )
+
+  if (bare) return content
+
+  return (
+    <AppLayout admin adminActive={adminActive}>
+      {content}
     </AppLayout>
   )
 }

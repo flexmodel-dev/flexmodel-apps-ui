@@ -1,5 +1,7 @@
 import {
+  Banknote,
   BookUser,
+  Boxes,
   ClipboardCheck,
   Folder,
   Home,
@@ -52,6 +54,61 @@ export interface EntityMeta {
 export interface RbRecord {
   id: string
   [key: string]: unknown
+}
+
+export const appIconOptions = [
+  'ShoppingCart',
+  'Banknote',
+  'Boxes',
+  'Folder',
+  'Tags',
+  'TrendingUp',
+] as const
+
+export type AppIconName = (typeof appIconOptions)[number]
+
+export const appIcons: Record<AppIconName, LucideIcon> = {
+  ShoppingCart,
+  Banknote,
+  Boxes,
+  Folder,
+  Tags,
+  TrendingUp,
+}
+
+export interface AppMeta {
+  id: string
+  name: string
+  iconName: AppIconName
+  description: string
+  updatedAt: string
+  ownedEntityNames?: string[]
+}
+
+export interface AppMenuItem {
+  id: string
+  entityId: string
+  label: string
+  icon: LucideIcon
+}
+
+export interface AppApprovalFlow {
+  id: string
+  name: string
+  entity: string
+  applies: string
+  state: '启用' | '停用'
+  modifiedOn: string
+}
+
+export interface AppTriggerConfig {
+  id: string
+  name: string
+  entity: string
+  when: string
+  action: string
+  state: '启用' | '停用'
+  modifiedOn: string
 }
 
 /* ---------------- 用户/部门 ---------------- */
@@ -172,16 +229,192 @@ export function getEntity(name: string): EntityMeta | undefined {
   return entities.find((e) => e.name === name)
 }
 
+const expenseEntity: EntityMeta = {
+  name: 'Expense',
+  label: '报销单',
+  icon: Banknote,
+  nameField: 'expenseName',
+  description: '费用报销申请',
+  badge: '报销',
+  fields: [
+    { name: 'expenseId', label: '报销编号', type: 'TEXT' },
+    { name: 'expenseName', label: '报销事由', type: 'TEXT' },
+    { name: 'category', label: '费用类型', type: 'SELECT', options: [
+      { id: 'EX001', text: '交通费', color: '#34a853' },
+      { id: 'EX002', text: '住宿费', color: '#18181b' },
+      { id: 'EX003', text: '业务招待', color: '#fbbc05' },
+      { id: 'EX004', text: '办公用品', color: '#ea4335' },
+    ] },
+    { name: 'amount', label: '报销金额', type: 'DECIMAL' },
+    { name: 'submitDate', label: '提交日期', type: 'DATE' },
+    { name: 'owningUser', label: '所属用户', type: 'REFERENCE', refEntity: 'User' },
+    { name: 'createdOn', label: '创建时间', type: 'DATETIME' },
+    { name: 'modifiedOn', label: '修改时间', type: 'DATETIME' },
+  ],
+}
+
+entities.push(expenseEntity)
+
+export const apps: AppMeta[] = [
+  {
+    id: 'app-sales',
+    name: '销售管理',
+    iconName: 'ShoppingCart',
+    description: '管理客户、商机和产品数据，跟踪销售全过程。',
+    updatedAt: d(1, 16, 30),
+    ownedEntityNames: [],
+  },
+  {
+    id: 'app-expense',
+    name: '报销管理',
+    iconName: 'Banknote',
+    description: '提交和审核费用报销，沉淀常用报销流程。',
+    updatedAt: d(2, 10, 15),
+    ownedEntityNames: ['Expense'],
+  },
+]
+
+const appMenus: Record<string, AppMenuItem[]> = {
+  'app-sales': [
+    { id: 'menu-customer', entityId: 'Customer', label: '客户', icon: User },
+    { id: 'menu-opportunity', entityId: 'Opportunity', label: '商机', icon: TrendingUp },
+    { id: 'menu-product', entityId: 'Product', label: '产品', icon: ShoppingCart },
+  ],
+  'app-expense': [
+    { id: 'menu-expense', entityId: 'Expense', label: '报销单', icon: Banknote },
+  ],
+}
+
+const appApprovalFlows: Record<string, AppApprovalFlow[]> = {
+  'app-sales': [
+    { id: 'af-001', name: '报价审批流程', entity: 'Opportunity', applies: '金额 > 50,000', state: '启用', modifiedOn: d(3, 10, 15) },
+  ],
+  'app-expense': [
+    { id: 'af-101', name: '费用报销流程', entity: 'Expense', applies: '全部', state: '启用', modifiedOn: d(2, 14, 20) },
+  ],
+}
+
+const appTriggers: Record<string, AppTriggerConfig[]> = {
+  'app-sales': [
+    { id: 'at-001', name: '新客户自动分配', entity: 'Customer', when: '新建时', action: '数据分配', state: '启用', modifiedOn: d(5, 11, 20) },
+  ],
+  'app-expense': [
+    { id: 'at-101', name: '高额报销提醒', entity: 'Expense', when: '字段更新', action: '发送通知', state: '启用', modifiedOn: d(4, 9, 35) },
+  ],
+}
+
+export function getApps(): AppMeta[] {
+  return apps
+}
+
+export function getAppById(appId: string | undefined): AppMeta | undefined {
+  return apps.find((app) => app.id === appId)
+}
+
+export function getAppMenus(appId: string | undefined): AppMenuItem[] {
+  return appMenus[appId ?? ''] ?? []
+}
+
+export function getAppMenuItem(appId: string | undefined, menuId: string | undefined): AppMenuItem | undefined {
+  return getAppMenus(appId).find((item) => item.id === menuId)
+}
+
+export function getAppEntities(appId: string | undefined): EntityMeta[] {
+  return getAppMenus(appId)
+    .map((item) => getEntity(item.entityId))
+    .filter((item): item is EntityMeta => Boolean(item))
+}
+
+export function getAppMenuForEntity(entityName: string): { appId: string; menuId: string } | undefined {
+  for (const app of apps) {
+    const menu = getAppMenus(app.id).find((item) => item.entityId === entityName)
+    if (menu) return { appId: app.id, menuId: menu.id }
+  }
+  return undefined
+}
+
+export function getAppEntityCount(appId: string): number {
+  return new Set(getAppMenus(appId).map((item) => item.entityId)).size
+}
+
+export function getAppApprovalFlows(appId: string | undefined): AppApprovalFlow[] {
+  return appApprovalFlows[appId ?? ''] ?? []
+}
+
+export function getAppTriggers(appId: string | undefined): AppTriggerConfig[] {
+  return appTriggers[appId ?? ''] ?? []
+}
+
+function createAppId(name: string) {
+  const prefix = `app-${Date.now().toString(36)}`
+  return prefix || `app-${name}`
+}
+
+export function createApp(values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedEntityNames'>): AppMeta {
+  const app: AppMeta = {
+    ...values,
+    id: createAppId(values.name),
+    updatedAt: d(0, 12, 0),
+    ownedEntityNames: [],
+  }
+  apps.unshift(app)
+  appMenus[app.id] = []
+  appApprovalFlows[app.id] = []
+  appTriggers[app.id] = []
+  return app
+}
+
+export function updateApp(appId: string, values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedEntityNames'>): AppMeta | undefined {
+  const index = apps.findIndex((app) => app.id === appId)
+  if (index < 0) return undefined
+  const updated: AppMeta = {
+    ...apps[index],
+    ...values,
+    id: appId,
+    updatedAt: d(0, 12, 0),
+  }
+  apps[index] = updated
+  return updated
+}
+
+export function deleteApp(appId: string): boolean {
+  const index = apps.findIndex((app) => app.id === appId)
+  if (index < 0) return false
+
+  const ownedEntityNames = new Set(apps[index].ownedEntityNames ?? [])
+  const hasOtherOwner = (entityName: string) => apps.some(
+    (app) => app.id !== appId && (app.ownedEntityNames ?? []).includes(entityName),
+  )
+  ownedEntityNames.forEach((entityName) => {
+    if (!hasOtherOwner(entityName)) {
+      const entityIndex = entities.findIndex((entity) => entity.name === entityName)
+      if (entityIndex >= 0) entities.splice(entityIndex, 1)
+      delete recordSets[entityName]
+      Object.keys(appMenus).forEach((ownerId) => {
+        appMenus[ownerId] = appMenus[ownerId].filter((item) => item.entityId !== entityName)
+      })
+    }
+  })
+
+  delete appMenus[appId]
+  delete appApprovalFlows[appId]
+  delete appTriggers[appId]
+  apps.splice(index, 1)
+  return true
+}
+
 /* ---------------- 记录数据 ---------------- */
 
-const d = (daysAgo: number, hour = 10, min = 24) => {
+function d(daysAgo: number, hour = 10, min = 24) {
   const t = new Date(2026, 8, 8, hour, min)
   t.setDate(t.getDate() - daysAgo)
   const p = (n: number) => String(n).padStart(2, '0')
   return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`
 }
 
-const dd = (daysAgo: number) => d(daysAgo).slice(0, 10)
+function dd(daysAgo: number) {
+  return d(daysAgo).slice(0, 10)
+}
 
 function mkRows(entity: string, count: number, gen: (i: number) => Record<string, unknown>) {
   const rows: RbRecord[] = []
@@ -191,7 +424,9 @@ function mkRows(entity: string, count: number, gen: (i: number) => Record<string
 
 const industry = (i: number) => ['IT/互联网', '制造业', '金融', '教育'][i % 4]
 const stage = (i: number) => ['初步接触', '需求确认', '方案报价', '商务谈判', '赢单', '输单'][i % 6]
-const uname = (i: number) => users[(i % (users.length - 1)) + 1].fullName
+function uname(index: number) {
+  return users[(index % (users.length - 1)) + 1].fullName
+}
 
 const companyNames = [
   '华辰科技有限公司', '深圳市数联集团', '北京云图信息技术', '杭州点智网络', '上海临港智造',
@@ -239,6 +474,14 @@ const recordSets: Record<string, RbRecord[]> = {
   Opportunity: opportunityRecords,
   Product: productRecords,
 }
+
+export const expenseRecords: RbRecord[] = [
+  { id: 'EXP-1001', expenseId: 'BX-2026-001', expenseName: '上海客户出差', category: '交通费', amount: 4280, submitDate: '2026-09-05', owningUser: uname(1), createdOn: d(2, 9, 12), modifiedOn: d(1, 16, 20) },
+  { id: 'EXP-1002', expenseId: 'BX-2026-002', expenseName: '客户招待费用', category: '业务招待', amount: 1680, submitDate: '2026-09-04', owningUser: uname(3), createdOn: d(3, 11, 20), modifiedOn: d(2, 15, 5) },
+  { id: 'EXP-1003', expenseId: 'BX-2026-003', expenseName: '项目培训报名', category: '办公用品', amount: 2400, submitDate: '2026-09-01', owningUser: uname(2), createdOn: d(6, 14, 30), modifiedOn: d(5, 10, 40) },
+]
+
+recordSets.Expense = expenseRecords
 
 export function getRecords(entity: string): RbRecord[] {
   return recordSets[entity] ?? []
@@ -539,9 +782,9 @@ export interface NavItem {
 
 export const userNavs: NavItem[] = [
   { id: 'dashboard-home', icon: Home, text: '首页', to: '/dashboard/home' },
-  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/Customer/list' },
-  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/Opportunity/list' },
-  { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/Product/list' },
+  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
+  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
+  { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/app-sales/menu-product' },
   { id: 'divider-1', text: '常用', to: '' },
   { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
   { id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home' },
@@ -564,8 +807,8 @@ export interface TopNavItem {
 }
 
 const customerNavs: NavItem[] = [
-  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/Customer/list' },
-  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/Opportunity/list' },
+  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
+  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
   { id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home' },
   { id: 'divider-customer', text: '协作' },
   { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
@@ -574,9 +817,9 @@ const customerNavs: NavItem[] = [
 ]
 
 const salesNavs: NavItem[] = [
-  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/Opportunity/list' },
-  { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/Product/list' },
-  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/Customer/list' },
+  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
+  { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/app-sales/menu-product' },
+  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
   { id: 'divider-sales', text: '跟进' },
   { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
   { id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home' },
@@ -593,15 +836,15 @@ export const topNavs: TopNavItem[] = [
   {
     id: 'top-customer',
     text: '客户',
-    to: '/app/Customer/list',
-    match: ['/app/Customer'],
+    to: '/app/app-sales/menu-customer',
+    match: ['/app/app-sales'],
     navs: customerNavs,
   },
   {
     id: 'top-sales',
     text: '销售',
-    to: '/app/Opportunity/list',
-    match: ['/app/Opportunity'],
+    to: '/app/app-sales/menu-opportunity',
+    match: ['/app/app-sales'],
     navs: salesNavs,
   },
 ]
