@@ -18,16 +18,12 @@ import ContactsHome from '@/pages/ContactsHome'
 import UserSettings from '@/pages/UserSettings'
 import FormDesign from '@/pages/FormDesign'
 import {
-  AdminSystems,
   AdminEntities,
   AdminUsers,
   AdminRoles,
   AdminTeams,
   AdminApprovals,
   AdminTriggers,
-  AdminProjects,
-  AdminLoginLogs,
-  AdminRecycleBin,
 } from '@/pages/admin'
 import { getAppById, getAppMenus } from '@/data/mock'
 
@@ -65,7 +61,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/project/:projectId/tasks" element={<ProjectTasks />} />
         <Route path="/contacts/home" element={<ContactsHome />} />
         {/* 管理中心 */}
-        <Route path="/admin/systems" element={<AdminSystems />} />
         <Route path="/admin/entities" element={<AdminEntities />} />
         <Route path="/admin/entity/:entity/form-design" element={<FormDesign />} />
         <Route path="/admin/bizuser/users" element={<AdminUsers />} />
@@ -73,9 +68,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/admin/bizuser/teams" element={<AdminTeams />} />
         <Route path="/admin/robot/approvals" element={<AdminApprovals />} />
         <Route path="/admin/robot/triggers" element={<AdminTriggers />} />
-        <Route path="/admin/projects" element={<AdminProjects />} />
-        <Route path="/admin/audit/login-logs" element={<AdminLoginLogs />} />
-        <Route path="/admin/audit/recycle-bin" element={<AdminRecycleBin />} />
         {/* 兜底 */}
         <Route path="*" element={<Navigate to="/dashboard/home" replace />} />
       </Routes>

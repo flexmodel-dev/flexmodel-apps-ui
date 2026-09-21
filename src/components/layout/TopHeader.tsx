@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { RbDialog } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
@@ -72,7 +71,6 @@ export function TopHeader({
   mobileNavs?: NavItem[]
 }) {
   const navigate = useNavigate()
-  const [adminOpen, setAdminOpen] = React.useState(false)
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState('')
@@ -131,12 +129,6 @@ export function TopHeader({
   const filteredSuggestions = searchValue.trim()
     ? searchSuggestions.filter((item) => item.label.toLowerCase().includes(searchValue.trim().toLowerCase()))
     : searchSuggestions
-
-  const submitAdminPassword = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setAdminOpen(false)
-    navigate('/admin/systems')
-  }
 
   React.useEffect(() => {
     if (isAdmin) {
@@ -287,7 +279,13 @@ export function TopHeader({
           )}
 
           {!isAdmin && (
-            <Button variant="ghost" size="icon" title="后台设置" onClick={() => setAdminOpen(true)} className={headerActionClass}>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="后台设置"
+              onClick={() => navigate('/admin/apps')}
+              className={headerActionClass}
+            >
               <Settings className="h-5 w-5" />
             </Button>
           )}
@@ -388,34 +386,6 @@ export function TopHeader({
         activeTopId={isAdmin ? undefined : activeTopId}
         onTopNavChange={isAdmin ? undefined : onTopNavChange}
       />
-
-      <RbDialog
-        open={adminOpen}
-        onOpenChange={setAdminOpen}
-        title="后台设置"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setAdminOpen(false)}>
-              取消
-            </Button>
-            <Button form="admin-password-form" type="submit">
-              进入后台
-            </Button>
-          </>
-        }
-      >
-        <form id="admin-password-form" className="space-y-2" onSubmit={submitAdminPassword}>
-          <label htmlFor="admin-password" className="text-sm font-medium text-foreground">
-            管理员密码
-          </label>
-          <Input
-            id="admin-password"
-            type="password"
-            placeholder="请输入管理员密码"
-            autoComplete="current-password"
-          />
-        </form>
-      </RbDialog>
     </header>
   )
 }

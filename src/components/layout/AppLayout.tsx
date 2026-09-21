@@ -2,90 +2,103 @@ import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { getAppById, getAppMenus, getEntity, getTopNavIdByPath, topNavs, type NavItem } from '@/data/mock'
-import { Briefcase, ChevronsLeft, ChevronsRight, LayoutGrid, LogIn, Recycle, Settings, Shapes, ShieldCheck, Users } from 'lucide-react'
+import { Briefcase, ChevronsLeft, ChevronsRight, LayoutGrid, ShieldCheck, Users } from 'lucide-react'
 import { TopHeader } from './TopHeader'
 import { LeftSidebar } from './LeftSidebar'
+import { AppLauncher } from './AppLauncher'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const adminNavs: NavItem[] = [
   { id: 'apps', text: '应用管理', to: '/admin/apps', icon: LayoutGrid },
-  { id: 'divider-systems', text: '系统', to: '' },
-  { id: 'systems', text: '通用配置', to: '/admin/systems', icon: Settings },
-  { id: 'divider-features', text: '更多功能', to: '' },
-  { id: 'projects', text: '项目', to: '/admin/projects', icon: Shapes },
   { id: 'divider-users', text: '用户', to: '' },
   { id: 'users', text: '部门用户', to: '/admin/bizuser/users', icon: Users },
   { id: 'roles', text: '角色权限', to: '/admin/bizuser/role-privileges', icon: ShieldCheck },
   { id: 'teams', text: '团队', to: '/admin/bizuser/teams', icon: Briefcase },
-  { id: 'divider-audit', text: '审计', to: '' },
-  { id: 'login-logs', text: '登录日志', to: '/admin/audit/login-logs', icon: LogIn },
-  { id: 'recycle-bin', text: '回收站', to: '/admin/audit/recycle-bin', icon: Recycle },
 ]
 
 function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; onToggleCollapsed?: () => void }) {
   const location = useLocation()
+  const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
   const entityDesignMatch = location.pathname.match(/^\/admin\/entity\/([^/]+)/)
   const currentEntity = entityDesignMatch?.[1]
   const showEntitySubmenu = Boolean(entityDesignMatch)
 
   return (
-    <aside
-      className={cn(
-        'fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-background transition-[width] duration-200 md:block',
-        collapsed ? 'w-16' : 'w-64',
-      )}
-    >
-      <nav className="flex h-full flex-col overflow-hidden p-3">
-        <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-          {adminNavs.map((nav) => {
-            if (!nav.to) {
-              return (
-                <li
-                  key={nav.id}
-                  className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+    <TooltipProvider delayDuration={200}>
+      <aside
+        className={cn(
+          'fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-background transition-[width] duration-200 md:block',
+          collapsed ? 'w-16' : 'w-64',
+        )}
+      >
+        <nav className="flex h-full flex-col overflow-hidden p-3">
+          <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+            {adminNavs.map((nav) => {
+              if (!nav.to) {
+                if (collapsed) return null
+                return (
+                  <li
+                    key={nav.id}
+                    className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                  >
+                    {nav.text}
+                  </li>
+                )
+              }
+
+              const active = location.pathname === nav.to || (nav.id === 'entities' && showEntitySubmenu)
+              const link = (
+                <Link
+                  to={nav.to}
+                  className={cn(
+                    'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    active
+                      ? 'bg-primary/10 text-primary shadow-sm'
+                      : 'text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                  )}
                 >
-                  {!collapsed && nav.text}
+                  {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
+                  {!collapsed && <span className="truncate">{nav.text}</span>}
+                </Link>
+              )
+              return (
+                <li key={nav.id}>
+                  <div className="flex items-center">
+                    {collapsed ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>{link}</TooltipTrigger>
+                        <TooltipContent side="right">{nav.text}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      link
+                    )}
+                  </div>
                 </li>
               )
-            }
-
-            const active = location.pathname === nav.to || (nav.id === 'entities' && showEntitySubmenu)
-            return (
-              <li key={nav.id}>
-                <div className="flex items-center">
-                  <Link
-                    to={nav.to}
-                    title={nav.text}
-                    className={cn(
-                      'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                      active
-                        ? 'bg-primary/10 text-primary shadow-sm'
-                        : 'text-muted-foreground hover:bg-primary/10 hover:text-primary',
-                    )}
-                  >
-                    {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
-                    {!collapsed && <span className="truncate">{nav.text}</span>}
-                  </Link>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-        <div className={cn('mt-2 flex shrink-0 border-t pt-2', collapsed ? 'justify-center' : 'justify-end')}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            onClick={onToggleCollapsed}
-            title={collapsed ? '展开菜单' : '折叠菜单'}
-          >
-            {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
-          </Button>
-        </div>
-      </nav>
-    </aside>
-  )
+            })}
+          </ul>
+        <div className={cn('mt-2 flex shrink-0 items-center border-t pt-2', collapsed ? 'flex-col gap-1' : 'justify-between')}>
+          <AppLauncher collapsed={collapsed} />
+          <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  onClick={onToggleCollapsed}
+                >
+                  {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side={collapsed ? 'right' : 'top'}>{collapsed ? '展开菜单' : '折叠菜单'}</TooltipContent>
+            </Tooltip>
+          </div>
+        </nav>
+      </aside>
+    </TooltipProvider>
+ )
 }
 
 export function AppLayout({

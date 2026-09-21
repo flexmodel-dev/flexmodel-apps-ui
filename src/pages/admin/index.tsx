@@ -3,41 +3,9 @@ import { AdminTablePage } from './AdminTablePage'
 import { EntityManagementContent } from './AdminContent'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
-import { entities, users, departments, teams, projects, loginLogs, recycleBin } from '@/data/mock'
+import { entities, users, departments, teams } from '@/data/mock'
 import { cn } from '@/lib/utils'
 import { CirclePlus } from 'lucide-react'
-
-/** 通用配置 */
-export function AdminSystems() {
-  return (
-    <AppLayout admin adminActive="/admin/systems">
-      <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-        <div className="border-b px-4 py-3">
-          <h4 className="m-0 text-base font-medium">通用配置</h4>
-          <p className="mb-0 mt-0.5 text-xs text-muted-foreground">系统级通用参数设置</p>
-        </div>
-        <div className="p-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {[
-              { label: '系统名称', value: 'newbuild 管理系统', key: 'AppName' },
-              { label: '默认语言', value: '中文', key: 'Language' },
-              { label: '每页显示条数', value: '20', key: 'PageSize' },
-              { label: '会话超时 (分钟)', value: '120', key: 'SessionTimeout' },
-            ].map((cfg) => (
-              <div key={cfg.key} className="flex items-center justify-between rounded-md border px-4 py-3">
-                <div>
-                  <div className="text-sm font-medium">{cfg.label}</div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">{cfg.value}</div>
-                </div>
-                <Button variant="secondary" size="sm">修改</Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </AppLayout>
-  )
-}
 
 /** 实体管理（admin/metadata/entities.html：卡片网格） */
 export function AdminEntities({ embedded = false }: { embedded?: boolean } = {}) {
@@ -177,79 +145,6 @@ export function AdminTriggers({ embedded = false }: { embedded?: boolean } = {})
       ]}
       rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">编辑</Button>}
       toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建触发器</Button>}
-    />
-  )
-}
-
-/** 项目管理（admin/project/project-list.html） */
-export function AdminProjects() {
-  return (
-    <AdminTablePage
-      title="项目"
-      desc="项目管理配置"
-      adminActive="/admin/projects"
-      rows={projects.map((p) => ({ id: p.id, name: p.name, code: p.code, scope: p.scope === 1 ? '公开' : '成员可见', status: p.status === 1 ? '进行中' : '已归档', progress: `${p.progress}%` }))}
-      columns={[
-        { key: 'name', label: '项目名称', render: (p) => <span className="font-medium text-primary">{p.name}</span> },
-        { key: 'code', label: '项目编号' },
-        { key: 'scope', label: '可见范围' },
-        { key: 'status', label: '状态', render: (p) => (
-          <span className={p.status === '进行中' ? 'text-green-600' : 'text-muted-foreground'}>● {p.status}</span>
-        ) },
-        { key: 'progress', label: '完成度' },
-      ]}
-      rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">配置</Button>}
-      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建项目</Button>}
-    />
-  )
-}
-
-/** 登录日志（admin/audit/login-logs.html） */
-export function AdminLoginLogs() {
-  return (
-    <AdminTablePage
-      title="登录日志"
-      desc="系统登录审计记录"
-      adminActive="/admin/audit/login-logs"
-      rows={loginLogs}
-      columns={[
-        { key: 'user', label: '用户', render: (r) => (
-          <span className="flex items-center gap-1.5">
-            <UserAvatar name={r.user} size={20} />
-            <span className="text-primary">{r.user}</span>
-          </span>
-        ) },
-        { key: 'ip', label: 'IP 地址' },
-        { key: 'agent', label: '浏览器' },
-        { key: 'time', label: '登录时间' },
-        { key: 'status', label: '状态', render: (r) => (
-          <span className={r.status === '成功' ? 'text-green-600' : 'text-red-500'}>{r.status}</span>
-        ) },
-      ]}
-    />
-  )
-}
-
-/** 回收站（admin/audit/recycle-bin.html） */
-export function AdminRecycleBin() {
-  return (
-    <AdminTablePage
-      title="回收站"
-      desc="已删除记录可在 30 天内恢复"
-      adminActive="/admin/audit/recycle-bin"
-      rows={recycleBin}
-      columns={[
-        { key: 'entityLabel', label: '实体', render: (r) => <span className="badge-secondary">{r.entityLabel}</span> },
-        { key: 'recordName', label: '记录', render: (r) => <span className="text-primary">{r.recordName}</span> },
-        { key: 'deletedBy', label: '删除人' },
-        { key: 'deletedOn', label: '删除时间' },
-      ]}
-      rowActions={() => (
-        <div className="flex gap-1.5">
-          <Button size="sm" className="!h-8 !px-3">恢复</Button>
-          <Button variant="secondary" size="sm" className="!h-8 !px-3">彻底删除</Button>
-        </div>
-      )}
     />
   )
 }

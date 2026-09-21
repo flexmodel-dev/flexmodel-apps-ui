@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Search, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/rb/Pagination'
@@ -40,22 +41,42 @@ export function AdminTablePage<T extends { id: string }>({
 
   const content = (
     <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+        <div className="flex flex-col gap-3 border-b px-4 py-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h4 className="m-0 text-base font-medium">{title}</h4>
+            <h4 className="m-0 truncate text-base font-semibold">{title}</h4>
             {desc && <p className="mb-0 mt-0.5 text-xs text-muted-foreground">{desc}</p>}
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              className="h-10 w-[200px] rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="搜索"
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value)
-                setPage(1)
-              }}
-            />
-            {toolbar}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 w-full md:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                className="h-9 w-full rounded-full border border-input bg-background pl-9 pr-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
+                placeholder="搜索"
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value)
+                  setPage(1)
+                }}
+              />
+              {q && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQ('')
+                    setPage(1)
+                  }}
+                  className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  title="清空搜索"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {toolbar && (
+              <div className="flex shrink-0 items-center gap-2 [&>button]:h-9">
+                {toolbar}
+              </div>
+            )}
           </div>
         </div>
         <div className="rb-table-scroll overflow-x-auto p-4">
