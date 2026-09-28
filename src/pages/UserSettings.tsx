@@ -114,7 +114,7 @@ export default function UserSettings() {
   }
 
   const createTempAuth = () => {
-    setTempAuthUrl(`https://newbuild.local/temp-auth/${currentUser.id}-${Date.now().toString(36)}`)
+    setTempAuthUrl(`https://flexmodel-apps.local/temp-auth/${currentUser.id}-${Date.now().toString(36)}`)
     setTempAuthOpen(true)
   }
 

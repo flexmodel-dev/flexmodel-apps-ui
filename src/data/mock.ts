@@ -76,6 +76,38 @@ export const appIcons: Record<AppIconName, LucideIcon> = {
   TrendingUp,
 }
 
+export const navIconOptions = [
+  'Home',
+  'User',
+  'TrendingUp',
+  'ShoppingCart',
+  'PieChart',
+  'Folder',
+  'BookUser',
+  'ClipboardCheck',
+  'Shapes',
+  'Tags',
+  'Boxes',
+  'Banknote',
+] as const
+
+export type NavIconName = (typeof navIconOptions)[number]
+
+export const navIcons: Record<NavIconName, LucideIcon> = {
+  Home,
+  User,
+  TrendingUp,
+  ShoppingCart,
+  PieChart,
+  Folder,
+  BookUser,
+  ClipboardCheck,
+  Shapes,
+  Tags,
+  Boxes,
+  Banknote,
+}
+
 export interface AppMeta {
   id: string
   name: string
@@ -806,6 +838,24 @@ export interface TopNavItem {
   navs: NavItem[]
 }
 
+export interface TopMenuItemInput {
+  text: string
+  to: string
+}
+
+export interface LeftMenuItemInput {
+  text: string
+  to?: string
+  icon?: LucideIcon
+}
+
+let menuSequence = 0
+
+function nextMenuId(prefix: string) {
+  menuSequence += 1
+  return `${prefix}-${Date.now().toString(36)}-${menuSequence}`
+}
+
 const customerNavs: NavItem[] = [
   { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
   { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
@@ -849,8 +899,123 @@ export const topNavs: TopNavItem[] = [
   },
 ]
 
-export function getTopNavIdByPath(pathname: string) {
-  const match = topNavs.find((nav) => nav.match?.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
+export function getTopNavs(): TopNavItem[] {
+  return topNavs
+}
+
+export function getTopNavById(id: string | undefined): TopNavItem | undefined {
+  return topNavs.find((nav) => nav.id === id)
+}
+
+export function createTopMenu(values: TopMenuItemInput): TopNavItem {
+  const menu: TopNavItem = {
+    id: nextMenuId('top'),
+    text: values.text,
+    to: values.to,
+    match: [values.to],
+    navs: [],
+  }
+  topNavs.push(menu)
+  return menu
+}
+
+export function updateTopMenu(id: string, values: TopMenuItemInput): TopNavItem | undefined {
+  const menu = getTopNavById(id)
+  if (!menu) return undefined
+  menu.text = values.text
+  menu.to = values.to
+  menu.match = [values.to]
+  return menu
+}
+
+export function deleteTopMenu(id: string): boolean {
+  if (topNavs.length <= 1) return false
+  const index = topNavs.findIndex((nav) => nav.id === id)
+  if (index < 0) return false
+  topNavs.splice(index, 1)
+  return true
+}
+
+export function reorderTopMenus(orderedIds: string[]): void {
+  const menusById = new Map(topNavs.map((nav) => [nav.id, nav]))
+  topNavs.length = 0
+  orderedIds.forEach((id) => {
+    const menu = menusById.get(id)
+    if (menu) topNavs.push(menu)
+  })
+}
+
+export function createLeftMenu(topMenuId: string, values: LeftMenuItemInput): NavItem | undefined {
+  const topMenu = getTopNavById(topMenuId)
+  if (!topMenu) return undefined
+  const menu: NavItem = {
+    id: nextMenuId('nav'),
+    text: values.text,
+    to: values.to,
+    icon: values.icon,
+  }
+  topMenu.navs.push(menu)
+  return menu
+}
+
+export function updateLeftMenu(
+  topMenuId: string,
+  menuId: string,
+  values: LeftMenuItemInput,
+): NavItem | undefined {
+  const topMenu = getTopNavById(topMenuId)
+  const menu = topMenu?.navs.find((item) => item.id === menuId)
+  if (!menu) return undefined
+  menu.text = values.text
+  menu.to = values.to
+  menu.icon = values.icon
+  return menu
+}
+
+export function deleteLeftMenu(topMenuId: string, menuId: string): boolean {
+  const topMenu = getTopNavById(topMenuId)
+  if (!topMenu) return false
+  const index = topMenu.navs.findIndex((item) => item.id === menuId)
+  if (index < 0) return false
+  topMenu.navs.splice(index, 1)
+  return true
+}
+
+export function reorderLeftMenus(topMenuId: string, orderedIds: string[]): void {
+  const topMenu = getTopNavById(topMenuId)
+  if (!topMenu) return
+  const menusById = new Map(topMenu.navs.map((item) => [item.id, item]))
+  topMenu.navs.length = 0
+  orderedIds.forEach((id) => {
+    const menu = menusById.get(id)
+    if (menu) topMenu.navs.push(menu)
+  })
+}
+
+export function getTopNavIdByPath(pathname: string, preferredTopId?: string) {
+  const preferred = getTopNavById(preferredTopId)
+  if (
+    preferred &&
+    (preferred.to === pathname ||
+      preferred.navs.some(
+        (item) => item.to === pathname || (item.to && pathname.startsWith(`${item.to}/`)),
+      ))
+  ) {
+    return preferred.id
+  }
+
+  const exact = topNavs.find(
+    (nav) =>
+      nav.to === pathname ||
+      nav.navs.some(
+        (item) => item.to === pathname || (item.to && pathname.startsWith(`${item.to}/`)),
+      ),
+  )
+  if (exact) return exact.id
+
+  const match = topNavs.find((nav) =>
+    nav.match?.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)),
+  )
   return match?.id ?? topNavs[0].id
 }
 

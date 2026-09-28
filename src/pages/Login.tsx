@@ -140,7 +140,7 @@ export default function Login() {
           </div>
           <div className="splash-footer mt-4 text-center">
             <div className="copyright text-[13px] text-white/90" style={{ textShadow: '0 1px 1px #555' }}>
-              © newbuild
+              © flexmodel-apps
             </div>
           </div>
         </div>

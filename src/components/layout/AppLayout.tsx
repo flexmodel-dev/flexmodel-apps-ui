@@ -1,11 +1,12 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { getAppById, getAppMenus, getEntity, getTopNavIdByPath, topNavs, type NavItem } from '@/data/mock'
-import { Briefcase, ChevronsLeft, ChevronsRight, LayoutGrid, ShieldCheck, Users } from 'lucide-react'
+import {getEntity, getTopNavIdByPath, topNavs, type NavItem} from '@/data/mock'
+import {Briefcase, ChevronsLeft, ChevronsRight, LayoutGrid, Pencil, ShieldCheck, Users} from 'lucide-react'
 import { TopHeader } from './TopHeader'
 import { LeftSidebar } from './LeftSidebar'
 import { AppLauncher } from './AppLauncher'
+import {MenuEditorDialog} from './MenuEditorDialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -17,7 +18,15 @@ const adminNavs: NavItem[] = [
   { id: 'teams', text: '团队', to: '/admin/bizuser/teams', icon: Briefcase },
 ]
 
-function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; onToggleCollapsed?: () => void }) {
+function AdminSidebar({
+                        collapsed,
+                        onToggleCollapsed,
+                        onEditMenus,
+                      }: {
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
+  onEditMenus?: () => void
+}) {
   const location = useLocation()
   const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
   const entityDesignMatch = location.pathname.match(/^\/admin\/entity\/([^/]+)/)
@@ -81,6 +90,20 @@ function AdminSidebar({ collapsed, onToggleCollapsed }: { collapsed?: boolean; o
         <div className={cn('mt-2 flex shrink-0 items-center border-t pt-2', collapsed ? 'flex-col gap-1' : 'justify-between')}>
           <AppLauncher collapsed={collapsed} />
           <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                onClick={onEditMenus}
+              >
+                <Pencil className="h-4 w-4"/>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side={collapsed ? 'right' : 'top'}>编辑菜单</TooltipContent>
+          </Tooltip>
+          <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   type="button"
@@ -121,30 +144,15 @@ export function AppLayout({
   const location = useLocation()
   const [collapsed, setCollapsed] = React.useState(false)
   const [activeTopId, setActiveTopId] = React.useState(() => getTopNavIdByPath(location.pathname))
-
-  const appId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
-  const activeApp = getAppById(appId)
+  const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
+  const [menuVersion, setMenuVersion] = React.useState(0)
 
   React.useEffect(() => {
-    const currentTop = topNavs.find((nav) => nav.id === activeTopId)
-    const currentContains = currentTop?.navs.some(
-      (nav) => nav.to === location.pathname || (nav.to && location.pathname.startsWith(`${nav.to}/`)),
-    )
-    const nextTopId = getTopNavIdByPath(location.pathname)
-    if (!currentContains && nextTopId !== activeTopId) {
-      setActiveTopId(nextTopId)
-    }
-  }, [location.pathname, activeTopId])
+    const nextTopId = getTopNavIdByPath(location.pathname, activeTopId)
+    if (nextTopId !== activeTopId) setActiveTopId(nextTopId)
+  }, [location.pathname, activeTopId, menuVersion])
 
   const activeTop = topNavs.find((nav) => nav.id === activeTopId) ?? topNavs[0]
-  const appNavs: NavItem[] = activeApp
-    ? getAppMenus(activeApp.id).map((item) => ({
-        id: item.id,
-        icon: item.icon,
-        text: item.label,
-        to: `/app/${activeApp.id}/${item.id}`,
-      }))
-    : []
   const useAdminSidebar = admin || activeTop.id === 'top-admin'
   const showEntitySidebar = useAdminSidebar && /^\/admin\/entity\//.test(location.pathname)
   const currentEntity = location.pathname.match(/^\/admin\/entity\/([^/]+)/)?.[1]
@@ -167,9 +175,7 @@ export function AppLayout({
           },
         ]
       : adminNavs
-    : activeApp
-      ? appNavs
-      : activeTop.navs
+    : activeTop.navs
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -184,15 +190,28 @@ export function AppLayout({
 
       {!hideHeader &&
         (useAdminSidebar ? (
-          <AdminSidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((value) => !value)} />
+          <AdminSidebar
+            collapsed={collapsed}
+            onToggleCollapsed={() => setCollapsed((value) => !value)}
+            onEditMenus={() => setMenuEditorOpen(true)}
+          />
         ) : (
           <LeftSidebar
             collapsed={collapsed}
-            navs={activeApp ? appNavs : activeTop.navs}
-            sectionKey={activeApp ? `app-${activeApp.id}` : activeTop.id}
+            navs={activeTop.navs}
+            sectionKey={activeTop.id}
             onToggleCollapsed={() => setCollapsed((value) => !value)}
+            onEditMenus={() => setMenuEditorOpen(true)}
           />
         ))}
+
+      <MenuEditorDialog
+        open={menuEditorOpen}
+        onOpenChange={setMenuEditorOpen}
+        activeTopId={activeTop.id}
+        onActiveTopIdChange={setActiveTopId}
+        onMenusChange={() => setMenuVersion((version) => version + 1)}
+      />
 
       {showEntitySidebar && (
         <aside

@@ -33,7 +33,6 @@ export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; 
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="ghost" className="h-8 justify-start gap-3 px-3 text-muted-foreground hover:text-primary">
             <LayoutGrid className="h-4 w-4" />
-            <span className="text-sm">应用启动器</span>
           </Button>
         </DropdownMenuTrigger>
       )}

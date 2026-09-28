@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import {ChevronDown, ChevronsLeft, ChevronsRight, Pencil} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -13,12 +13,14 @@ export function LeftSidebar({
   collapsed,
   headerHidden,
   onToggleCollapsed,
+                              onEditMenus,
 }: {
   navs?: NavItem[]
   sectionKey?: string
   collapsed?: boolean
   headerHidden?: boolean
   onToggleCollapsed?: () => void
+  onEditMenus?: () => void
 }) {
   const location = useLocation()
   const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
@@ -140,6 +142,20 @@ export function LeftSidebar({
           </ul>
         <div className={cn('mt-2 flex shrink-0 items-center border-t pt-2', collapsed ? 'flex-col gap-1' : 'justify-between')}>
           <AppLauncher collapsed={collapsed} currentAppId={currentAppId} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                onClick={onEditMenus}
+              >
+                <Pencil className="h-4 w-4"/>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side={collapsed ? 'right' : 'top'}>编辑菜单</TooltipContent>
+          </Tooltip>
           <Tooltip>
               <TooltipTrigger asChild>
                 <Button
