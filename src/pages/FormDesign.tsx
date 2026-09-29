@@ -46,7 +46,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
-import { getEntity, type EntityField } from '@/data/mock'
+import {getBusinessObject, type BusinessObjectField} from '@/data/mock'
 import {
   formFieldWidthClasses,
   formFieldWidthOptions,
@@ -223,11 +223,11 @@ function WidthSelector({
   )
 }
 
-/** 表单/视图设计（参考 admin/entity/:entity/form-design） */
+/** 表单/视图设计（参考 admin/business-object/:businessObject/form-design） */
 export default function FormDesign() {
-  const { entity } = useParams<{ entity: string }>()
+  const {businessObject} = useParams<{ businessObject: string }>()
   const navigate = useNavigate()
-  const meta = getEntity(entity ?? 'Customer')
+  const meta = getBusinessObject(businessObject ?? 'Customer')
   const [layout, setLayout] = React.useState<string[]>([])
   const [dragging, setDragging] = React.useState<string | null>(null)
   const [dropIndex, setDropIndex] = React.useState<number | null>(null)
@@ -265,7 +265,7 @@ export default function FormDesign() {
     return (
       <AdminLayout>
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          未找到实体
+          未找到业务对象
         </div>
       </AdminLayout>
     )
@@ -278,11 +278,11 @@ export default function FormDesign() {
       const metaField = allFields.find((field) => field.name === name)
       if (metaField) return metaField
       if (isFormDividerField(name)) {
-        return { name, label: '分栏', type: 'TEXT' } as EntityField
+        return {name, label: '分栏', type: 'TEXT'} as BusinessObjectField
       }
       return undefined
     })
-    .filter((field): field is EntityField => Boolean(field))
+    .filter((field): field is BusinessObjectField => Boolean(field))
   const availableFields = allFields.filter((field) => !layout.includes(field.name))
 
   const rowWidthTotals = (() => {
@@ -328,7 +328,7 @@ export default function FormDesign() {
       options: creatingField.type === 'PICKLIST' || creatingField.type === 'MULTISELECT'
         ? [{ id: '1', text: '选项一' }, { id: '2', text: '选项二' }]
         : undefined,
-      refEntity: creatingField.type === 'REFERENCE' ? 'Customer' : undefined,
+      refBusinessObject: creatingField.type === 'REFERENCE' ? 'Customer' : undefined,
     }
 
     setCustomFields((previous) => [...previous, customField])
@@ -378,11 +378,11 @@ export default function FormDesign() {
   const updateItemProperties = (name: string, properties: FormItemProperties) => {
     setItemProperties((previous) => ({ ...previous, [name]: { ...previous[name], ...properties } }))
   }
-  const getDisplayLabel = (field: EntityField) =>
+  const getDisplayLabel = (field: BusinessObjectField) =>
     getItemProperties(field.name).label?.trim() || field.label
   const getDividerLabel = (name: string) => getItemProperties(name).label?.trim() || ''
   const getItemTip = (name: string) => getItemProperties(name).tip?.trim() || ''
-  const openEdit = (field: EntityField) => {
+  const openEdit = (field: BusinessObjectField) => {
     const properties = getItemProperties(field.name)
     setEditingItem({
       kind: 'field',
@@ -485,7 +485,7 @@ export default function FormDesign() {
       dropIndex + (sourceIndex >= 0 && sourceIndex < dropIndex ? 1 : 0),
       layoutFields.length,
     )
-    const next: Array<EntityField | null> = [...layoutFields]
+    const next: Array<BusinessObjectField | null> = [...layoutFields]
     next.splice(insertIndex, 0, null)
     return next.map((field, index) => ({
       key: field?.name ?? `drop-${index}`,
@@ -498,7 +498,7 @@ export default function FormDesign() {
       <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
           <div className="flex min-w-0 items-center gap-3">
-            <Button variant="secondary" size="icon" onClick={() => navigate('/admin/entities')} title="返回">
+            <Button variant="secondary" size="icon" onClick={() => navigate('/admin/business-objects')} title="返回">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">

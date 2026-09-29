@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {BizDialog} from '@/components/ui/dialog'
-import { getAppMenuItem, getEntity, getRecords, feeds } from '@/data/mock'
+import {getAppMenuItem, getBusinessObject, getRecords, feeds} from '@/data/mock'
 import { cn } from '@/lib/utils'
 import {RecordFormModal} from '@/components/biz/RecordFormModal'
 import {
@@ -43,26 +43,26 @@ function SectionLine({ children }: { children: React.ReactNode }) {
 
 /** 记录详情内容（供独立详情页和列表 Drawer 复用） */
 export function RecordDetailContent({
-  entity,
+                                      businessObject,
   id,
   onDeleted,
 }: {
-  entity: string
+  businessObject: string
   id: string
   onDeleted?: () => void
 }) {
-  const meta = getEntity(entity)
+  const meta = getBusinessObject(businessObject)
   const [showDelete, setShowDelete] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [refreshTick, setRefreshTick] = React.useState(0)
   const [feedText, setFeedText] = React.useState('')
 
   const record = React.useMemo(
-    () => getRecords(entity).find((r) => r.id === id),
-    [entity, id, refreshTick],
+    () => getRecords(businessObject).find((r) => r.id === id),
+    [businessObject, id, refreshTick],
   )
 
-  if (!meta) return <div className="p-4 text-sm text-muted-foreground">未知实体</div>
+  if (!meta) return <div className="p-4 text-sm text-muted-foreground">未知业务对象</div>
 
   const owningUser = String(record?.owningUser ?? '超级管理员')
 
@@ -78,7 +78,7 @@ export function RecordDetailContent({
     const f = meta.fields.find((x) => x.name === fieldName)!
     const v = record?.[fieldName]
     if (v === undefined || v === null || v === '') return <span className="text-[#ccc]">-</span>
-    if (f.type === 'REFERENCE' && f.refEntity === 'User') {
+    if (f.type === 'REFERENCE' && f.refBusinessObject === 'User') {
       return (
         <span className="flex items-center gap-1.5">
           <UserAvatar name={String(v)} size={20} />
@@ -306,7 +306,7 @@ export function RecordDetailContent({
       <RecordFormModal
         open={editOpen}
         onOpenChange={setEditOpen}
-        entity={meta.name}
+        businessObject={meta.name}
         recordId={id}
         onSaved={() => setRefreshTick((tick) => tick + 1)}
       />
@@ -318,11 +318,11 @@ export default function RecordView() {
   const { appId, menuId, id } = useParams<{ appId: string; menuId: string; id: string }>()
   const navigate = useNavigate()
   const menuItem = getAppMenuItem(appId, menuId)
-  const entity = menuItem?.entityId ?? ''
+  const businessObject = menuItem?.businessObjectId ?? ''
 
   return (
     <RecordDetailContent
-      entity={entity}
+      businessObject={businessObject}
       id={id ?? ''}
       onDeleted={() => navigate(`/app/${appId}/${menuId}`)}
     />

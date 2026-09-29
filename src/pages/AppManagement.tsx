@@ -18,7 +18,7 @@ import {
   createApp,
   deleteApp,
   getAppById,
-  getAppEntityCount,
+  getAppBusinessObjectCount,
   getApps,
   updateApp,
   type AppIconName,
@@ -162,7 +162,7 @@ export default function AppManagement() {
                         </span>
                       </div>
                       <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>实体 {getAppEntityCount(app.id)} 个</span>
+                        <span>业务对象 {getAppBusinessObjectCount(app.id)} 个</span>
                         <span className="h-3 w-px bg-border" />
                         <span>更新于 {app.updatedAt}</span>
                       </div>
@@ -221,7 +221,7 @@ export default function AppManagement() {
         }
       >
         <div className="pt-1">
-          确认删除应用「{deleteTarget?.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占实体和记录。
+          确认删除应用「{deleteTarget?.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占业务对象和记录。
         </div>
       </BizDialog>
     </AdminLayout>

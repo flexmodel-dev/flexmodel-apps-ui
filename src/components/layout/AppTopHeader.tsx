@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {Link, useNavigate} from 'react-router-dom'
+import {Link, useLocation, useNavigate} from 'react-router-dom'
 import {Plus, Search, Settings} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -9,19 +9,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {entities, getAppMenuForEntity, topNavs, type NavItem} from '@/data/mock'
+import {businessObjects, getAppById, getAppMenuForBusinessObject, topNavs, type NavItem} from '@/data/mock'
 import {TopHeaderShell, headerActionClass} from './TopHeaderShell'
 
-const createItems = entities.flatMap((entity) => {
-  const menu = getAppMenuForEntity(entity.name)
-  return menu ? [{label: entity.label, to: `/app/${menu.appId}/${menu.menuId}`}] : []
+const createItems = businessObjects.flatMap((businessObject) => {
+  const menu = getAppMenuForBusinessObject(businessObject.name)
+  return menu ? [{label: businessObject.label, to: `/app/${menu.appId}/${menu.menuId}`}] : []
 })
 
 const searchSuggestions = [
   {label: '工作台', to: '/dashboard/home'},
-  ...entities.flatMap((entity) => {
-    const menu = getAppMenuForEntity(entity.name)
-    return menu ? [{label: entity.label, to: `/app/${menu.appId}/${menu.menuId}`}] : []
+  ...businessObjects.flatMap((businessObject) => {
+    const menu = getAppMenuForBusinessObject(businessObject.name)
+    return menu ? [{label: businessObject.label, to: `/app/${menu.appId}/${menu.menuId}`}] : []
   }),
   {label: '审批中心', to: '/approval/home'},
   {label: '动态', to: '/feeds/home'},
@@ -39,6 +39,7 @@ export function AppTopHeader({
   mobileNavs: NavItem[]
 }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState('')
   const searchInputRef = React.useRef<HTMLInputElement>(null)
@@ -66,13 +67,16 @@ export function AppTopHeader({
     setSearchValue('')
   }
 
+  const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
+  const brand = getAppById(currentAppId)?.name ?? '销售管理'
+
   const filteredSuggestions = searchValue.trim()
     ? searchSuggestions.filter((item) => item.label.toLowerCase().includes(searchValue.trim().toLowerCase()))
     : searchSuggestions
 
   return (
     <TopHeaderShell
-      brand="NEWBUILD"
+      brand={brand}
       mobileTitle="菜单"
       mobileNavs={mobileNavs}
       topNavs={topNavs}

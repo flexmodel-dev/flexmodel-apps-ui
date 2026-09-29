@@ -18,7 +18,7 @@ import ContactsHome from '@/pages/ContactsHome'
 import UserSettings from '@/pages/UserSettings'
 import FormDesign from '@/pages/FormDesign'
 import {
-  AdminEntities,
+  AdminBusinessObjects,
   AdminUsers,
   AdminRoles,
   AdminTeams,
@@ -49,7 +49,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/app/:appId/:menuId/view/:recordId" element={<RecordView />} />
         <Route path="/admin/apps" element={<AppManagement />} />
         <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic" />} />
-        <Route path="/admin/apps/:appId/settings/entities" element={<AppSettings section="entities" />} />
+        <Route path="/admin/apps/:appId/settings/business-objects" element={<AppSettings section="business-objects"/>}/>
         <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals" />} />
         <Route path="/admin/apps/:appId/settings/triggers" element={<AppSettings section="triggers" />} />
         {/* 内置模块 */}
@@ -61,8 +61,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/project/:projectId/tasks" element={<ProjectTasks />} />
         <Route path="/contacts/home" element={<ContactsHome />} />
         {/* 管理中心 */}
-        <Route path="/admin/entities" element={<AdminEntities />} />
-        <Route path="/admin/entity/:entity/form-design" element={<FormDesign />} />
+        <Route path="/admin/business-objects" element={<AdminBusinessObjects/>}/>
+        <Route path="/admin/business-object/:businessObject/form-design" element={<FormDesign/>}/>
         <Route path="/admin/bizuser/users" element={<AdminUsers />} />
         <Route path="/admin/bizuser/role-privileges" element={<AdminRoles />} />
         <Route path="/admin/bizuser/teams" element={<AdminTeams />} />

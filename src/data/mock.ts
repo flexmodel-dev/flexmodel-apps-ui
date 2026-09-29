@@ -32,21 +32,21 @@ export interface User {
   teams?: string[]
 }
 
-export interface EntityField {
+export interface BusinessObjectField {
   name: string
   label: string
   type: string
   options?: { id: string; text: string; color?: string; 'default'?: boolean }[]
-  refEntity?: string
+  refBusinessObject?: string
 }
 
-export interface EntityMeta {
+export interface BusinessObjectMeta {
   name: string
   label: string
   icon: LucideIcon
   nameField: string
   detail?: { name: string; label: string; icon: string }[]
-  fields: EntityField[]
+  fields: BusinessObjectField[]
   description?: string
   badge?: string
 }
@@ -114,12 +114,12 @@ export interface AppMeta {
   iconName: AppIconName
   description: string
   updatedAt: string
-  ownedEntityNames?: string[]
+  ownedBusinessObjectNames?: string[]
 }
 
 export interface AppMenuItem {
   id: string
-  entityId: string
+  businessObjectId: string
   label: string
   icon: LucideIcon
 }
@@ -127,7 +127,7 @@ export interface AppMenuItem {
 export interface AppApprovalFlow {
   id: string
   name: string
-  entity: string
+  businessObject: string
   applies: string
   state: '启用' | '停用'
   modifiedOn: string
@@ -136,7 +136,7 @@ export interface AppApprovalFlow {
 export interface AppTriggerConfig {
   id: string
   name: string
-  entity: string
+  businessObject: string
   when: string
   action: string
   state: '启用' | '停用'
@@ -182,9 +182,9 @@ export const teams = [
   { id: '006-003', name: '市场团队', members: 2 },
 ]
 
-/* ---------------- 实体元数据 ---------------- */
+/* ---------------- 业务对象元数据 ---------------- */
 
-export const entities: EntityMeta[] = [
+export const businessObjects: BusinessObjectMeta[] = [
   {
     name: 'Customer',
     label: '客户',
@@ -195,7 +195,7 @@ export const entities: EntityMeta[] = [
     fields: [
       { name: 'customerId', label: '客户编号', type: 'TEXT' },
       { name: 'customerName', label: '客户名称', type: 'TEXT' },
-      { name: 'owningUser', label: '所属用户', type: 'REFERENCE', refEntity: 'User' },
+      {name: 'owningUser', label: '所属用户', type: 'REFERENCE', refBusinessObject: 'User'},
       { name: 'industry', label: '所属行业', type: 'SELECT', options: [
         { id: 'IND001', text: 'IT/互联网', color: '#18181b' },
         { id: 'IND002', text: '制造业', color: '#34a853' },
@@ -220,7 +220,7 @@ export const entities: EntityMeta[] = [
     fields: [
       { name: 'opportunityId', label: '商机编号', type: 'TEXT' },
       { name: 'opportunityName', label: '商机名称', type: 'TEXT' },
-      { name: 'customerId', label: '客户', type: 'REFERENCE', refEntity: 'Customer' },
+      {name: 'customerId', label: '客户', type: 'REFERENCE', refBusinessObject: 'Customer'},
       { name: 'stage', label: '商机阶段', type: 'SELECT', options: [
         { id: 'STG001', text: '初步接触', color: '#9575cd' },
         { id: 'STG002', text: '需求确认', color: '#18181b' },
@@ -231,7 +231,7 @@ export const entities: EntityMeta[] = [
       ] },
       { name: 'amount', label: '商机金额', type: 'DECIMAL' },
       { name: 'closingDate', label: '预计成交日期', type: 'DATE' },
-      { name: 'owningUser', label: '所属用户', type: 'REFERENCE', refEntity: 'User' },
+      {name: 'owningUser', label: '所属用户', type: 'REFERENCE', refBusinessObject: 'User'},
       { name: 'createdOn', label: '创建时间', type: 'DATETIME' },
       { name: 'modifiedOn', label: '修改时间', type: 'DATETIME' },
     ],
@@ -257,11 +257,11 @@ export const entities: EntityMeta[] = [
   },
 ]
 
-export function getEntity(name: string): EntityMeta | undefined {
-  return entities.find((e) => e.name === name)
+export function getBusinessObject(name: string): BusinessObjectMeta | undefined {
+  return businessObjects.find((businessObject) => businessObject.name === name)
 }
 
-const expenseEntity: EntityMeta = {
+const expenseBusinessObject: BusinessObjectMeta = {
   name: 'Expense',
   label: '报销单',
   icon: Banknote,
@@ -279,13 +279,13 @@ const expenseEntity: EntityMeta = {
     ] },
     { name: 'amount', label: '报销金额', type: 'DECIMAL' },
     { name: 'submitDate', label: '提交日期', type: 'DATE' },
-    { name: 'owningUser', label: '所属用户', type: 'REFERENCE', refEntity: 'User' },
+    {name: 'owningUser', label: '所属用户', type: 'REFERENCE', refBusinessObject: 'User'},
     { name: 'createdOn', label: '创建时间', type: 'DATETIME' },
     { name: 'modifiedOn', label: '修改时间', type: 'DATETIME' },
   ],
 }
 
-entities.push(expenseEntity)
+businessObjects.push(expenseBusinessObject)
 
 export const apps: AppMeta[] = [
   {
@@ -294,7 +294,7 @@ export const apps: AppMeta[] = [
     iconName: 'ShoppingCart',
     description: '管理客户、商机和产品数据，跟踪销售全过程。',
     updatedAt: d(1, 16, 30),
-    ownedEntityNames: [],
+    ownedBusinessObjectNames: [],
   },
   {
     id: 'app-expense',
@@ -302,36 +302,66 @@ export const apps: AppMeta[] = [
     iconName: 'Banknote',
     description: '提交和审核费用报销，沉淀常用报销流程。',
     updatedAt: d(2, 10, 15),
-    ownedEntityNames: ['Expense'],
+    ownedBusinessObjectNames: ['Expense'],
   },
 ]
 
 const appMenus: Record<string, AppMenuItem[]> = {
   'app-sales': [
-    { id: 'menu-customer', entityId: 'Customer', label: '客户', icon: User },
-    { id: 'menu-opportunity', entityId: 'Opportunity', label: '商机', icon: TrendingUp },
-    { id: 'menu-product', entityId: 'Product', label: '产品', icon: ShoppingCart },
+    {id: 'menu-customer', businessObjectId: 'Customer', label: '客户', icon: User},
+    {id: 'menu-opportunity', businessObjectId: 'Opportunity', label: '商机', icon: TrendingUp},
+    {id: 'menu-product', businessObjectId: 'Product', label: '产品', icon: ShoppingCart},
   ],
   'app-expense': [
-    { id: 'menu-expense', entityId: 'Expense', label: '报销单', icon: Banknote },
+    {id: 'menu-expense', businessObjectId: 'Expense', label: '报销单', icon: Banknote},
   ],
 }
 
 const appApprovalFlows: Record<string, AppApprovalFlow[]> = {
   'app-sales': [
-    { id: 'af-001', name: '报价审批流程', entity: 'Opportunity', applies: '金额 > 50,000', state: '启用', modifiedOn: d(3, 10, 15) },
+    {
+      id: 'af-001',
+      name: '报价审批流程',
+      businessObject: 'Opportunity',
+      applies: '金额 > 50,000',
+      state: '启用',
+      modifiedOn: d(3, 10, 15)
+    },
   ],
   'app-expense': [
-    { id: 'af-101', name: '费用报销流程', entity: 'Expense', applies: '全部', state: '启用', modifiedOn: d(2, 14, 20) },
+    {
+      id: 'af-101',
+      name: '费用报销流程',
+      businessObject: 'Expense',
+      applies: '全部',
+      state: '启用',
+      modifiedOn: d(2, 14, 20)
+    },
   ],
 }
 
 const appTriggers: Record<string, AppTriggerConfig[]> = {
   'app-sales': [
-    { id: 'at-001', name: '新客户自动分配', entity: 'Customer', when: '新建时', action: '数据分配', state: '启用', modifiedOn: d(5, 11, 20) },
+    {
+      id: 'at-001',
+      name: '新客户自动分配',
+      businessObject: 'Customer',
+      when: '新建时',
+      action: '数据分配',
+      state: '启用',
+      modifiedOn: d(5, 11, 20)
+    },
   ],
   'app-expense': [
-    { id: 'at-101', name: '高额报销提醒', entity: 'Expense', when: '字段更新', action: '发送通知', state: '启用', modifiedOn: d(4, 9, 35) },
+    {
+      id: 'at-101',
+      name: '高额报销提醒',
+      businessObject: 'Expense',
+      when: '字段更新',
+      action: '发送通知',
+      state: '启用',
+      modifiedOn: d(4, 9, 35)
+    },
   ],
 }
 
@@ -351,22 +381,22 @@ export function getAppMenuItem(appId: string | undefined, menuId: string | undef
   return getAppMenus(appId).find((item) => item.id === menuId)
 }
 
-export function getAppEntities(appId: string | undefined): EntityMeta[] {
+export function getAppBusinessObjects(appId: string | undefined): BusinessObjectMeta[] {
   return getAppMenus(appId)
-    .map((item) => getEntity(item.entityId))
-    .filter((item): item is EntityMeta => Boolean(item))
+    .map((item) => getBusinessObject(item.businessObjectId))
+    .filter((item): item is BusinessObjectMeta => Boolean(item))
 }
 
-export function getAppMenuForEntity(entityName: string): { appId: string; menuId: string } | undefined {
+export function getAppMenuForBusinessObject(businessObjectName: string): { appId: string; menuId: string } | undefined {
   for (const app of apps) {
-    const menu = getAppMenus(app.id).find((item) => item.entityId === entityName)
+    const menu = getAppMenus(app.id).find((item) => item.businessObjectId === businessObjectName)
     if (menu) return { appId: app.id, menuId: menu.id }
   }
   return undefined
 }
 
-export function getAppEntityCount(appId: string): number {
-  return new Set(getAppMenus(appId).map((item) => item.entityId)).size
+export function getAppBusinessObjectCount(appId: string): number {
+  return new Set(getAppMenus(appId).map((item) => item.businessObjectId)).size
 }
 
 export function getAppApprovalFlows(appId: string | undefined): AppApprovalFlow[] {
@@ -382,12 +412,12 @@ function createAppId(name: string) {
   return prefix || `app-${name}`
 }
 
-export function createApp(values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedEntityNames'>): AppMeta {
+export function createApp(values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedBusinessObjectNames'>): AppMeta {
   const app: AppMeta = {
     ...values,
     id: createAppId(values.name),
     updatedAt: d(0, 12, 0),
-    ownedEntityNames: [],
+    ownedBusinessObjectNames: [],
   }
   apps.unshift(app)
   appMenus[app.id] = []
@@ -396,7 +426,7 @@ export function createApp(values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedEntit
   return app
 }
 
-export function updateApp(appId: string, values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedEntityNames'>): AppMeta | undefined {
+export function updateApp(appId: string, values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedBusinessObjectNames'>): AppMeta | undefined {
   const index = apps.findIndex((app) => app.id === appId)
   if (index < 0) return undefined
   const updated: AppMeta = {
@@ -413,17 +443,17 @@ export function deleteApp(appId: string): boolean {
   const index = apps.findIndex((app) => app.id === appId)
   if (index < 0) return false
 
-  const ownedEntityNames = new Set(apps[index].ownedEntityNames ?? [])
-  const hasOtherOwner = (entityName: string) => apps.some(
-    (app) => app.id !== appId && (app.ownedEntityNames ?? []).includes(entityName),
+  const ownedBusinessObjectNames = new Set(apps[index].ownedBusinessObjectNames ?? [])
+  const hasOtherOwner = (businessObjectName: string) => apps.some(
+    (app) => app.id !== appId && (app.ownedBusinessObjectNames ?? []).includes(businessObjectName),
   )
-  ownedEntityNames.forEach((entityName) => {
-    if (!hasOtherOwner(entityName)) {
-      const entityIndex = entities.findIndex((entity) => entity.name === entityName)
-      if (entityIndex >= 0) entities.splice(entityIndex, 1)
-      delete recordSets[entityName]
+  ownedBusinessObjectNames.forEach((businessObjectName) => {
+    if (!hasOtherOwner(businessObjectName)) {
+      const businessObjectIndex = businessObjects.findIndex((businessObject) => businessObject.name === businessObjectName)
+      if (businessObjectIndex >= 0) businessObjects.splice(businessObjectIndex, 1)
+      delete recordSets[businessObjectName]
       Object.keys(appMenus).forEach((ownerId) => {
-        appMenus[ownerId] = appMenus[ownerId].filter((item) => item.entityId !== entityName)
+        appMenus[ownerId] = appMenus[ownerId].filter((item) => item.businessObjectId !== businessObjectName)
       })
     }
   })
@@ -448,9 +478,9 @@ function dd(daysAgo: number) {
   return d(daysAgo).slice(0, 10)
 }
 
-function mkRows(entity: string, count: number, gen: (i: number) => Record<string, unknown>) {
+function mkRows(businessObject: string, count: number, gen: (i: number) => Record<string, unknown>) {
   const rows: RbRecord[] = []
-  for (let i = 1; i <= count; i++) rows.push({ id: `${entity.toUpperCase().slice(0, 3)}-${String(1000 + i)}`, ...gen(i) })
+  for (let i = 1; i <= count; i++) rows.push({id: `${businessObject.toUpperCase().slice(0, 3)}-${String(1000 + i)}`, ...gen(i)})
   return rows
 }
 
@@ -515,23 +545,23 @@ export const expenseRecords: RbRecord[] = [
 
 recordSets.Expense = expenseRecords
 
-export function getRecords(entity: string): RbRecord[] {
-  return recordSets[entity] ?? []
+export function getRecords(businessObject: string): RbRecord[] {
+  return recordSets[businessObject] ?? []
 }
 
-export function getRecord(entity: string, id: string): RbRecord | undefined {
-  return getRecords(entity).find((record) => record.id === id)
+export function getRecord(businessObject: string, id: string): RbRecord | undefined {
+  return getRecords(businessObject).find((record) => record.id === id)
 }
 
-export function createRecord(entity: string, values: Record<string, unknown>): RbRecord | undefined {
-  const meta = getEntity(entity)
-  const records = getRecords(entity)
+export function createRecord(businessObject: string, values: Record<string, unknown>): RbRecord | undefined {
+  const meta = getBusinessObject(businessObject)
+  const records = getRecords(businessObject)
   if (!meta) return undefined
 
   const now = new Date()
   const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   const record: RbRecord = {
-    id: `${entity.slice(0, 3).toUpperCase()}-${records.length + 1001}`,
+    id: `${businessObject.slice(0, 3).toUpperCase()}-${records.length + 1001}`,
     ...values,
     createdOn: stamp,
     modifiedOn: stamp,
@@ -540,8 +570,8 @@ export function createRecord(entity: string, values: Record<string, unknown>): R
   return record
 }
 
-export function updateRecord(entity: string, id: string, values: Record<string, unknown>): RbRecord | undefined {
-  const records = getRecords(entity)
+export function updateRecord(businessObject: string, id: string, values: Record<string, unknown>): RbRecord | undefined {
+  const records = getRecords(businessObject)
   const index = records.findIndex((record) => record.id === id)
   if (index < 0) return undefined
 

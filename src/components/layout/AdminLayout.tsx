@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {Link, useLocation} from 'react-router-dom'
 import {cn} from '@/lib/utils'
-import {getEntity, topNavs} from '@/data/mock'
+import {getBusinessObject, topNavs} from '@/data/mock'
 import {AdminTopHeader} from './AdminTopHeader'
 import {AdminLeftSidebar, adminNavs} from './AdminLeftSidebar'
 import {MenuEditorDialog} from './MenuEditorDialog'
@@ -24,22 +24,46 @@ export function AdminLayout({
   const [activeTopId, setActiveTopId] = React.useState(topNavs[0].id)
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
 
-  const showEntitySidebar = /^\/admin\/entity\//.test(location.pathname)
-  const currentEntity = location.pathname.match(/^\/admin\/entity\/([^/]+)/)?.[1]
-  const currentEntityMeta = currentEntity ? getEntity(currentEntity) : undefined
-  const mobileNavs = showEntitySidebar && currentEntity
+  const showBusinessObjectSidebar = /^\/admin\/business-object\//.test(location.pathname)
+  const currentBusinessObject = location.pathname.match(/^\/admin\/business-object\/([^/]+)/)?.[1]
+  const currentBusinessObjectMeta = currentBusinessObject ? getBusinessObject(currentBusinessObject) : undefined
+  const mobileNavs = showBusinessObjectSidebar && currentBusinessObject
     ? [
       ...adminNavs,
       {
-        id: 'mobile-entity',
-        text: currentEntityMeta?.label ?? '实体',
+        id: 'mobile-business-object',
+        text: currentBusinessObjectMeta?.label ?? '业务对象',
         sub: [
-          {id: 'mobile-entity-base', text: '基本信息', to: `/admin/entity/${currentEntity}/base`},
-          {id: 'mobile-entity-fields', text: '字段管理', to: `/admin/entity/${currentEntity}/fields`},
-          {id: 'mobile-entity-form-design', text: '表单设计', to: `/admin/entity/${currentEntity}/form-design`},
-          {id: 'mobile-entity-easy-action', text: '自定义操作', to: `/admin/entity/${currentEntity}/easy-action`},
-          {id: 'mobile-entity-record-alerts', text: '记录锁定', to: `/admin/entity/${currentEntity}/record-alerts`},
-          {id: 'mobile-entity-advanced', text: '高级配置', to: `/admin/entity/${currentEntity}/advanced`},
+          {
+            id: 'mobile-business-object-base',
+            text: '基本信息',
+            to: `/admin/business-object/${currentBusinessObject}/base`
+          },
+          {
+            id: 'mobile-business-object-fields',
+            text: '字段管理',
+            to: `/admin/business-object/${currentBusinessObject}/fields`
+          },
+          {
+            id: 'mobile-business-object-form-design',
+            text: '表单设计',
+            to: `/admin/business-object/${currentBusinessObject}/form-design`
+          },
+          {
+            id: 'mobile-business-object-easy-action',
+            text: '自定义操作',
+            to: `/admin/business-object/${currentBusinessObject}/easy-action`
+          },
+          {
+            id: 'mobile-business-object-record-alerts',
+            text: '记录锁定',
+            to: `/admin/business-object/${currentBusinessObject}/record-alerts`
+          },
+          {
+            id: 'mobile-business-object-advanced',
+            text: '高级配置',
+            to: `/admin/business-object/${currentBusinessObject}/advanced`
+          },
         ],
       },
     ]
@@ -65,7 +89,7 @@ export function AdminLayout({
         onMenusChange={() => undefined}
       />
 
-      {showEntitySidebar && (
+      {showBusinessObjectSidebar && (
         <aside
           className={cn(
             'fixed top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 border-r bg-background md:block',
@@ -75,23 +99,35 @@ export function AdminLayout({
           <div className="flex h-full flex-col">
             <div className="border-b px-4 py-4">
               <div className="text-xl font-semibold text-foreground">
-                {currentEntityMeta?.label ?? '实体'}
+                {currentBusinessObjectMeta?.label ?? '业务对象'}
               </div>
-              {currentEntityMeta?.description && (
+              {currentBusinessObjectMeta?.description && (
                 <p className="mb-0 mt-1 text-xs text-muted-foreground">
-                  {currentEntityMeta.description}
+                  {currentBusinessObjectMeta.description}
                 </p>
               )}
             </div>
             <nav className="min-h-0 flex-1 overflow-y-auto p-3">
               <ul className="space-y-1">
                 {[
-                  {key: 'base', label: '基本信息', to: `/admin/entity/${currentEntity}/base`},
-                  {key: 'fields', label: '字段管理', to: `/admin/entity/${currentEntity}/fields`},
-                  {key: 'form-design', label: '表单设计', to: `/admin/entity/${currentEntity}/form-design`},
-                  {key: 'easy-action', label: '自定义操作', to: `/admin/entity/${currentEntity}/easy-action`},
-                  {key: 'record-alerts', label: '记录锁定', to: `/admin/entity/${currentEntity}/record-alerts`},
-                  {key: 'advanced', label: '高级配置', to: `/admin/entity/${currentEntity}/advanced`},
+                  {key: 'base', label: '基本信息', to: `/admin/business-object/${currentBusinessObject}/base`},
+                  {key: 'fields', label: '字段管理', to: `/admin/business-object/${currentBusinessObject}/fields`},
+                  {
+                    key: 'form-design',
+                    label: '表单设计',
+                    to: `/admin/business-object/${currentBusinessObject}/form-design`
+                  },
+                  {
+                    key: 'easy-action',
+                    label: '自定义操作',
+                    to: `/admin/business-object/${currentBusinessObject}/easy-action`
+                  },
+                  {
+                    key: 'record-alerts',
+                    label: '记录锁定',
+                    to: `/admin/business-object/${currentBusinessObject}/record-alerts`
+                  },
+                  {key: 'advanced', label: '高级配置', to: `/admin/business-object/${currentBusinessObject}/advanced`},
                 ].map((item) => (
                   <li key={item.key}>
                     <Link
@@ -120,7 +156,7 @@ export function AdminLayout({
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
           hideHeader
             ? ''
-            : showEntitySidebar
+            : showBusinessObjectSidebar
               ? collapsed
                 ? 'md:ml-[20rem]'
                 : 'md:ml-[32rem]'

@@ -3,6 +3,7 @@ import {Link, useLocation} from 'react-router-dom'
 import {ChevronDown, ChevronsLeft, ChevronsRight, Pencil} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
+import {Popover, PopoverAnchor, PopoverContent} from '@/components/ui/popover'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
 import {userNavs, type NavItem} from '@/data/mock'
 import {AppLauncher} from './AppLauncher'
@@ -11,6 +12,86 @@ function getActiveMenuIds(navs: NavItem[], pathname: string) {
   return navs
     .filter((nav) => nav.sub?.some((sub) => sub.to && pathname.startsWith(sub.to.replace(/\/tasks.*/, ''))))
     .map((nav) => nav.id)
+}
+
+function CollapsedGroupMenu({
+                              nav,
+                              trigger,
+                              isActive,
+                            }: {
+  nav: NavItem
+  trigger: React.ReactNode
+  isActive: (nav: NavItem) => boolean
+}) {
+  const [open, setOpen] = React.useState(false)
+  const closeTimeoutRef = React.useRef<number>()
+
+  const clearCloseTimeout = () => {
+    if (closeTimeoutRef.current) {
+      window.clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = undefined
+    }
+  }
+  const openMenu = () => {
+    clearCloseTimeout()
+    setOpen(true)
+  }
+  const closeMenu = () => {
+    clearCloseTimeout()
+    closeTimeoutRef.current = window.setTimeout(() => setOpen(false), 100)
+  }
+
+  React.useEffect(() => clearCloseTimeout, [])
+
+  if (!nav.sub) return null
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          clearCloseTimeout()
+          setOpen(false)
+        }
+      }}
+    >
+      <PopoverAnchor asChild>
+        <span
+          className="block"
+          onMouseEnter={openMenu}
+          onMouseLeave={closeMenu}
+        >
+          {trigger}
+        </span>
+      </PopoverAnchor>
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={6}
+        className="w-48 p-2"
+        onMouseEnter={openMenu}
+        onMouseLeave={closeMenu}
+      >
+        <p className="px-3 pb-2 text-xs font-medium text-muted-foreground">{nav.text}</p>
+        <div className="space-y-1">
+          {nav.sub.map((child) => (
+            <Link
+              key={child.id}
+              to={child.to!}
+              onClick={() => setOpen(false)}
+              className={
+                isActive(child)
+                  ? 'block rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
+                  : 'block rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
+              }
+            >
+              {child.text}
+            </Link>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 export function AppLeftSidebar({
@@ -87,10 +168,7 @@ export function AppLeftSidebar({
                 return (
                   <li key={nav.id}>
                     {collapsed ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-                        <TooltipContent side="right">{nav.text}</TooltipContent>
-                      </Tooltip>
+                      <CollapsedGroupMenu nav={nav} trigger={trigger} isActive={isActive}/>
                     ) : (
                       trigger
                     )}

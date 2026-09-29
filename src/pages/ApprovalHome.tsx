@@ -52,7 +52,7 @@ function statusBadge(status: string) {
 /** 审批中心（参考 approval/home.html 的分类列表布局） */
 export default function ApprovalHome() {
   const [tab, setTab] = React.useState(1)
-  const [entity, setEntity] = React.useState('all')
+  const [businessObject, setBusinessObject] = React.useState('all')
   const [sort, setSort] = React.useState('newer')
   const [loading, setLoading] = React.useState(true)
   const [selected, setSelected] = React.useState<string[]>([])
@@ -62,18 +62,18 @@ export default function ApprovalHome() {
     setSelected([])
     const timer = setTimeout(() => setLoading(false), 400)
     return () => clearTimeout(timer)
-  }, [tab, entity, sort])
+  }, [tab, businessObject, sort])
 
-  const entityOptions = React.useMemo(
+  const businessObjectOptions = React.useMemo(
     () => Array.from(new Set(approvals.map((item) => item.entityLabel))),
     [],
   )
 
   const list = React.useMemo(() => {
-    const matchesEntity = (item: (typeof approvals)[number]) =>
-      entity === 'all' || item.entityLabel === entity
+    const matchesBusinessObject = (item: (typeof approvals)[number]) =>
+      businessObject === 'all' || item.entityLabel === businessObject
 
-    let next = approvals.filter(matchesEntity)
+    let next = approvals.filter(matchesBusinessObject)
     if (tab === 1) next = next.filter((item) => item.status === '待审批')
     if (tab === 2) next = next.filter((item) => item.status !== '待审批')
     if (tab === 3) next = next.filter((item) => item.applicant === currentUser.fullName)
@@ -84,7 +84,7 @@ export default function ApprovalHome() {
         ? b.submittedOn.localeCompare(a.submittedOn)
         : a.submittedOn.localeCompare(b.submittedOn),
     )
-  }, [tab, entity, sort])
+  }, [tab, businessObject, sort])
 
   const counts = React.useMemo(
     () => ({
@@ -154,13 +154,13 @@ export default function ApprovalHome() {
                   onCheckedChange={toggleAll}
                   aria-label="全选/反选"
                 />
-                <Select value={entity} onValueChange={setEntity}>
+                <Select value={businessObject} onValueChange={setBusinessObject}>
                   <SelectTrigger className="h-9 w-[176px]">
                     <SelectValue placeholder="业务对象" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">全部业务对象</SelectItem>
-                    {entityOptions.map((item) => (
+                    {businessObjectOptions.map((item) => (
                       <SelectItem key={item} value={item}>
                         {item}
                       </SelectItem>
@@ -191,7 +191,10 @@ export default function ApprovalHome() {
                     <SelectItem value="older">最早提交</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="ghost" size="icon" title="重置筛选" onClick={() => { setEntity('all'); setSort('newer') }}>
+                <Button variant="ghost" size="icon" title="重置筛选" onClick={() => {
+                  setBusinessObject('all');
+                  setSort('newer')
+                }}>
                   <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>

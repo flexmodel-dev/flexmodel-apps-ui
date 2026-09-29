@@ -5,7 +5,7 @@ import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
-import { AdminApprovals, AdminEntities, AdminTriggers } from '@/pages/admin'
+import {AdminApprovals, AdminBusinessObjects, AdminTriggers} from '@/pages/admin'
 import {
   appIconOptions,
   appIcons,
@@ -17,7 +17,7 @@ import {
 
 const settingsNavs = [
   { key: 'basic', label: '基本设置' },
-  { key: 'entities', label: '实体管理' },
+  {key: 'business-objects', label: '业务对象'},
   { key: 'approvals', label: '审批流程' },
   { key: 'triggers', label: '触发器' },
 ]
@@ -137,7 +137,7 @@ export default function AppSettings({ section }: { section: string }) {
               </div>
             )}
 
-            {activeSection === 'entities' && <AdminEntities embedded />}
+            {activeSection === 'business-objects' && <AdminBusinessObjects embedded/>}
 
             {activeSection === 'approvals' && <AdminApprovals embedded />}
 
@@ -203,7 +203,8 @@ export default function AppSettings({ section }: { section: string }) {
           </>
         }
       >
-        <div className="pt-1">确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占实体和记录。</div>
+          <div className="pt-1">确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占业务对象和记录。
+          </div>
         </BizDialog>
       </AdminLayout>
   )

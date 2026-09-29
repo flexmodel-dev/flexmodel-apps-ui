@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { createRecord, getEntity, getRecords, updateRecord, users, type EntityField } from '@/data/mock'
+import {createRecord, getBusinessObject, getRecords, updateRecord, users, type BusinessObjectField} from '@/data/mock'
 import {
   formFieldWidthClasses,
   getStoredFormLayout,
@@ -25,17 +25,17 @@ import {
 
 type FormValues = Record<string, string | boolean>
 
-function toInputValue(field: EntityField, value: unknown) {
+function toInputValue(field: BusinessObjectField, value: unknown) {
   if (field.type === 'BOOL') return value === true || value === 'true'
   if (field.type === 'DATETIME') return String(value ?? '').slice(0, 16)
   return value === undefined || value === null ? '' : String(value)
 }
 
-function getReferenceOptions(field: EntityField) {
-  if (field.refEntity === 'User') {
+function getReferenceOptions(field: BusinessObjectField) {
+  if (field.refBusinessObject === 'User') {
     return users.map((user) => ({ value: user.fullName, label: user.fullName }))
   }
-  if (field.refEntity === 'Customer') {
+  if (field.refBusinessObject === 'Customer') {
     return getRecords('Customer').map((record) => ({
       value: String(record.customerName),
       label: String(record.customerName),
@@ -50,7 +50,7 @@ function FieldControl({
   onChange,
   disabled,
 }: {
-  field: EntityField
+  field: BusinessObjectField
   value: string | boolean
   onChange: (value: string | boolean) => void
   disabled?: boolean
@@ -131,18 +131,18 @@ function FieldControl({
 export function RecordFormModal({
   open,
   onOpenChange,
-  entity,
+                                  businessObject,
   recordId,
   onSaved,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  entity: string
+  businessObject: string
   recordId?: string | null
   onSaved?: (id: string) => void
 }) {
   const navigate = useNavigate()
-  const meta = getEntity(entity)
+  const meta = getBusinessObject(businessObject)
   const editing = React.useMemo(
     () => meta && recordId ? getRecords(meta.name).find((record) => record.id === recordId) : undefined,
     [meta, recordId],
@@ -186,9 +186,9 @@ export function RecordFormModal({
   const fields = layout
     .filter((name) => !isFormDividerField(name))
     .map((name) => allFields.find((field) => field.name === name))
-    .filter((field): field is EntityField => Boolean(field))
+    .filter((field): field is BusinessObjectField => Boolean(field))
     .filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
-  const getDisplayLabel = (field: EntityField) =>
+  const getDisplayLabel = (field: BusinessObjectField) =>
     itemProperties[field.name]?.label?.trim() || field.label
   const getItemTip = (name: string) => itemProperties[name]?.tip?.trim() || ''
   const handleSubmit = () => {
@@ -221,7 +221,7 @@ export function RecordFormModal({
           title="表单设计"
           onClick={() => {
             onOpenChange(false)
-            navigate(`/admin/entity/${meta.name}/form-design`)
+            navigate(`/admin/business-object/${meta.name}/form-design`)
           }}
         >
           <Settings className="h-4 w-4" />

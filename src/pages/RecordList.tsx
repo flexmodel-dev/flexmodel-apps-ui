@@ -28,7 +28,7 @@ import {Pagination} from '@/components/biz/Pagination'
 import {AppNoData} from '@/components/biz/AppLoading'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { RecordDetailContent } from '@/pages/RecordView'
-import { getAppMenuItem, getEntity, getRecords } from '@/data/mock'
+import {getAppMenuItem, getBusinessObject, getRecords} from '@/data/mock'
 import { cn, paginate } from '@/lib/utils'
 import {RecordFormModal} from '@/components/biz/RecordFormModal'
 import {
@@ -43,8 +43,8 @@ import {
 export default function RecordList() {
   const { appId, menuId } = useParams<{ appId: string; menuId: string }>()
   const menuItem = getAppMenuItem(appId, menuId)
-  const meta = getEntity(menuItem?.entityId ?? '')
-  const [rows, setRows] = React.useState(() => getRecords(menuItem?.entityId ?? ''))
+  const meta = getBusinessObject(menuItem?.businessObjectId ?? '')
+  const [rows, setRows] = React.useState(() => getRecords(menuItem?.businessObjectId ?? ''))
   const [q, setQ] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [size] = React.useState(30)
@@ -84,7 +84,7 @@ export default function RecordList() {
     setSortAsc(true)
   }, [appId, menuId])
 
-  if (!meta) return <AppLayout>未知实体</AppLayout>
+  if (!meta) return <AppLayout>未知业务对象</AppLayout>
 
   const columns = meta.fields.filter((f) => f.type !== 'DATETIME' || f.name.endsWith('On'))
 
@@ -104,7 +104,7 @@ export default function RecordList() {
     const field = meta.fields.find((f) => f.name === fieldName)!
     const v = row[fieldName]
     if (v === undefined || v === null || v === '') return <span className="text-[#ccc]">-</span>
-    if (field.type === 'REFERENCE' && field.refEntity === 'User') {
+    if (field.type === 'REFERENCE' && field.refBusinessObject === 'User') {
       return (
         <span className="flex items-center gap-1.5">
           <UserAvatar name={String(v)} size={20} />
@@ -137,17 +137,17 @@ export default function RecordList() {
 
   return (
     <AppLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
-      {/* 实体页签 */}
+      {/* 业务对象页签 */}
       <ul className="nav nav-tabs-classic mb-0 flex list-none items-center gap-1 border-b border-[#e3e3e3] pb-0 dark:border-[#2e3340]">
         {(menuItem ? [menuItem] : []).map((item) => {
-          const m = getEntity(item.entityId)!
+          const m = getBusinessObject(item.businessObjectId)!
           return (
             <li key={item.id}>
               <Link
                 to={`/app/${appId}/${item.id}`}
                 className={cn(
                   '-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground',
-                  item.entityId === meta.name ? 'border-primary text-foreground' : 'border-transparent'
+                  item.businessObjectId === meta.name ? 'border-primary text-foreground' : 'border-transparent'
                 )}
               >
                 <m.icon className="h-4 w-4" />
@@ -294,7 +294,7 @@ export default function RecordList() {
           <div className="p-4 md:p-5">
             {detailId && (
               <RecordDetailContent
-                entity={meta.name}
+                businessObject={meta.name}
                 id={detailId}
                 onDeleted={() => setDetailId(null)}
               />
@@ -306,7 +306,7 @@ export default function RecordList() {
       <RecordFormModal
         open={formOpen}
         onOpenChange={setFormOpen}
-        entity={meta.name}
+        businessObject={meta.name}
         recordId={formRecordId}
         onSaved={() => setRefreshTick((tick) => tick + 1)}
       />

@@ -1,15 +1,15 @@
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import { AdminTablePage } from './AdminTablePage'
-import { EntityManagementContent } from './AdminContent'
+import {BusinessObjectManagementContent} from './AdminContent'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
-import { entities, users, departments, teams } from '@/data/mock'
+import {businessObjects, users, departments, teams} from '@/data/mock'
 import { cn } from '@/lib/utils'
 import { CirclePlus } from 'lucide-react'
 
-/** 实体管理（admin/metadata/entities.html：卡片网格） */
-export function AdminEntities({ embedded = false }: { embedded?: boolean } = {}) {
-  const content = <EntityManagementContent entities={entities} />
+/** 业务对象（admin/metadata/business-objects.html：卡片网格） */
+export function AdminBusinessObjects({embedded = false}: { embedded?: boolean } = {}) {
+  const content = <BusinessObjectManagementContent businessObjects={businessObjects}/>
   return embedded ? content : <AdminLayout>{content}</AdminLayout>
 }
 
@@ -96,14 +96,46 @@ export function AdminApprovals({ embedded = false }: { embedded?: boolean } = {}
       desc="业务对象审批流程配置"
       bare={embedded}
       rows={[
-        { id: 'a1', name: '报销审批流程', entity: '报销单', applies: '全部', state: '启用', modifiedOn: '2026-08-30 16:40' },
-        { id: 'a2', name: '请假审批流程', entity: '请假单', applies: '全部', state: '启用', modifiedOn: '2026-08-30 16:42' },
-        { id: 'a3', name: '报价审批流程', entity: '报价单', applies: '金额 > 5 万', state: '启用', modifiedOn: '2026-09-01 10:15' },
-        { id: 'a4', name: '合同评审流程', entity: '合同', applies: '全部', state: '停用', modifiedOn: '2026-09-03 09:00' },
+        {
+          id: 'a1',
+          name: '报销审批流程',
+          businessObject: '报销单',
+          applies: '全部',
+          state: '启用',
+          modifiedOn: '2026-08-30 16:40'
+        },
+        {
+          id: 'a2',
+          name: '请假审批流程',
+          businessObject: '请假单',
+          applies: '全部',
+          state: '启用',
+          modifiedOn: '2026-08-30 16:42'
+        },
+        {
+          id: 'a3',
+          name: '报价审批流程',
+          businessObject: '报价单',
+          applies: '金额 > 5 万',
+          state: '启用',
+          modifiedOn: '2026-09-01 10:15'
+        },
+        {
+          id: 'a4',
+          name: '合同评审流程',
+          businessObject: '合同',
+          applies: '全部',
+          state: '停用',
+          modifiedOn: '2026-09-03 09:00'
+        },
       ]}
       columns={[
         { key: 'name', label: '流程名称', render: (r) => <span className="font-medium text-primary">{r.name}</span> },
-        { key: 'entity', label: '应用实体', render: (r) => <span className="badge-secondary">{r.entity}</span> },
+        {
+          key: 'businessObject',
+          label: '业务对象',
+          render: (r) => <span className="badge-secondary">{r.businessObject}</span>
+        },
         { key: 'applies', label: '生效条件' },
         { key: 'state', label: '状态', render: (r) => (
           <span className={r.state === '启用' ? 'text-green-600' : 'text-muted-foreground'}>● {r.state}</span>
@@ -124,13 +156,41 @@ export function AdminTriggers({ embedded = false }: { embedded?: boolean } = {})
       desc="数据自动化处理规则"
       bare={embedded}
       rows={[
-        { id: 't1', name: '新客户自动分配', entity: '客户', when: '新建时', action: '数据分配', state: '启用', modifiedOn: '2026-08-18 11:20' },
-        { id: 't2', name: '赢单发送通知', entity: '商机', when: '字段更新', action: '发送通知', state: '启用', modifiedOn: '2026-08-22 09:35' },
-        { id: 't3', name: '过期商机提醒', entity: '商机', when: '定时任务', action: '发送通知', state: '停用', modifiedOn: '2026-09-02 17:10' },
+        {
+          id: 't1',
+          name: '新客户自动分配',
+          businessObject: '客户',
+          when: '新建时',
+          action: '数据分配',
+          state: '启用',
+          modifiedOn: '2026-08-18 11:20'
+        },
+        {
+          id: 't2',
+          name: '赢单发送通知',
+          businessObject: '商机',
+          when: '字段更新',
+          action: '发送通知',
+          state: '启用',
+          modifiedOn: '2026-08-22 09:35'
+        },
+        {
+          id: 't3',
+          name: '过期商机提醒',
+          businessObject: '商机',
+          when: '定时任务',
+          action: '发送通知',
+          state: '停用',
+          modifiedOn: '2026-09-02 17:10'
+        },
       ]}
       columns={[
         { key: 'name', label: '触发器名称', render: (r) => <span className="font-medium text-primary">{r.name}</span> },
-        { key: 'entity', label: '应用实体', render: (r) => <span className="badge-secondary">{r.entity}</span> },
+        {
+          key: 'businessObject',
+          label: '业务对象',
+          render: (r) => <span className="badge-secondary">{r.businessObject}</span>
+        },
         { key: 'when', label: '触发时机' },
         { key: 'action', label: '执行动作' },
         { key: 'state', label: '状态', render: (r) => (
