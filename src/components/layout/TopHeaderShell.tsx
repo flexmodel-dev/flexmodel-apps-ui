@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Link} from 'react-router-dom'
-import {Bell, Menu, Moon, Sun} from 'lucide-react'
+import {Bell, Menu, Moon, Sun, type LucideIcon} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {UserAvatar} from '@/components/ui/avatar'
@@ -26,6 +26,7 @@ const notificationItems = [
 
 function TopHeaderShell({
                           brand,
+                          logoIcon,
                           mobileTitle,
                           mobileNavs,
                           topNavs,
@@ -40,8 +41,10 @@ function TopHeaderShell({
   activeTopId?: string
   onTopNavChange?: (id: string) => void
   extraActions?: React.ReactNode
+  logoIcon?: LucideIcon
 }) {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
+  const LogoIcon = logoIcon
   const [isDark, setIsDark] = React.useState(() => {
     const stored = window.localStorage.getItem('night')
     if (stored === 'true' || stored === 'false') return stored === 'true'
@@ -85,7 +88,7 @@ function TopHeaderShell({
               isDark ? 'bg-primary/20 text-primary' : 'bg-white/20 text-primary-foreground',
             )}
           >
-            N
+            {LogoIcon ? <LogoIcon className="h-5 w-5"/> : 'N'}
           </span>
           <span className="max-w-[34vw] truncate text-base font-semibold sm:text-lg">{brand}</span>
         </Link>

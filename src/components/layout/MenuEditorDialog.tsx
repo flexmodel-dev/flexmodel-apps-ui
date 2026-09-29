@@ -21,7 +21,8 @@ import {Folder, GripVertical, Pencil, Plus, Trash2} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {OptionalIconPicker} from '@/components/biz/IconPicker'
+import {MenuLinkPicker} from '@/components/biz/MenuLinkPicker'
 import {cn} from '@/lib/utils'
 import {
   createLeftMenu,
@@ -49,9 +50,9 @@ import {
 } from '@/data/mock'
 
 type EditorForm =
-  | { kind: 'top'; id?: string; text: string; to: string }
-  | { kind: 'left'; id?: string; text: string; to: string; icon: NavIconName | 'none'; type: LeftMenuItemType }
-  | { kind: 'sub'; id?: string; parentId: string; text: string; to: string; icon: NavIconName | 'none' }
+  | { kind: 'top'; id?: string; text: string }
+  | { kind: 'left'; id?: string; text: string; link?: string; icon: NavIconName | 'none'; type: LeftMenuItemType }
+  | { kind: 'sub'; id?: string; parentId: string; text: string; link?: string; icon: NavIconName | 'none' }
 
 type DeleteTarget =
   | { kind: 'top'; item: TopNavItem }
@@ -109,7 +110,6 @@ function TopMenuRow({
         <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground"/>
         <span className="min-w-0 flex-1">
           <span className={cn('block truncate text-sm font-medium', selected && 'text-primary')}>{menu.text}</span>
-          <span className="block truncate text-xs text-muted-foreground">{menu.to}</span>
         </span>
       </button>
       <Button
@@ -177,9 +177,11 @@ function LeftMenuRow({
           <Icon className="h-4 w-4 shrink-0"/> : null}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{item.text}</span>
-          <span className="block truncate text-xs text-muted-foreground">
-            {item.sub ? `分组 · ${item.sub.length} 项` : item.to || '未设置路径'}
-          </span>
+          {item.sub && (
+            <span className="block truncate text-xs text-muted-foreground">
+              分组 · {item.sub.length} 项
+            </span>
+          )}
         </span>
       </button>
       {item.sub && (
@@ -257,7 +259,6 @@ function SubmenuRow({
         {Icon ? <Icon className="h-4 w-4 shrink-0"/> : null}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm">{item.text}</span>
-          <span className="block truncate text-xs text-muted-foreground">{item.to || '未设置路径'}</span>
         </span>
       </button>
       <Button
@@ -316,19 +317,19 @@ function MenuEditorDialog({
 
   const selectedTop = getTopNavById(selectedTopId) ?? topNavs[0]
 
-  const startTop = () => setForm({kind: 'top', text: '', to: ''})
+  const startTop = () => setForm({kind: 'top', text: ''})
   const startLeft = (type: LeftMenuItemType) =>
-    setForm({kind: 'left', text: '', to: '', icon: 'none', type})
+    setForm({kind: 'left', text: '', icon: 'none', type})
   const startSub = (parentId: string) =>
-    setForm({kind: 'sub', parentId, text: '', to: '', icon: 'none'})
+    setForm({kind: 'sub', parentId, text: '', icon: 'none'})
 
-  const editTop = (menu: TopNavItem) => setForm({kind: 'top', id: menu.id, text: menu.text, to: menu.to})
+  const editTop = (menu: TopNavItem) => setForm({kind: 'top', id: menu.id, text: menu.text})
   const editLeft = (item: NavItem) =>
     setForm({
       kind: 'left',
       id: item.id,
       text: item.text,
-      to: item.to ?? '',
+      link: item.to,
       icon: iconName(item.icon),
       type: item.sub ? 'group' : 'menu',
     })
@@ -338,26 +339,20 @@ function MenuEditorDialog({
       id: item.id,
       parentId,
       text: item.text,
-      to: item.to ?? '',
+      link: item.to,
       icon: iconName(item.icon),
     })
 
   const isValid = (() => {
     if (!form) return false
-    if (form.kind === 'top') return Boolean(form.text.trim() && form.to.trim().startsWith('/'))
-    if (form.kind === 'left') {
-      if (!form.text.trim()) return false
-      if (form.type === 'group') return true
-      return form.to.trim().startsWith('/')
-    }
-    return Boolean(form.text.trim() && form.to.trim().startsWith('/'))
+    return Boolean(form.text.trim())
   })()
 
   const save = () => {
     if (!form || !isValid) return
 
     if (form.kind === 'top') {
-      const values: TopMenuItemInput = {text: form.text.trim(), to: form.to.trim()}
+      const values: TopMenuItemInput = {text: form.text.trim()}
       const saved = form.id ? updateTopMenu(form.id, values) : createTopMenu(values)
       if (saved) {
         setSelectedTopId(saved.id)
@@ -367,7 +362,7 @@ function MenuEditorDialog({
     } else if (form.kind === 'left') {
       const values = {
         text: form.text.trim(),
-        to: form.type === 'group' ? undefined : form.to.trim(),
+        to: form.link,
         icon: form.icon === 'none' ? undefined : navIcons[form.icon],
         type: form.type,
       }
@@ -378,7 +373,7 @@ function MenuEditorDialog({
     } else {
       const values = {
         text: form.text.trim(),
-        to: form.to.trim(),
+        to: form.link,
         icon: form.icon === 'none' ? undefined : navIcons[form.icon],
         type: 'menu' as const,
       }
@@ -645,36 +640,35 @@ function MenuEditorDialog({
                   placeholder="请输入名称"
                 />
 
-                {form.kind !== 'left' || form.type === 'menu' ? (
+                {form.kind === 'left' && form.type === 'menu' && (
                   <>
-                    <label className="block text-xs font-medium text-foreground">路径</label>
-                    <Input
-                      value={form.to}
-                      onChange={(event) => setForm({...form, to: event.target.value})}
-                      placeholder="/dashboard/home"
+                    <label className="block text-xs font-medium text-foreground">关联项</label>
+                    <MenuLinkPicker
+                      value={form.link}
+                      onChange={(link) => setForm({...form, link})}
                     />
                   </>
-                ) : null}
+                )}
+
+                {form.kind === 'sub' && (
+                  <>
+                    <label className="block text-xs font-medium text-foreground">关联项</label>
+                    <MenuLinkPicker
+                      value={form.link}
+                      onChange={(link) => setForm({...form, link})}
+                    />
+                  </>
+                )}
 
                 {form.kind !== 'top' && (
                   <>
                     <label className="block text-xs font-medium text-foreground">图标</label>
-                    <Select
+                    <OptionalIconPicker
                       value={form.icon}
-                      onValueChange={(value) => setForm({...form, icon: value as NavIconName | 'none'})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue/>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">无图标</SelectItem>
-                        {navIconOptions.map((name) => (
-                          <SelectItem key={name} value={name}>
-                            {name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={navIconOptions}
+                      icons={navIcons}
+                      onChange={(icon) => setForm({...form, icon})}
+                    />
                   </>
                 )}
 

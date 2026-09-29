@@ -9,7 +9,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {businessObjects, getAppById, getAppMenuForBusinessObject, topNavs, type NavItem} from '@/data/mock'
+import {
+  appIcons,
+  businessObjects,
+  getAppById,
+  getAppMenuForBusinessObject,
+  topNavs,
+  type NavItem,
+} from '@/data/mock'
 import {TopHeaderShell, headerActionClass} from './TopHeaderShell'
 
 const createItems = businessObjects.flatMap((businessObject) => {
@@ -68,7 +75,9 @@ export function AppTopHeader({
   }
 
   const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
-  const brand = getAppById(currentAppId)?.name ?? '销售管理'
+  const currentApp = getAppById(currentAppId)
+  const brand = currentApp?.name ?? '销售管理'
+  const LogoIcon = appIcons[currentApp?.iconName ?? 'Boxes'] ?? appIcons.Boxes
 
   const filteredSuggestions = searchValue.trim()
     ? searchSuggestions.filter((item) => item.label.toLowerCase().includes(searchValue.trim().toLowerCase()))
@@ -77,6 +86,7 @@ export function AppTopHeader({
   return (
     <TopHeaderShell
       brand={brand}
+      logoIcon={LogoIcon}
       mobileTitle="菜单"
       mobileNavs={mobileNavs}
       topNavs={topNavs}

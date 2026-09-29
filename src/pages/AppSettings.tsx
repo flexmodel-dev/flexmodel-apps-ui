@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
+import {IconPicker} from '@/components/biz/IconPicker'
 import {AdminApprovals, AdminBusinessObjects, AdminTriggers} from '@/pages/admin'
 import {
   appIconOptions,
@@ -180,24 +181,13 @@ export default function AppSettings({ section }: { section: string }) {
           </div>
           <div>
             <label htmlFor="settings-app-icon" className="mb-1 block text-sm font-medium text-foreground">应用图标</label>
-            <div id="settings-app-icon" className="flex flex-wrap gap-2">
-              {appIconOptions.map((iconName: AppIconName) => {
-                const OptionIcon = appIcons[iconName]
-                return (
-                  <button
-                    key={iconName}
-                    type="button"
-                    onClick={() => setFormValue((value) => ({ ...value, iconName }))}
-                    className={
-                      formValue.iconName === iconName
-                        ? 'flex h-10 w-10 items-center justify-center rounded-md border border-primary bg-primary/10 text-primary'
-                        : 'flex h-10 w-10 items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-accent'
-                    }
-                  >
-                    <OptionIcon className="h-5 w-5" />
-                  </button>
-                )
-              })}
+            <div id="settings-app-icon">
+              <IconPicker
+                value={formValue.iconName}
+                options={appIconOptions}
+                icons={appIcons}
+                onChange={(iconName) => setFormValue((value) => ({...value, iconName}))}
+              />
             </div>
           </div>
           <div>

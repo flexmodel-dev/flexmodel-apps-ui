@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {AppNoData} from '@/components/biz/AppLoading'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
+import {IconPicker} from '@/components/biz/IconPicker'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,26 +57,13 @@ function AppForm({
       </div>
       <div>
         <label htmlFor="app-icon" className="mb-1 block text-sm font-medium text-foreground">应用图标</label>
-        <div id="app-icon" className="flex flex-wrap gap-2">
-          {appIconOptions.map((iconName) => {
-            const Icon = appIcons[iconName]
-            const active = value.iconName === iconName
-            return (
-              <button
-                key={iconName}
-                type="button"
-                onClick={() => onChange({ ...value, iconName })}
-                className={
-                  active
-                    ? 'flex h-10 w-10 items-center justify-center rounded-md border border-primary bg-primary/10 text-primary'
-                    : 'flex h-10 w-10 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent'
-                }
-                title={iconName}
-              >
-                <Icon className="h-5 w-5" />
-              </button>
-            )
-          })}
+        <div id="app-icon">
+          <IconPicker
+            value={value.iconName}
+            options={appIconOptions}
+            icons={appIcons}
+            onChange={(iconName) => onChange({...value, iconName})}
+          />
         </div>
       </div>
       <div>

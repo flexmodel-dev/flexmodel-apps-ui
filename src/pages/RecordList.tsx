@@ -1,27 +1,25 @@
 import * as React from 'react'
-import { Link, useParams } from 'react-router-dom'
+import {useParams} from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
-  ChevronDown,
+  ArrowRightLeft,
   Columns3,
   Edit,
   FileInput,
   FileSpreadsheet,
   Filter,
-  FolderOpen,
   ListChecks,
-  MoreVertical,
   Plus,
-  ReplyAll,
   Search,
   Share,
-  ScreenShareOff,
+  Settings,
   Trash2,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {BizDialog} from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { UserAvatar } from '@/components/ui/avatar'
 import {Pagination} from '@/components/biz/Pagination'
@@ -31,13 +29,9 @@ import { RecordDetailContent } from '@/pages/RecordView'
 import {getAppMenuItem, getBusinessObject, getRecords} from '@/data/mock'
 import { cn, paginate } from '@/lib/utils'
 import {RecordFormModal} from '@/components/biz/RecordFormModal'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+
+const defaultViewTabs = ['全部']
+const compactButtonClass = 'h-8 px-2.5 text-xs'
 
 /** 记录列表页（复刻 general/record-list.html + app-datalist） */
 export default function RecordList() {
@@ -47,15 +41,56 @@ export default function RecordList() {
   const [rows, setRows] = React.useState(() => getRecords(menuItem?.businessObjectId ?? ''))
   const [q, setQ] = React.useState('')
   const [page, setPage] = React.useState(1)
-  const [size] = React.useState(30)
+  const [size, setSize] = React.useState(20)
   const [selected, setSelected] = React.useState<string[]>([])
   const [sortKey, setSortKey] = React.useState('')
   const [sortAsc, setSortAsc] = React.useState(true)
-  const [filterName, setFilterName] = React.useState('全部数据')
+  const [filterName, setFilterName] = React.useState('全部')
+  const [viewTabs, setViewTabs] = React.useState(defaultViewTabs)
+  const [tabsConfigOpen, setTabsConfigOpen] = React.useState(false)
+  const [draftTabs, setDraftTabs] = React.useState(defaultViewTabs)
+  const [searchOpen, setSearchOpen] = React.useState(false)
+  const searchAreaRef = React.useRef<HTMLDivElement>(null)
   const [detailId, setDetailId] = React.useState<string | null>(null)
   const [formOpen, setFormOpen] = React.useState(false)
   const [formRecordId, setFormRecordId] = React.useState<string | null>(null)
   const [refreshTick, setRefreshTick] = React.useState(0)
+
+  React.useEffect(() => {
+    if (!searchOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (searchAreaRef.current && !searchAreaRef.current.contains(event.target as Node)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [searchOpen])
+
+  const openTabsConfig = () => {
+    setDraftTabs(viewTabs)
+    setTabsConfigOpen(true)
+  }
+
+  const updateDraftTab = (index: number, label: string) => {
+    setDraftTabs((tabs) => tabs.map((tab, tabIndex) => (tabIndex === index ? label : tab)))
+  }
+
+  const addDraftTab = () => {
+    setDraftTabs((tabs) => [...tabs, '新页签'])
+  }
+
+  const removeDraftTab = (index: number) => {
+    setDraftTabs((tabs) => (tabs.length > 1 ? tabs.filter((_, tabIndex) => tabIndex !== index) : tabs))
+  }
+
+  const saveTabsConfig = () => {
+    const nextTabs = Array.from(new Set(draftTabs.map((tab) => tab.trim()).filter(Boolean)))
+    if (!nextTabs.length) return
+    setViewTabs(nextTabs)
+    if (!nextTabs.includes(filterName)) setFilterName(nextTabs[0])
+    setTabsConfigOpen(false)
+  }
 
   // 过滤 + 排序（hooks 须在条件返回之前）
   React.useEffect(() => {
@@ -137,110 +172,153 @@ export default function RecordList() {
 
   return (
     <AppLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
-      {/* 业务对象页签 */}
-      <ul className="nav nav-tabs-classic mb-0 flex list-none items-center gap-1 border-b border-[#e3e3e3] pb-0 dark:border-[#2e3340]">
-        {(menuItem ? [menuItem] : []).map((item) => {
-          const m = getBusinessObject(item.businessObjectId)!
-          return (
-            <li key={item.id}>
-              <Link
-                to={`/app/${appId}/${item.id}`}
-                className={cn(
-                  '-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground',
-                  item.businessObjectId === meta.name ? 'border-primary text-foreground' : 'border-transparent'
-                )}
+      <div
+        className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 pb-2">
+          <div className="flex min-w-0 items-center gap-2">
+            {meta.icon ? <meta.icon className="h-5 w-5 shrink-0 text-primary"/> : null}
+            <h1 className="truncate text-lg font-semibold text-foreground">{meta.label}</h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div ref={searchAreaRef} className="flex items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                title="搜索"
+                aria-label="搜索"
+                onClick={() => setSearchOpen((open) => !open)}
               >
-                <m.icon className="h-4 w-4" />
-                {m.label}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-
-      <div className="mt-[-1px] flex min-h-0 flex-1 flex-col rounded-b-xl border bg-card text-card-foreground shadow-sm">
-        <div className="flex min-h-0 flex-1 flex-col p-3">
-          {/* 表头工具行 */}
-          <div className="app-datatable-header mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              {/* 常用查询 */}
-              <div className="flex">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" className="rounded-r-none !pr-2" title="常用查询">
-                      <span className="max-w-[140px] truncate">{filterName}</span>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => setFilterName('全部数据')}>全部数据</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterName('我的数据')}>我的数据</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFilterName('本部门数据')}>本部门数据</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button variant="secondary" className="rounded-l-none border-l border-[#d5d5d5]" title="高级查询">
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </div>
-              {/* 快速查询 */}
-              <div className="flex">
+                <Search className="h-4 w-4"/>
+              </Button>
+              {searchOpen && (
                 <Input
-                  placeholder={`快速查询${meta.label}`}
                   value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  className="w-[220px] rounded-r-none"
+                  placeholder={`搜索${meta.label}`}
+                  onChange={(event) => setQ(event.target.value)}
+                  className="h-8 w-[160px]"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      setQ('')
+                      setSearchOpen(false)
+                    }
+                  }}
                 />
-                <Button variant="secondary" className="rounded-l-none border-l border-[#d5d5d5]">
-                  <Search className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* 右侧操作 */}
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" disabled={!selected.length} onClick={() => setDetailId(selected[0])}>
-                <FolderOpen className="h-4 w-4" /> 打开
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                title="高级查询"
+                aria-label="高级查询"
+              >
+                <Filter className="h-4 w-4"/>
               </Button>
               <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                title="列显示"
+                aria-label="列显示"
+              >
+                <Columns3 className="h-4 w-4"/>
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              className={compactButtonClass}
+              onClick={() => {
+                setFormRecordId(null)
+                setFormOpen(true)
+              }}
+            >
+              <Plus className="h-4 w-4"/> 新建
+            </Button>
+            <Button variant="secondary" size="sm" className={compactButtonClass}>
+              <FileInput className="h-4 w-4"/> 导入
+            </Button>
+            <Button variant="secondary" size="sm" className={compactButtonClass}>
+              <FileSpreadsheet className="h-4 w-4"/> 导出
+            </Button>
+          </div>
+        </div>
+
+        {/* 视图切换 */}
+        <div className="flex items-end justify-between border-b-2 border-[#e3e3e3] px-3 dark:border-[#2e3340]">
+          <ul className="nav nav-tabs-classic mb-0 flex list-none items-center gap-1">
+            {viewTabs.map((label) => (
+              <li key={label}>
+                <button
+                  type="button"
+                  onClick={() => setFilterName(label)}
+                  className={cn(
+                    '-mb-0.5 inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground',
+                    filterName === label ? 'border-primary text-foreground' : 'border-transparent',
+                  )}
+                >
+                  {label}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="mb-1 flex items-center gap-1">
+            <span className="block h-5 w-px shrink-0 bg-muted-foreground/40" aria-hidden="true"/>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="配置页签"
+              aria-label="配置页签"
+              onClick={openTabsConfig}
+            >
+              <Settings className="h-4 w-4"/>
+            </Button>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            'overflow-hidden border-b bg-card transition-[max-height,opacity] duration-200',
+            selected.length ? 'max-h-14 opacity-100' : 'max-h-0 opacity-0',
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+          <span className="text-sm text-muted-foreground">
+            共选择 {selected.length}/{rows.length} 条数据
+          </span>
+            <div className="flex flex-wrap items-center gap-1">
+              <Button
                 variant="secondary"
+                size="sm"
+                className={compactButtonClass}
                 disabled={selected.length !== 1}
-                title={selected.length === 1 ? '编辑选中记录' : '请选择一条记录'}
                 onClick={() => {
                   setFormRecordId(selected[0] ?? null)
                   setFormOpen(true)
                 }}
               >
-                <Edit className="h-4 w-4" /> 编辑
+                <Edit className="h-4 w-4"/> 编辑
               </Button>
-              <Button
-                onClick={() => {
-                  setFormRecordId(null)
-                  setFormOpen(true)
-                }}
-              >
-                <Plus className="h-4 w-4" /> 新建
+              <Button variant="secondary" size="sm" className={compactButtonClass}>
+                <Trash2 className="h-4 w-4"/> 删除
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="secondary">
-                    更多 <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem><Trash2 className="h-4 w-4" /> 删除</DropdownMenuItem>
-                  <DropdownMenuItem><ReplyAll className="h-4 w-4" /> 分配</DropdownMenuItem>
-                  <DropdownMenuItem><Share className="h-4 w-4" /> 共享</DropdownMenuItem>
-                  <DropdownMenuItem><ScreenShareOff className="h-4 w-4" /> 取消共享</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem><FileSpreadsheet className="h-4 w-4" /> 数据导出</DropdownMenuItem>
-                  <DropdownMenuItem><FileInput className="h-4 w-4" /> 数据导入</DropdownMenuItem>
-                  <DropdownMenuItem><ListChecks className="h-4 w-4" /> 批量修改</DropdownMenuItem>
-                  <DropdownMenuItem><Columns3 className="h-4 w-4" /> 列显示</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="secondary" size="sm" className={compactButtonClass}>
+                <Share className="h-4 w-4"/> 共享
+              </Button>
+              <Button variant="secondary" size="sm" className={compactButtonClass}>
+                <ArrowRightLeft className="h-4 w-4"/> 移交
+              </Button>
+              <Button variant="secondary" size="sm" className={compactButtonClass}>
+                <FileSpreadsheet className="h-4 w-4"/> 导出
+              </Button>
+              <Button variant="secondary" size="sm" className={compactButtonClass}>
+                <ListChecks className="h-4 w-4"/> 批量编辑
+              </Button>
             </div>
           </div>
+        </div>
 
+        <div className="flex min-h-0 flex-1 flex-col p-3">
           {/* 数据表格 */}
           <div className="data-list app-table-scroll min-h-0 flex-1 overflow-x-auto">
             <table className="app-table w-full min-w-[900px] border-collapse bg-background">
@@ -283,8 +361,18 @@ export default function RecordList() {
 
           {/* 分页 */}
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">已选择 {selected.length} 项</span>
-            <Pagination page={page} pages={pages} total={total} size={size} onChange={setPage} />
+            <Pagination
+              page={page}
+              pages={pages}
+              total={total}
+              size={size}
+              onChange={setPage}
+              onSizeChange={(nextSize) => {
+                setSize(nextSize)
+                setPage(1)
+              }}
+              className="w-full"
+            />
           </div>
         </div>
       </div>
@@ -310,6 +398,46 @@ export default function RecordList() {
         recordId={formRecordId}
         onSaved={() => setRefreshTick((tick) => tick + 1)}
       />
+
+      <BizDialog
+        open={tabsConfigOpen}
+        onOpenChange={setTabsConfigOpen}
+        title="配置页签"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setTabsConfigOpen(false)}>
+              取消
+            </Button>
+            <Button size="sm" onClick={saveTabsConfig} disabled={!draftTabs.some((tab) => tab.trim())}>
+              保存
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          {draftTabs.map((label, index) => (
+            <div key={`${label}-${index}`} className="flex items-center gap-2">
+              <Input
+                value={label}
+                onChange={(event) => updateDraftTab(index, event.target.value)}
+                className="h-8"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={draftTabs.length <= 1}
+                onClick={() => removeDraftTab(index)}
+              >
+                <Trash2 className="h-4 w-4"/>
+              </Button>
+            </div>
+          ))}
+          <Button variant="secondary" size="sm" className={compactButtonClass} onClick={addDraftTab}>
+            <Plus className="h-4 w-4"/> 新增页签
+          </Button>
+        </div>
+      </BizDialog>
     </AppLayout>
   )
 }

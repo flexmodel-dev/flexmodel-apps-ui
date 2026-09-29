@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Link, useLocation} from 'react-router-dom'
-import {ChevronDown, ChevronsLeft, ChevronsRight, Pencil} from 'lucide-react'
+import {ChevronDown, ChevronsLeft, ChevronsRight, Settings} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {Popover, PopoverAnchor, PopoverContent} from '@/components/ui/popover'
@@ -232,7 +232,7 @@ export function AppLeftSidebar({
                   className="h-8 w-8 text-muted-foreground hover:text-primary"
                   onClick={onEditMenus}
                 >
-                  <Pencil className="h-4 w-4"/>
+                  <Settings className="h-4 w-4"/>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side={collapsed ? 'right' : 'top'}>编辑菜单</TooltipContent>

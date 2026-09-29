@@ -413,6 +413,36 @@ export function getAppMenuForBusinessObject(businessObjectName: string): { appId
   return undefined
 }
 
+export type MenuLinkKind = 'system' | 'entity'
+
+export interface MenuLinkOption {
+  id: string
+  label: string
+  kind: MenuLinkKind
+  to: string
+}
+
+export const systemMenuLinks: MenuLinkOption[] = [
+  {id: 'dashboard', label: '仪表盘', kind: 'system', to: '/dashboard/home'},
+  {id: 'feeds', label: '动态', kind: 'system', to: '/feeds/home'},
+  {id: 'files', label: '文件', kind: 'system', to: '/files/home'},
+  {id: 'approval', label: '审批中心', kind: 'system', to: '/approval/home'},
+  {id: 'contacts', label: '通讯录', kind: 'system', to: '/contacts/home'},
+  {id: 'notifications', label: '通知', kind: 'system', to: '/notifications'},
+]
+
+export const entityMenuLinks: MenuLinkOption[] = businessObjects.flatMap((businessObject) => {
+  const menu = getAppMenuForBusinessObject(businessObject.name)
+  return menu
+    ? [{
+      id: businessObject.name,
+      label: businessObject.label,
+      kind: 'entity',
+      to: `/app/${menu.appId}/${menu.menuId}`,
+    }]
+    : []
+})
+
 export function getAppBusinessObjectCount(appId: string): number {
   return new Set(getAppMenus(appId).map((item) => item.businessObjectId)).size
 }
@@ -894,7 +924,6 @@ export interface TopNavItem {
 
 export interface TopMenuItemInput {
   text: string
-  to: string
 }
 
 export type LeftMenuItemType = 'menu' | 'group'
@@ -911,6 +940,10 @@ let menuSequence = 0
 function nextMenuId(prefix: string) {
   menuSequence += 1
   return `${prefix}-${Date.now().toString(36)}-${menuSequence}`
+}
+
+function nextMenuPath(id: string) {
+  return `/menu/${id}`
 }
 
 const customerNavs: NavItem[] = [
@@ -977,11 +1010,12 @@ export function getTopNavById(id: string | undefined): TopNavItem | undefined {
 }
 
 export function createTopMenu(values: TopMenuItemInput): TopNavItem {
+  const id = nextMenuId('top')
   const menu: TopNavItem = {
-    id: nextMenuId('top'),
+    id,
     text: values.text,
-    to: values.to,
-    match: [values.to],
+    to: nextMenuPath(id),
+    match: [nextMenuPath(id)],
     navs: [],
   }
   topNavs.push(menu)
@@ -992,8 +1026,6 @@ export function updateTopMenu(id: string, values: TopMenuItemInput): TopNavItem 
   const menu = getTopNavById(id)
   if (!menu) return undefined
   menu.text = values.text
-  menu.to = values.to
-  menu.match = [values.to]
   return menu
 }
 
@@ -1018,10 +1050,11 @@ export function createLeftMenu(topMenuId: string, values: LeftMenuItemInput): Na
   const topMenu = getTopNavById(topMenuId)
   if (!topMenu) return undefined
   const isGroup = values.type === 'group'
+  const id = nextMenuId('nav')
   const menu: NavItem = {
-    id: nextMenuId('nav'),
+    id,
     text: values.text,
-    to: isGroup ? undefined : values.to,
+    to: isGroup ? undefined : (values.to ?? nextMenuPath(id)),
     icon: values.icon,
     sub: isGroup ? [] : undefined,
   }
@@ -1039,7 +1072,7 @@ export function updateLeftMenu(
   if (!menu) return undefined
   const isGroup = values.type === 'group'
   menu.text = values.text
-  menu.to = isGroup ? undefined : values.to
+  menu.to = isGroup ? undefined : (values.to ?? menu.to ?? nextMenuPath(menu.id))
   menu.icon = values.icon
   menu.sub = isGroup ? (menu.sub ?? []) : undefined
   return menu
@@ -1081,10 +1114,11 @@ export function createLeftSubmenu(
 ): NavItem | undefined {
   const group = getLeftMenuGroup(topMenuId, groupId)
   if (!group) return undefined
+  const id = nextMenuId('nav')
   const menu: NavItem = {
-    id: nextMenuId('nav'),
+    id,
     text: values.text,
-    to: values.to,
+    to: values.to ?? nextMenuPath(id),
     icon: values.icon,
   }
   group.sub.push(menu)
@@ -1101,7 +1135,7 @@ export function updateLeftSubmenu(
   const menu = group?.sub.find((item) => item.id === menuId)
   if (!menu) return undefined
   menu.text = values.text
-  menu.to = values.to
+  menu.to = values.to ?? menu.to ?? nextMenuPath(menu.id)
   menu.icon = values.icon
   return menu
 }

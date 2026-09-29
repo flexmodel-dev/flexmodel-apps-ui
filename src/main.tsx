@@ -9,6 +9,7 @@ import AppManagement from '@/pages/AppManagement'
 import AppSettings from '@/pages/AppSettings'
 import RecordList from '@/pages/RecordList'
 import RecordView from '@/pages/RecordView'
+import MenuPlaceholder from '@/pages/MenuPlaceholder'
 import ApprovalHome from '@/pages/ApprovalHome'
 import FeedsHome from '@/pages/FeedsHome'
 import FilesDocs from '@/pages/FilesDocs'
@@ -47,6 +48,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/app/:appId" element={<AppHomeRedirect />} />
         <Route path="/app/:appId/:menuId" element={<RecordList />} />
         <Route path="/app/:appId/:menuId/view/:recordId" element={<RecordView />} />
+        <Route path="/menu/:menuId" element={<MenuPlaceholder/>}/>
         <Route path="/admin/apps" element={<AppManagement />} />
         <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic" />} />
         <Route path="/admin/apps/:appId/settings/business-objects" element={<AppSettings section="business-objects"/>}/>

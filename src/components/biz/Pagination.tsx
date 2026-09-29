@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 export function Pagination({
@@ -7,14 +8,18 @@ export function Pagination({
   pages,
   total,
   size,
+                             sizeOptions = [20, 50, 100, 500, 1000],
   onChange,
+                             onSizeChange,
   className,
 }: {
   page: number
   pages: number
   total: number
   size: number
+  sizeOptions?: number[]
   onChange: (page: number) => void
+  onSizeChange?: (size: number) => void
   className?: string
 }) {
   const from = total === 0 ? 0 : (page - 1) * size + 1
@@ -28,13 +33,9 @@ export function Pagination({
   return (
     <div className={cn('flex flex-wrap items-center gap-2 text-sm text-muted-foreground', className)}>
       <span>
-        第 {from}-{to} 条，共 {total} 条
+        共 {total} 条
       </span>
-      <span>每页 {size} 条</span>
       <div className="ml-auto flex items-center gap-1">
-        <button type="button" className={baseButton} disabled={page <= 1} onClick={() => onChange(1)}>
-          首页
-        </button>
         <button type="button" className={baseButton} disabled={page <= 1} onClick={() => onChange(page - 1)}>
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -54,9 +55,23 @@ export function Pagination({
         <button type="button" className={baseButton} disabled={page >= pages} onClick={() => onChange(page + 1)}>
           <ChevronRight className="h-4 w-4" />
         </button>
-        <button type="button" className={baseButton} disabled={page >= pages} onClick={() => onChange(pages)}>
-          末页
-        </button>
+        {onSizeChange && (
+          <Select
+            value={String(size)}
+            onValueChange={(value) => onSizeChange(Number(value))}
+          >
+            <SelectTrigger className="h-8 w-[110px] px-2 text-sm">
+              <SelectValue/>
+            </SelectTrigger>
+            <SelectContent align="end">
+              {sizeOptions.map((option) => (
+                <SelectItem key={option} value={String(option)}>
+                  {option}条/页
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
     </div>
   )

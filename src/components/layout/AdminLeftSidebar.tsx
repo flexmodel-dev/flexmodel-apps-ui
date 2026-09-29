@@ -82,6 +82,7 @@ export function AdminLeftSidebar({
           </ul>
           <div
             className={cn('mt-2 flex shrink-0 items-center border-t pt-2', collapsed ? 'flex-col gap-1' : 'justify-between')}>
+            <AppLauncher collapsed={collapsed}/>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
