@@ -76,6 +76,21 @@ export const appIcons: Record<AppIconName, LucideIcon> = {
   TrendingUp,
 }
 
+export type AppPrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose' | 'black'
+
+export const appPrimaryColors: Array<{
+  value: AppPrimaryColor
+  label: string
+  swatch: string
+}> = [
+  {value: 'indigo', label: '靛蓝', swatch: 'hsl(243 75% 59%)'},
+  {value: 'blue', label: '蓝色', swatch: 'hsl(217 91% 60%)'},
+  {value: 'green', label: '绿色', swatch: 'hsl(160 84% 39%)'},
+  {value: 'amber', label: '橙色', swatch: 'hsl(38 92% 50%)'},
+  {value: 'rose', label: '玫红', swatch: 'hsl(350 89% 60%)'},
+  {value: 'black', label: '黑色', swatch: 'hsl(0 0% 9%)'},
+]
+
 export const navIconOptions = [
   'Home',
   'User',
@@ -112,6 +127,7 @@ export interface AppMeta {
   id: string
   name: string
   iconName: AppIconName
+  primaryColor: AppPrimaryColor
   description: string
   updatedAt: string
   ownedBusinessObjectNames?: string[]
@@ -292,6 +308,7 @@ export const apps: AppMeta[] = [
     id: 'app-sales',
     name: '销售管理',
     iconName: 'ShoppingCart',
+    primaryColor: 'indigo',
     description: '管理客户、商机和产品数据，跟踪销售全过程。',
     updatedAt: d(1, 16, 30),
     ownedBusinessObjectNames: [],
@@ -300,6 +317,7 @@ export const apps: AppMeta[] = [
     id: 'app-expense',
     name: '报销管理',
     iconName: 'Banknote',
+    primaryColor: 'blue',
     description: '提交和审核费用报销，沉淀常用报销流程。',
     updatedAt: d(2, 10, 15),
     ownedBusinessObjectNames: ['Expense'],

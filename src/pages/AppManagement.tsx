@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {AppNoData} from '@/components/biz/AppLoading'
+import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,16 +23,18 @@ import {
   getApps,
   updateApp,
   type AppIconName,
+  type AppPrimaryColor,
   type AppMeta,
 } from '@/data/mock'
 
 interface AppFormValues {
   name: string
   iconName: AppIconName
+  primaryColor: AppPrimaryColor
   description: string
 }
 
-const emptyForm: AppFormValues = { name: '', iconName: 'Boxes', description: '' }
+const emptyForm: AppFormValues = {name: '', iconName: 'Boxes', primaryColor: 'indigo', description: ''}
 
 function AppForm({
   value,
@@ -84,6 +87,13 @@ function AppForm({
           onChange={(event) => onChange({ ...value, description: event.target.value })}
         />
       </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-foreground">应用主色</label>
+        <AppPrimaryColorPicker
+          value={value.primaryColor}
+          onChange={(primaryColor) => onChange({...value, primaryColor})}
+        />
+      </div>
     </div>
   )
 }
@@ -105,7 +115,7 @@ export default function AppManagement() {
 
   const openEdit = (app: AppMeta) => {
     setEditingId(app.id)
-    setFormValue({ name: app.name, iconName: app.iconName, description: app.description })
+    setFormValue({name: app.name, iconName: app.iconName, primaryColor: app.primaryColor, description: app.description})
     setFormOpen(true)
   }
 

@@ -19,24 +19,10 @@ import {MobileNavDrawer} from './MobileNavDrawer'
 export const headerActionClass =
   'text-white/80 hover:bg-white/15 hover:text-white data-[state=open]:bg-white/20 data-[state=open]:text-white dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white'
 
-type PrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose' | 'black'
-
 const notificationItems = [
   {id: 1, from: '钱迅', text: '提交的《华辰科技 - ERP 报价》需要你审批', time: '10 分钟前'},
   {id: 2, from: '超级管理员', text: '分配了 2 条客户记录给你', time: '32 分钟前'},
 ]
-
-const primaryColorVersion = 'v2'
-const defaultPrimaryColor: PrimaryColor = 'indigo'
-
-const primaryColors = [
-  {value: 'indigo', label: '靛', swatch: 'hsl(243 75% 59%)'},
-  {value: 'blue', label: '蓝', swatch: 'hsl(217 91% 60%)'},
-  {value: 'green', label: '绿', swatch: 'hsl(160 84% 39%)'},
-  {value: 'amber', label: '橙', swatch: 'hsl(38 92% 50%)'},
-  {value: 'rose', label: '玫', swatch: 'hsl(350 89% 60%)'},
-  {value: 'black', label: '黑', swatch: 'hsl(0 0% 9%)'},
-] as const
 
 function TopHeaderShell({
                           brand,
@@ -62,19 +48,6 @@ function TopHeaderShell({
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
 
-  const [primary, setPrimary] = React.useState<PrimaryColor>(() => {
-    const storedVersion = window.localStorage.getItem('primaryVersion')
-    const stored = window.localStorage.getItem('primary')
-    if (storedVersion === primaryColorVersion) {
-      return primaryColors.some((item) => item.value === stored)
-        ? (stored as PrimaryColor)
-        : defaultPrimaryColor
-    }
-    return stored && stored !== 'blue'
-      ? (stored as PrimaryColor)
-      : defaultPrimaryColor
-  })
-
   React.useEffect(() => {
     const root = document.documentElement
     root.classList.toggle('dark', isDark)
@@ -83,11 +56,8 @@ function TopHeaderShell({
   }, [isDark])
 
   React.useEffect(() => {
-    const root = document.documentElement
-    root.dataset.primary = primary
-    window.localStorage.setItem('primary', primary)
-    window.localStorage.setItem('primaryVersion', primaryColorVersion)
-  }, [primary])
+    document.documentElement.dataset.primary = 'indigo'
+  }, [])
 
   return (
     <header
@@ -221,25 +191,6 @@ function TopHeaderShell({
               <DropdownMenuItem asChild>
                 <Link to="/login">退出登录</Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator/>
-              <div className="px-2 py-2">
-                <p className="text-xs font-medium text-muted-foreground">主色</p>
-                <div className="mt-2 flex items-center gap-2">
-                  {primaryColors.map(({value, label, swatch}) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setPrimary(value)}
-                      className={cn(
-                        'flex h-7 w-7 items-center justify-center rounded-full border border-border/60 transition-all hover:scale-105',
-                        primary === value && 'ring-2 ring-primary/60 ring-offset-2 ring-offset-background',
-                      )}
-                      style={{backgroundColor: swatch}}
-                      title={label}
-                    />
-                  ))}
-                </div>
-              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

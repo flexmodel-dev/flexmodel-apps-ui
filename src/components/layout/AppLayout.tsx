@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {useLocation} from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import {getTopNavIdByPath, topNavs} from '@/data/mock'
+import {getAppById, getTopNavIdByPath, topNavs} from '@/data/mock'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
 import {MenuEditorDialog} from './MenuEditorDialog'
@@ -29,6 +29,15 @@ export function AppLayout({
     const nextTopId = getTopNavIdByPath(location.pathname, activeTopId)
     if (nextTopId !== activeTopId) setActiveTopId(nextTopId)
   }, [location.pathname, activeTopId, menuVersion])
+
+  React.useEffect(() => {
+    const appId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
+    const app = appId ? getAppById(appId) : undefined
+    document.documentElement.dataset.primary = app?.primaryColor ?? 'indigo'
+    return () => {
+      document.documentElement.dataset.primary = 'indigo'
+    }
+  }, [location.pathname])
 
   const activeTop = topNavs.find((nav) => nav.id === activeTopId) ?? topNavs[0]
 

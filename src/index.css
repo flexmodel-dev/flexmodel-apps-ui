@@ -191,4 +191,14 @@
   .app-card {
     @apply overflow-hidden rounded-xl border bg-card shadow-sm;
   }
+
+  .grid-stack > .grid-stack-item > .ui-resizable-handle {
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .grid-stack > .grid-stack-item:hover > .ui-resizable-handle,
+  .grid-stack > .grid-stack-item.ui-resizable-resizing > .ui-resizable-handle {
+    opacity: 1;
+  }
 }

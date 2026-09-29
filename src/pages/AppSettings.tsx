@@ -5,14 +5,17 @@ import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
+import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {AdminApprovals, AdminBusinessObjects, AdminTriggers} from '@/pages/admin'
 import {
   appIconOptions,
   appIcons,
+  appPrimaryColors,
   deleteApp,
   getAppById,
   updateApp,
   type AppIconName,
+  type AppPrimaryColor,
 } from '@/data/mock'
 
 const settingsNavs = [
@@ -32,6 +35,7 @@ export default function AppSettings({ section }: { section: string }) {
   const [formValue, setFormValue] = React.useState(() => ({
     name: app?.name ?? '',
     iconName: (app?.iconName ?? 'Boxes') as AppIconName,
+    primaryColor: (app?.primaryColor ?? 'indigo') as AppPrimaryColor,
     description: app?.description ?? '',
   }))
   const [deleteOpen, setDeleteOpen] = React.useState(false)
@@ -41,9 +45,10 @@ export default function AppSettings({ section }: { section: string }) {
     setFormValue({
       name: app?.name ?? '',
       iconName: app?.iconName ?? 'Boxes',
+      primaryColor: app?.primaryColor ?? 'indigo',
       description: app?.description ?? '',
     })
-  }, [app?.name, app?.iconName, app?.description])
+  }, [app?.name, app?.iconName, app?.primaryColor, app?.description])
 
   if (!app) {
     return (
@@ -62,6 +67,7 @@ export default function AppSettings({ section }: { section: string }) {
     updateApp(app.id, {
       name: formValue.name.trim(),
       iconName: formValue.iconName,
+      primaryColor: formValue.primaryColor,
       description: formValue.description,
     })
     setFormOpen(false)
@@ -129,6 +135,15 @@ export default function AppSettings({ section }: { section: string }) {
                   <div className="text-xs text-muted-foreground">应用描述</div>
                   <div className="mt-1 text-sm">{app.description || '暂无描述'}</div>
                 </div>
+                <div className="rounded-md border p-4 md:col-span-2">
+                  <div className="text-xs text-muted-foreground">应用主色</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="h-5 w-5 rounded-full border"
+                          style={{backgroundColor: appPrimaryColors.find((color) => color.value === app.primaryColor)?.swatch}}/>
+                    <span
+                      className="text-sm font-medium">{appPrimaryColors.find((color) => color.value === app.primaryColor)?.label}</span>
+                  </div>
+                </div>
                 <div className="flex justify-end md:col-span-2">
                   <Button variant="danger" onClick={() => setDeleteOpen(true)}>
                     <Trash2 className="h-4 w-4" /> 删除应用
@@ -188,6 +203,11 @@ export default function AppSettings({ section }: { section: string }) {
           <div>
             <label htmlFor="settings-app-description" className="mb-1 block text-sm font-medium text-foreground">应用描述</label>
             <Input id="settings-app-description" value={formValue.description} onChange={(event) => setFormValue((value) => ({ ...value, description: event.target.value }))} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">应用主色</label>
+            <AppPrimaryColorPicker value={formValue.primaryColor}
+                                   onChange={(primaryColor) => setFormValue((value) => ({...value, primaryColor}))}/>
           </div>
         </div>
         </BizDialog>
