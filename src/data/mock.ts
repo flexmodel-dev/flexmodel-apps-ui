@@ -817,11 +817,17 @@ export const userNavs: NavItem[] = [
   { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
   { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
   { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/app-sales/menu-product' },
-  { id: 'divider-1', text: '常用', to: '' },
-  { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
-  { id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home' },
-  { id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home' },
-  { id: 'nav_entity--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home' },
+  {
+    id: 'group-common',
+    icon: Folder,
+    text: '常用',
+    sub: [
+      {id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
+      {id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
+      {id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home'},
+      {id: 'nav_entity--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home'},
+    ],
+  },
   {
     id: 'nav_entity--PROJECT',
     icon: Shapes,
@@ -843,10 +849,13 @@ export interface TopMenuItemInput {
   to: string
 }
 
+export type LeftMenuItemType = 'menu' | 'group'
+
 export interface LeftMenuItemInput {
   text: string
   to?: string
   icon?: LucideIcon
+  type?: LeftMenuItemType
 }
 
 let menuSequence = 0
@@ -860,19 +869,31 @@ const customerNavs: NavItem[] = [
   { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
   { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
   { id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home' },
-  { id: 'divider-customer', text: '协作' },
-  { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
-  { id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home' },
-  { id: 'nav_entity--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home' },
+  {
+    id: 'group-customer-collaboration',
+    icon: Folder,
+    text: '协作',
+    sub: [
+      {id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
+      {id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
+      {id: 'nav_entity--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home'},
+    ],
+  },
 ]
 
 const salesNavs: NavItem[] = [
   { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
   { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/app-sales/menu-product' },
   { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
-  { id: 'divider-sales', text: '跟进' },
-  { id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home' },
-  { id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home' },
+  {
+    id: 'group-sales-follow',
+    icon: Folder,
+    text: '跟进',
+    sub: [
+      {id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
+      {id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
+    ],
+  },
 ]
 
 export const topNavs: TopNavItem[] = [
@@ -948,11 +969,13 @@ export function reorderTopMenus(orderedIds: string[]): void {
 export function createLeftMenu(topMenuId: string, values: LeftMenuItemInput): NavItem | undefined {
   const topMenu = getTopNavById(topMenuId)
   if (!topMenu) return undefined
+  const isGroup = values.type === 'group'
   const menu: NavItem = {
     id: nextMenuId('nav'),
     text: values.text,
-    to: values.to,
+    to: isGroup ? undefined : values.to,
     icon: values.icon,
+    sub: isGroup ? [] : undefined,
   }
   topMenu.navs.push(menu)
   return menu
@@ -966,9 +989,11 @@ export function updateLeftMenu(
   const topMenu = getTopNavById(topMenuId)
   const menu = topMenu?.navs.find((item) => item.id === menuId)
   if (!menu) return undefined
+  const isGroup = values.type === 'group'
   menu.text = values.text
-  menu.to = values.to
+  menu.to = isGroup ? undefined : values.to
   menu.icon = values.icon
+  menu.sub = isGroup ? (menu.sub ?? []) : undefined
   return menu
 }
 
@@ -992,31 +1017,96 @@ export function reorderLeftMenus(topMenuId: string, orderedIds: string[]): void 
   })
 }
 
+export function getLeftMenuGroup(
+  topMenuId: string,
+  groupId: string,
+): (NavItem & { sub: NavItem[] }) | undefined {
+  const topMenu = getTopNavById(topMenuId)
+  const group = topMenu?.navs.find((item) => item.id === groupId && item.sub)
+  return group && Array.isArray(group.sub) ? (group as NavItem & { sub: NavItem[] }) : undefined
+}
+
+export function createLeftSubmenu(
+  topMenuId: string,
+  groupId: string,
+  values: LeftMenuItemInput,
+): NavItem | undefined {
+  const group = getLeftMenuGroup(topMenuId, groupId)
+  if (!group) return undefined
+  const menu: NavItem = {
+    id: nextMenuId('nav'),
+    text: values.text,
+    to: values.to,
+    icon: values.icon,
+  }
+  group.sub.push(menu)
+  return menu
+}
+
+export function updateLeftSubmenu(
+  topMenuId: string,
+  groupId: string,
+  menuId: string,
+  values: LeftMenuItemInput,
+): NavItem | undefined {
+  const group = getLeftMenuGroup(topMenuId, groupId)
+  const menu = group?.sub.find((item) => item.id === menuId)
+  if (!menu) return undefined
+  menu.text = values.text
+  menu.to = values.to
+  menu.icon = values.icon
+  return menu
+}
+
+export function deleteLeftSubmenu(
+  topMenuId: string,
+  groupId: string,
+  menuId: string,
+): boolean {
+  const group = getLeftMenuGroup(topMenuId, groupId)
+  if (!group) return false
+  const index = group.sub.findIndex((item) => item.id === menuId)
+  if (index < 0) return false
+  group.sub.splice(index, 1)
+  return true
+}
+
+export function reorderLeftSubmenus(
+  topMenuId: string,
+  groupId: string,
+  orderedIds: string[],
+): void {
+  const group = getLeftMenuGroup(topMenuId, groupId)
+  if (!group) return
+  const menusById = new Map(group.sub.map((item) => [item.id, item]))
+  group.sub.length = 0
+  orderedIds.forEach((id) => {
+    const menu = menusById.get(id)
+    if (menu) group.sub.push(menu)
+  })
+}
+
 export function getTopNavIdByPath(pathname: string, preferredTopId?: string) {
   const preferred = getTopNavById(preferredTopId)
-  if (
-    preferred &&
-    (preferred.to === pathname ||
-      preferred.navs.some(
-        (item) => item.to === pathname || (item.to && pathname.startsWith(`${item.to}/`)),
-      ))
-  ) {
+  if (preferred && (preferred.to === pathname || preferred.navs.some((item) => navMatchesPath(item, pathname)))) {
     return preferred.id
   }
 
-  const exact = topNavs.find(
-    (nav) =>
-      nav.to === pathname ||
-      nav.navs.some(
-        (item) => item.to === pathname || (item.to && pathname.startsWith(`${item.to}/`)),
-      ),
-  )
+  const exact = topNavs.find((nav) => nav.to === pathname || nav.navs.some((item) => navMatchesPath(item, pathname)))
   if (exact) return exact.id
 
   const match = topNavs.find((nav) =>
     nav.match?.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)),
   )
   return match?.id ?? topNavs[0].id
+}
+
+function navMatchesPath(item: NavItem, pathname: string): boolean {
+  return (
+    item.to === pathname ||
+    Boolean(item.to && pathname.startsWith(`${item.to}/`)) ||
+    Boolean(item.sub?.some((child) => navMatchesPath(child, pathname)))
+  )
 }
 
 /* ---------------- 通讯录 ---------------- */

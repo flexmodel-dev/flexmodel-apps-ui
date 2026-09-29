@@ -25,18 +25,23 @@ export function LeftSidebar({
   const location = useLocation()
   const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
   const [openMenus, setOpenMenus] = React.useState<string[]>([])
+  const previousSectionKeyRef = React.useRef(sectionKey)
 
   React.useEffect(() => {
-    for (const nav of navs) {
-      if (nav.sub?.some((sub) => sub.to && location.pathname.startsWith(sub.to.replace(/\/tasks.*/, '')))) {
-        setOpenMenus((open) => (open.includes(nav.id) ? open : [...open, nav.id]))
-      }
-    }
-  }, [location.pathname, navs])
+    const activeMenuIds = navs
+      .filter((nav) => nav.sub?.some((sub) => sub.to && location.pathname.startsWith(sub.to.replace(/\/tasks.*/, ''))))
+      .map((nav) => nav.id)
+    const sectionChanged = previousSectionKeyRef.current !== sectionKey
+    previousSectionKeyRef.current = sectionKey
 
-  React.useEffect(() => {
-    setOpenMenus([])
-  }, [sectionKey])
+    setOpenMenus((current) => {
+      if (sectionChanged) return activeMenuIds
+      return activeMenuIds.reduce(
+        (ids, id) => (ids.includes(id) ? ids : [...ids, id]),
+        current,
+      )
+    })
+  }, [location.pathname, navs, sectionKey])
 
   const isActive = (nav: NavItem) => {
     if (!nav.to) return false
@@ -56,17 +61,7 @@ export function LeftSidebar({
         <nav className="flex h-full flex-col overflow-hidden p-3">
           <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto">
             {navs.map((nav) => {
-              const isDivider = !nav.to && !nav.sub
               const isOpen = openMenus.includes(nav.id)
-
-              if (isDivider) {
-                if (collapsed) return null
-                return (
-                  <li key={nav.id} className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {nav.text}
-                  </li>
-                )
-              }
 
               if (nav.sub) {
                 const trigger = (

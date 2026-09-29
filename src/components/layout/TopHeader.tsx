@@ -176,7 +176,7 @@ export function TopHeader({
             N
           </span>
           <span className="max-w-[34vw] truncate text-base font-semibold sm:text-lg">
-            {isAdmin ? 'NEWBUILD管理后台' : 'NEWBUILD'}
+            {isAdmin ? 'Flex管理后台' : 'NEWBUILD'}
           </span>
         </Link>
 
