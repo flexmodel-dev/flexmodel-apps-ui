@@ -142,7 +142,7 @@ function ChartCard({
     )
   } else if (chart.type === 'dataloader') {
     body = (
-      <table className="rb-table w-full">
+      <table className="app-table w-full">
         <thead>
           <tr>
             <th>姓名</th>
@@ -186,7 +186,7 @@ function ChartCard({
 
   return (
     <div className="grid-stack-item" gs-id={chart.id} gs-x={chart.x} gs-y={chart.y} gs-w={chart.w} gs-h={chart.h}>
-      <div className="rb-card group grid-stack-item-content text-card-foreground">
+      <div className="app-card group grid-stack-item-content text-card-foreground">
         <div className="flex h-full flex-col p-5">
           <div className="flex items-center justify-between">
             <h6 className={cn('chart-title m-0 text-sm font-semibold', editable ? 'cursor-move' : 'cursor-default')}>{chart.title}</h6>

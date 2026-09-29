@@ -18,7 +18,7 @@ import {
 } from '@dnd-kit/sortable'
 import {CSS} from '@dnd-kit/utilities'
 import {Folder, GripVertical, Pencil, Plus, Trash2} from 'lucide-react'
-import {RbDialog} from '@/components/ui/dialog'
+import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
@@ -482,7 +482,7 @@ function MenuEditorDialog({
 
   return (
     <>
-      <RbDialog open={open} onOpenChange={onOpenChange} title="菜单编辑" width={1180} height="85vh">
+      <BizDialog open={open} onOpenChange={onOpenChange} title="菜单编辑" width={1180} height="85vh">
         <div className="h-full grid gap-4 lg:grid-cols-3 lg:grid-rows-1">
           <section className="flex min-h-0 flex-col rounded-lg border bg-background p-3 lg:h-full">
             <header className="flex items-center justify-between gap-2 border-b border-border pb-3">
@@ -690,9 +690,9 @@ function MenuEditorDialog({
             )}
           </section>
         </div>
-      </RbDialog>
+      </BizDialog>
 
-      <RbDialog
+      <BizDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}
         title="删除菜单"
@@ -708,7 +708,7 @@ function MenuEditorDialog({
         }
       >
         <div className="pt-1">{deleteText}</div>
-      </RbDialog>
+      </BizDialog>
     </>
   )
 }

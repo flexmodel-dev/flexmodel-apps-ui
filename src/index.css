@@ -136,33 +136,33 @@
 }
 
 @layer components {
-  .rb-scroller {
+  .app-scroller {
     @apply overflow-y-auto;
   }
 
-  .rb-table {
+  .app-table {
     @apply w-full border-collapse text-sm leading-6;
   }
 
-  .rb-table thead th {
+  .app-table thead th {
     @apply h-12 bg-card px-4 py-3 text-left font-medium text-foreground/80;
   }
 
-  .rb-table tbody td {
+  .app-table tbody td {
     @apply border-b border-border px-4 py-3.5;
   }
 
-  .rb-table tbody tr:hover td {
+  .app-table tbody tr:hover td {
     @apply bg-primary/5;
   }
 
-  .rb-table-scroll {
+  .app-table-scroll {
     position: relative;
     max-height: 70vh;
     overflow: auto;
   }
 
-  .rb-table-scroll .rb-table thead th {
+  .app-table-scroll .app-table thead th {
     position: sticky;
     top: 0;
     z-index: 10;
@@ -188,7 +188,7 @@
     @apply m-0 flex-1 break-all text-sm;
   }
 
-  .rb-card {
+  .app-card {
     @apply overflow-hidden rounded-xl border bg-card shadow-sm;
   }
 }

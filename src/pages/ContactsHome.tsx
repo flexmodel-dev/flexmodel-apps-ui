@@ -25,8 +25,8 @@ export default function ContactsHome() {
             <Button><Plus className="h-4 w-4" /> 新建联系人</Button>
           </div>
         </div>
-        <div className="rb-table-scroll overflow-x-auto p-4">
-          <table className="rb-table w-full min-w-[700px]">
+        <div className="app-table-scroll overflow-x-auto p-4">
+          <table className="app-table w-full min-w-[700px]">
             <thead>
               <tr>
                 <th>客户名称</th>

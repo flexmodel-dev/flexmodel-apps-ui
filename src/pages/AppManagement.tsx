@@ -1,11 +1,11 @@
 import * as React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react'
-import { AppLayout } from '@/components/layout/AppLayout'
+import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RbDialog } from '@/components/ui/dialog'
-import { RbNoData } from '@/components/rb/RbLoading'
+import {BizDialog} from '@/components/ui/dialog'
+import {AppNoData} from '@/components/biz/AppLoading'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -125,7 +125,7 @@ export default function AppManagement() {
   }
 
   return (
-    <AppLayout admin adminActive="/admin/apps">
+    <AdminLayout>
       <div className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <div>
@@ -139,7 +139,7 @@ export default function AppManagement() {
 
         <div className="min-w-0 max-w-full p-4">
           {apps.length === 0 ? (
-            <RbNoData text="暂无应用" />
+            <AppNoData text="暂无应用"/>
           ) : (
             <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {apps.map((app) => {
@@ -193,7 +193,7 @@ export default function AppManagement() {
         </div>
       </div>
 
-      <RbDialog
+      <BizDialog
         open={formOpen}
         onOpenChange={setFormOpen}
         title={editingId ? '编辑应用' : '新建应用'}
@@ -207,9 +207,9 @@ export default function AppManagement() {
         }
       >
         <AppForm value={formValue} onChange={setFormValue} />
-      </RbDialog>
+      </BizDialog>
 
-      <RbDialog
+      <BizDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="删除应用"
@@ -223,7 +223,7 @@ export default function AppManagement() {
         <div className="pt-1">
           确认删除应用「{deleteTarget?.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占实体和记录。
         </div>
-      </RbDialog>
-    </AppLayout>
+      </BizDialog>
+    </AdminLayout>
   )
 }

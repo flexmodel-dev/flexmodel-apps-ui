@@ -1,4 +1,4 @@
-import { AppLayout } from '@/components/layout/AppLayout'
+import {AdminLayout} from '@/components/layout/AdminLayout'
 import { AdminTablePage } from './AdminTablePage'
 import { EntityManagementContent } from './AdminContent'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { CirclePlus } from 'lucide-react'
 /** 实体管理（admin/metadata/entities.html：卡片网格） */
 export function AdminEntities({ embedded = false }: { embedded?: boolean } = {}) {
   const content = <EntityManagementContent entities={entities} />
-  return embedded ? content : <AppLayout admin adminActive="/admin/entities">{content}</AppLayout>
+  return embedded ? content : <AdminLayout>{content}</AdminLayout>
 }
 
 /** 部门用户（admin/bizuser/user-list.html） */
@@ -19,7 +19,6 @@ export function AdminUsers() {
     <AdminTablePage
       title="部门用户"
       desc="管理组织架构与用户账号"
-      adminActive="/admin/bizuser/users"
       rows={users}
       columns={[
         { key: 'fullName', label: '姓名', render: (u) => (
@@ -53,7 +52,6 @@ export function AdminRoles() {
     <AdminTablePage
       title="角色权限"
       desc="角色与权限配置"
-      adminActive="/admin/bizuser/role-privileges"
       rows={[
         { id: 'r1', name: '管理员', users: 1, desc: '拥有系统全部权限', modifiedOn: '2026-08-20 10:00' },
         { id: 'r2', name: '销售经理', users: 1, desc: '客户/商机管理，审批权限', modifiedOn: '2026-08-12 15:22' },
@@ -78,7 +76,6 @@ export function AdminTeams() {
     <AdminTablePage
       title="团队"
       desc="跨部门协作团队"
-      adminActive="/admin/bizuser/teams"
       rows={teams.map((t) => ({ id: t.id, name: t.name, members: t.members, modifiedOn: '2026-08-25 14:00' }))}
       columns={[
         { key: 'name', label: '团队名称', render: (t) => <span className="font-medium text-primary">{t.name}</span> },
@@ -97,7 +94,6 @@ export function AdminApprovals({ embedded = false }: { embedded?: boolean } = {}
     <AdminTablePage
       title="审批流程"
       desc="业务对象审批流程配置"
-      adminActive="/admin/robot/approvals"
       bare={embedded}
       rows={[
         { id: 'a1', name: '报销审批流程', entity: '报销单', applies: '全部', state: '启用', modifiedOn: '2026-08-30 16:40' },
@@ -126,7 +122,6 @@ export function AdminTriggers({ embedded = false }: { embedded?: boolean } = {})
     <AdminTablePage
       title="触发器"
       desc="数据自动化处理规则"
-      adminActive="/admin/robot/triggers"
       bare={embedded}
       rows={[
         { id: 't1', name: '新客户自动分配', entity: '客户', when: '新建时', action: '数据分配', state: '启用', modifiedOn: '2026-08-18 11:20' },

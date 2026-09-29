@@ -24,13 +24,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { UserAvatar } from '@/components/ui/avatar'
-import { Pagination } from '@/components/rb/Pagination'
-import { RbNoData } from '@/components/rb/RbLoading'
+import {Pagination} from '@/components/biz/Pagination'
+import {AppNoData} from '@/components/biz/AppLoading'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { RecordDetailContent } from '@/pages/RecordView'
 import { getAppMenuItem, getEntity, getRecords } from '@/data/mock'
 import { cn, paginate } from '@/lib/utils'
-import { RecordFormModal } from '@/components/rb/RecordFormModal'
+import {RecordFormModal} from '@/components/biz/RecordFormModal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-/** 记录列表页（复刻 general/record-list.html + rb-datalist） */
+/** 记录列表页（复刻 general/record-list.html + app-datalist） */
 export default function RecordList() {
   const { appId, menuId } = useParams<{ appId: string; menuId: string }>()
   const menuItem = getAppMenuItem(appId, menuId)
@@ -161,7 +161,7 @@ export default function RecordList() {
       <div className="mt-[-1px] flex min-h-0 flex-1 flex-col rounded-b-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex min-h-0 flex-1 flex-col p-3">
           {/* 表头工具行 */}
-          <div className="rb-datatable-header mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="app-datatable-header mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               {/* 常用查询 */}
               <div className="flex">
@@ -242,8 +242,8 @@ export default function RecordList() {
           </div>
 
           {/* 数据表格 */}
-          <div className="data-list rb-table-scroll min-h-0 flex-1 overflow-x-auto">
-            <table className="rb-table w-full min-w-[900px] border-collapse bg-background">
+          <div className="data-list app-table-scroll min-h-0 flex-1 overflow-x-auto">
+            <table className="app-table w-full min-w-[900px] border-collapse bg-background">
               <thead>
                 <tr>
                   <th className="w-[36px]">
@@ -278,7 +278,7 @@ export default function RecordList() {
                 ))}
               </tbody>
             </table>
-            {pageRows.length === 0 && <RbNoData text="暂无数据" />}
+            {pageRows.length === 0 && <AppNoData text="暂无数据"/>}
           </div>
 
           {/* 分页 */}

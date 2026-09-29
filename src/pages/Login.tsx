@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import { RbDialog } from '@/components/ui/dialog'
+import {BizDialog} from '@/components/ui/dialog'
 import { Globe, Smartphone } from 'lucide-react'
 
 /** 用户登录页（复刻 signup/login.html） */
@@ -21,9 +21,9 @@ export default function Login() {
   }
 
   return (
-    <div className="rb-login-page relative min-h-screen">
+    <div className="app-login-page relative min-h-screen">
       <div
-        className="rb-bgimg fixed inset-0 -z-10 bg-cover bg-center"
+        className="app-bgimg fixed inset-0 -z-10 bg-cover bg-center"
         style={{ backgroundImage: 'url(/bg.jpg)' }}
       >
         <div className="absolute inset-0 bg-black/10" />
@@ -127,10 +127,10 @@ export default function Login() {
                       <span>中文</span>
                     </button>
                     {langOpen && (
-                      <div className="rb-dropdown-content absolute right-0 top-full mt-1 w-[100px]">
-                        <a className="rb-dropdown-item block" onClick={() => setLangOpen(false)}>中文</a>
-                        <a className="rb-dropdown-item block" onClick={() => setLangOpen(false)}>繁体</a>
-                        <a className="rb-dropdown-item block" onClick={() => setLangOpen(false)}>English</a>
+                      <div className="app-dropdown-content absolute right-0 top-full mt-1 w-[100px]">
+                        <a className="app-dropdown-item block" onClick={() => setLangOpen(false)}>中文</a>
+                        <a className="app-dropdown-item block" onClick={() => setLangOpen(false)}>繁体</a>
+                        <a className="app-dropdown-item block" onClick={() => setLangOpen(false)}>English</a>
                       </div>
                     )}
                   </div>
@@ -147,14 +147,14 @@ export default function Login() {
       </div>
 
       {/* 手机版二维码弹层 */}
-      <RbDialog open={showMobile} onOpenChange={setShowMobile} title="手机版" width={320}>
+      <BizDialog open={showMobile} onOpenChange={setShowMobile} title="手机版" width={320}>
         <div className="flex flex-col items-center gap-3 py-2">
           <div className="flex h-[180px] w-[180px] items-center justify-center rounded border bg-muted text-muted-foreground">
             <Smartphone className="h-14 w-14" />
           </div>
           <div className="text-sm text-muted-foreground">使用手机浏览器扫描二维码访问</div>
         </div>
-      </RbDialog>
+      </BizDialog>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Info, Settings } from 'lucide-react'
-import { RbDialog } from '@/components/ui/dialog'
+import {BizDialog} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -208,7 +208,7 @@ export function RecordFormModal({
   }
 
   return (
-    <RbDialog
+    <BizDialog
       open={open}
       onOpenChange={onOpenChange}
       width={760}
@@ -277,6 +277,6 @@ export function RecordFormModal({
         })}
       </div>
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-    </RbDialog>
+    </BizDialog>
   )
 }

@@ -32,7 +32,7 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = 'DialogContent'
 
 /** 带标题和底部的对话框 */
-export function RbDialog({
+export function BizDialog({
   open,
   onOpenChange,
   title,

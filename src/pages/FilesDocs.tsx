@@ -2,7 +2,7 @@ import * as React from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { RbLoading } from '@/components/rb/RbLoading'
+import {AppLoading} from '@/components/biz/AppLoading'
 import { fileTree, type FileNode } from '@/data/mock'
 import { cn } from '@/lib/utils'
 import {
@@ -212,7 +212,7 @@ export default function FilesDocs() {
 
           <div className="file-viewport min-h-0 flex-1 overflow-y-auto p-4">
             {loading ? (
-              <RbLoading center />
+              <AppLoading center/>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

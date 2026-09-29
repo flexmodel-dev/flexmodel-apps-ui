@@ -39,13 +39,13 @@ import {
   Type,
   Hash,
 } from 'lucide-react'
-import { AppLayout } from '@/components/layout/AppLayout'
+import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
-import { RbDialog } from '@/components/ui/dialog'
+import {BizDialog} from '@/components/ui/dialog'
 import { getEntity, type EntityField } from '@/data/mock'
 import {
   formFieldWidthClasses,
@@ -263,11 +263,11 @@ export default function FormDesign() {
 
   if (!meta) {
     return (
-      <AppLayout admin>
+      <AdminLayout>
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           未找到实体
         </div>
-      </AppLayout>
+      </AdminLayout>
     )
   }
 
@@ -494,7 +494,7 @@ export default function FormDesign() {
   })()
 
   return (
-    <AppLayout admin adminActive="/admin/entities" noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
+    <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -669,7 +669,7 @@ export default function FormDesign() {
 
               <TabsContent value="advanced" className="min-h-0 flex-1 overflow-y-auto rounded-xl border bg-card">
                 <div className="overflow-x-auto">
-                  <table className="rb-table w-full min-w-[680px]">
+                  <table className="app-table w-full min-w-[680px]">
                     <thead>
                       <tr>
                         <th>字段</th>
@@ -760,7 +760,7 @@ export default function FormDesign() {
           </div>
         </Tabs>
 
-        <RbDialog
+        <BizDialog
           open={Boolean(editingItem)}
           onOpenChange={(open) => !open && setEditingItem(null)}
           width={420}
@@ -820,9 +820,9 @@ export default function FormDesign() {
               )}
             </div>
           )}
-        </RbDialog>
+        </BizDialog>
 
-        <RbDialog
+        <BizDialog
           open={Boolean(creatingField)}
           onOpenChange={(open) => !open && setCreatingField(null)}
           width={420}
@@ -861,8 +861,8 @@ export default function FormDesign() {
               </div>
             </div>
           )}
-        </RbDialog>
+        </BizDialog>
       </div>
-    </AppLayout>
+    </AdminLayout>
   )
 }

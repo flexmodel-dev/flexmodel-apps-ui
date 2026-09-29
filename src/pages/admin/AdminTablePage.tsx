@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { Search, X } from 'lucide-react'
-import { AppLayout } from '@/components/layout/AppLayout'
+import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
-import { Pagination } from '@/components/rb/Pagination'
-import { RbNoData } from '@/components/rb/RbLoading'
+import {Pagination} from '@/components/biz/Pagination'
+import {AppNoData} from '@/components/biz/AppLoading'
 import { cn, paginate } from '@/lib/utils'
 
 export interface AdminColumn<T> {
@@ -17,7 +17,6 @@ export interface AdminColumn<T> {
 export function AdminTablePage<T extends { id: string }>({
   title,
   desc,
-  adminActive,
   bare = false,
   rows,
   columns,
@@ -26,7 +25,6 @@ export function AdminTablePage<T extends { id: string }>({
 }: {
   title: string
   desc?: string
-  adminActive?: string
   bare?: boolean
   rows: T[]
   columns: AdminColumn<T>[]
@@ -79,8 +77,8 @@ export function AdminTablePage<T extends { id: string }>({
             )}
           </div>
         </div>
-        <div className="rb-table-scroll overflow-x-auto p-4">
-          <table className="rb-table w-full min-w-[760px]">
+      <div className="app-table-scroll overflow-x-auto p-4">
+        <table className="app-table w-full min-w-[760px]">
             <thead>
               <tr>
                 {columns.map((c) => (
@@ -102,7 +100,7 @@ export function AdminTablePage<T extends { id: string }>({
               ))}
             </tbody>
           </table>
-          {pageRows.length === 0 && <RbNoData />}
+        {pageRows.length === 0 && <AppNoData/>}
           <div className="mt-3 flex justify-end">
             <Pagination page={page} pages={pages} total={total} size={size} onChange={setPage} />
           </div>
@@ -113,9 +111,9 @@ export function AdminTablePage<T extends { id: string }>({
   if (bare) return content
 
   return (
-    <AppLayout admin adminActive={adminActive}>
+    <AdminLayout>
       {content}
-    </AppLayout>
+    </AdminLayout>
   )
 }
 

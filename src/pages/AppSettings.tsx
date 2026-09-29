@@ -1,10 +1,10 @@
 import * as React from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Pencil, Trash2 } from 'lucide-react'
-import { AppLayout } from '@/components/layout/AppLayout'
+import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RbDialog } from '@/components/ui/dialog'
+import {BizDialog} from '@/components/ui/dialog'
 import { AdminApprovals, AdminEntities, AdminTriggers } from '@/pages/admin'
 import {
   appIconOptions,
@@ -47,12 +47,12 @@ export default function AppSettings({ section }: { section: string }) {
 
   if (!app) {
     return (
-      <AppLayout admin adminActive="/admin/apps">
+        <AdminLayout>
         <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
           应用不存在或已被删除。
           <Link className="ml-1 text-primary hover:underline" to="/admin/apps">返回应用管理</Link>
         </div>
-      </AppLayout>
+        </AdminLayout>
     )
   }
 
@@ -75,7 +75,7 @@ export default function AppSettings({ section }: { section: string }) {
   }
 
   return (
-    <AppLayout admin adminActive="/admin/apps" noOuterScroll contentClassName="h-full">
+      <AdminLayout noOuterScroll contentClassName="h-full">
       <div className="flex h-full min-h-0 flex-col gap-4 lg:flex-row">
         <aside className="w-full shrink-0 rounded-xl border bg-card lg:w-56">
           <div className="border-b p-4">
@@ -147,7 +147,7 @@ export default function AppSettings({ section }: { section: string }) {
         </div>
       </div>
 
-      <RbDialog
+        <BizDialog
         open={formOpen}
         onOpenChange={setFormOpen}
         title="编辑应用"
@@ -190,9 +190,9 @@ export default function AppSettings({ section }: { section: string }) {
             <Input id="settings-app-description" value={formValue.description} onChange={(event) => setFormValue((value) => ({ ...value, description: event.target.value }))} />
           </div>
         </div>
-      </RbDialog>
+        </BizDialog>
 
-      <RbDialog
+        <BizDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="删除应用"
@@ -204,7 +204,7 @@ export default function AppSettings({ section }: { section: string }) {
         }
       >
         <div className="pt-1">确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占实体和记录。</div>
-      </RbDialog>
-    </AppLayout>
+        </BizDialog>
+      </AdminLayout>
   )
 }

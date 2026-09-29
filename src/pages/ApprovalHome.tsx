@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { UserAvatar } from '@/components/ui/avatar'
-import { RbLoading } from '@/components/rb/RbLoading'
+import {AppLoading} from '@/components/biz/AppLoading'
 import { approvals, currentUser } from '@/data/mock'
 import { cn } from '@/lib/utils'
 import {
@@ -200,7 +200,7 @@ export default function ApprovalHome() {
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {loading ? (
-              <RbLoading center className="min-h-[320px]" />
+              <AppLoading center className="min-h-[320px]"/>
             ) : (
               <div className="mx-auto max-w-[1280px] space-y-3">
                 {list.map((item) => {

@@ -1,20 +1,26 @@
 import * as React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import {Link, useLocation} from 'react-router-dom'
 import {ChevronDown, ChevronsLeft, ChevronsRight, Pencil} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { userNavs, type NavItem } from '@/data/mock'
-import { AppLauncher } from './AppLauncher'
+import {cn} from '@/lib/utils'
+import {Button} from '@/components/ui/button'
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
+import {userNavs, type NavItem} from '@/data/mock'
+import {AppLauncher} from './AppLauncher'
 
-export function LeftSidebar({
-  navs = userNavs,
-  sectionKey,
-  collapsed,
-  headerHidden,
-  onToggleCollapsed,
-                              onEditMenus,
-}: {
+function getActiveMenuIds(navs: NavItem[], pathname: string) {
+  return navs
+    .filter((nav) => nav.sub?.some((sub) => sub.to && pathname.startsWith(sub.to.replace(/\/tasks.*/, ''))))
+    .map((nav) => nav.id)
+}
+
+export function AppLeftSidebar({
+                                 navs = userNavs,
+                                 sectionKey,
+                                 collapsed,
+                                 headerHidden,
+                                 onToggleCollapsed,
+                                 onEditMenus,
+                               }: {
   navs?: NavItem[]
   sectionKey?: string
   collapsed?: boolean
@@ -24,13 +30,13 @@ export function LeftSidebar({
 }) {
   const location = useLocation()
   const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
-  const [openMenus, setOpenMenus] = React.useState<string[]>([])
+  const [openMenus, setOpenMenus] = React.useState<string[]>(() =>
+    getActiveMenuIds(navs, location.pathname),
+  )
   const previousSectionKeyRef = React.useRef(sectionKey)
 
   React.useEffect(() => {
-    const activeMenuIds = navs
-      .filter((nav) => nav.sub?.some((sub) => sub.to && location.pathname.startsWith(sub.to.replace(/\/tasks.*/, ''))))
-      .map((nav) => nav.id)
+    const activeMenuIds = getActiveMenuIds(navs, location.pathname)
     const sectionChanged = previousSectionKeyRef.current !== sectionKey
     previousSectionKeyRef.current = sectionKey
 
@@ -71,10 +77,11 @@ export function LeftSidebar({
                     className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                   >
                     <span className="flex min-w-0 items-center gap-3">
-                      {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
+                      {nav.icon ? <nav.icon className="h-4 w-4"/> : null}
                       {!collapsed && <span className="truncate">{nav.text}</span>}
                     </span>
-                    {!collapsed && <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />}
+                    {!collapsed &&
+                      <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')}/>}
                   </button>
                 )
                 return (
@@ -117,7 +124,7 @@ export function LeftSidebar({
                       : 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
                   }
                 >
-                  {nav.icon ? <nav.icon className="h-4 w-4" /> : null}
+                  {nav.icon ? <nav.icon className="h-4 w-4"/> : null}
                   {!collapsed && <span className="truncate">{nav.text}</span>}
                 </Link>
               )
@@ -135,23 +142,24 @@ export function LeftSidebar({
               )
             })}
           </ul>
-        <div className={cn('mt-2 flex shrink-0 items-center border-t pt-2', collapsed ? 'flex-col gap-1' : 'justify-between')}>
-          <AppLauncher collapsed={collapsed} currentAppId={currentAppId} />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                onClick={onEditMenus}
-              >
-                <Pencil className="h-4 w-4"/>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side={collapsed ? 'right' : 'top'}>编辑菜单</TooltipContent>
-          </Tooltip>
-          <Tooltip>
+          <div
+            className={cn('mt-2 flex shrink-0 items-center border-t pt-2', collapsed ? 'flex-col gap-1' : 'justify-between')}>
+            <AppLauncher collapsed={collapsed} currentAppId={currentAppId}/>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  onClick={onEditMenus}
+                >
+                  <Pencil className="h-4 w-4"/>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side={collapsed ? 'right' : 'top'}>编辑菜单</TooltipContent>
+            </Tooltip>
+            <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   type="button"
@@ -160,7 +168,7 @@ export function LeftSidebar({
                   className="h-8 w-8 text-muted-foreground hover:text-primary"
                   onClick={onToggleCollapsed}
                 >
-                  {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+                  {collapsed ? <ChevronsRight className="h-4 w-4"/> : <ChevronsLeft className="h-4 w-4"/>}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side={collapsed ? 'right' : 'top'}>{collapsed ? '展开菜单' : '折叠菜单'}</TooltipContent>

@@ -20,10 +20,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { RbDialog } from '@/components/ui/dialog'
+import {BizDialog} from '@/components/ui/dialog'
 import { getAppMenuItem, getEntity, getRecords, feeds } from '@/data/mock'
 import { cn } from '@/lib/utils'
-import { RecordFormModal } from '@/components/rb/RecordFormModal'
+import {RecordFormModal} from '@/components/biz/RecordFormModal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -276,7 +276,7 @@ export function RecordDetailContent({
         </div>
 
       {/* 删除确认框 */}
-      <RbDialog
+      <BizDialog
         open={showDelete}
         onOpenChange={setShowDelete}
         title="删除确认"
@@ -301,7 +301,7 @@ export function RecordDetailContent({
             确认删除这条「{meta.label}」记录吗？删除后可在回收站中找回。
           </div>
         </div>
-      </RbDialog>
+      </BizDialog>
 
       <RecordFormModal
         open={editOpen}

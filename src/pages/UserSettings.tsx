@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { RbDialog } from '@/components/ui/dialog'
+import {BizDialog} from '@/components/ui/dialog'
 import { UserAvatar } from '@/components/ui/avatar'
 import { currentUser, loginLogs, teams } from '@/data/mock'
 import { cn } from '@/lib/utils'
@@ -295,7 +295,7 @@ export default function UserSettings() {
         </div>
       </div>
 
-      <RbDialog
+      <BizDialog
         open={emailOpen}
         onOpenChange={setEmailOpen}
         title="修改邮箱"
@@ -322,9 +322,9 @@ export default function UserSettings() {
             </Button>
           </div>
         </div>
-      </RbDialog>
+      </BizDialog>
 
-      <RbDialog
+      <BizDialog
         open={passwordOpen}
         onOpenChange={setPasswordOpen}
         title="修改密码"
@@ -350,9 +350,9 @@ export default function UserSettings() {
             <Input type="password" value={repeatPassword} onChange={(event) => setRepeatPassword(event.target.value)} />
           </div>
         </div>
-      </RbDialog>
+      </BizDialog>
 
-      <RbDialog open={tempAuthOpen} onOpenChange={setTempAuthOpen} title="临时授权" width={520}>
+      <BizDialog open={tempAuthOpen} onOpenChange={setTempAuthOpen} title="临时授权" width={520}>
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Input readOnly value={tempAuthUrl} />
@@ -362,9 +362,9 @@ export default function UserSettings() {
           </div>
           <p className="m-0 text-sm text-muted-foreground">通过临时授权链接可登录你的账号，请勿向陌生人提供。</p>
         </div>
-      </RbDialog>
+      </BizDialog>
 
-      <RbDialog open={accessKeyOpen} onOpenChange={setAccessKeyOpen} title="个人秘钥" width={460}>
+      <BizDialog open={accessKeyOpen} onOpenChange={setAccessKeyOpen} title="个人秘钥" width={460}>
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Input readOnly value={accessKey} />
@@ -374,7 +374,7 @@ export default function UserSettings() {
           </div>
           <p className="m-0 text-sm text-muted-foreground">秘钥仅显示一次，请复制保存。</p>
         </div>
-      </RbDialog>
+      </BizDialog>
     </AppLayout>
   )
 }
