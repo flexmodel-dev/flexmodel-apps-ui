@@ -1,23 +1,37 @@
 import * as React from 'react'
-import { useNavigate } from 'react-router-dom'
+import {useLocation, useNavigate} from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import {BizDialog} from '@/components/ui/dialog'
 import { Globe, Smartphone } from 'lucide-react'
+import {login} from '@/services/auth'
 
 /** 用户登录页（复刻 signup/login.html） */
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [user, setUser] = React.useState('admin')
-  const [passwd, setPasswd] = React.useState('admin')
+  const [passwd, setPasswd] = React.useState('admin123')
   const [remember, setRemember] = React.useState(true)
   const [showMobile, setShowMobile] = React.useState(false)
   const [langOpen, setLangOpen] = React.useState(false)
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState('')
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    navigate('/dashboard/home')
+    setLoading(true)
+    setError('')
+    try {
+      await login(user.trim(), passwd, remember)
+      const from = (location.state as { from?: string } | null)?.from ?? '/dashboard/home'
+      navigate(from, {replace: true})
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '登录失败，请稍后重试')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -43,6 +57,8 @@ export default function Login() {
                     placeholder="用户名 (或邮箱)"
                     value={user}
                     onChange={(e) => setUser(e.target.value)}
+                    autoComplete="username"
+                    required
                     className="h-[41px]"
                   />
                 </div>
@@ -53,6 +69,8 @@ export default function Login() {
                     placeholder="密码"
                     value={passwd}
                     onChange={(e) => setPasswd(e.target.value)}
+                    autoComplete="current-password"
+                    required
                     className="h-[41px]"
                   />
                 </div>
@@ -66,9 +84,15 @@ export default function Login() {
                   </a>
                 </div>
                 <div className="mb-[18px] pt-[19px]">
-                  <Button type="submit" className="h-11 w-full text-base font-medium">
-                    登录
+                  <Button type="submit" disabled={loading} aria-busy={loading}
+                          className="h-11 w-full text-base font-medium">
+                    {loading ? '登录中...' : '登录'}
                   </Button>
+                  {error && (
+                    <p role="alert" className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                      {error}
+                    </p>
+                  )}
                   <div className="mt-4 text-center text-sm text-muted-foreground">
                     还没有账号?{' '}
                     <a className="text-primary hover:underline" onClick={(e) => e.preventDefault()}>

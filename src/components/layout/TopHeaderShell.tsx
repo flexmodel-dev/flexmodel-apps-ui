@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type {NavItem, TopNavItem} from '@/data/mock'
+import {clearAuthSession, getAuthSession} from '@/services/auth'
 import {MobileNavDrawer} from './MobileNavDrawer'
 
 export const headerActionClass =
@@ -44,6 +45,7 @@ function TopHeaderShell({
   logoIcon?: LucideIcon
 }) {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
+  const [authUser, setAuthUser] = React.useState(() => getAuthSession()?.user ?? null)
   const LogoIcon = logoIcon
   const [isDark, setIsDark] = React.useState(() => {
     const stored = window.localStorage.getItem('night')
@@ -57,6 +59,11 @@ function TopHeaderShell({
     root.style.colorScheme = isDark ? 'dark' : 'light'
     window.localStorage.setItem('night', String(isDark))
   }, [isDark])
+
+  const logout = () => {
+    clearAuthSession()
+    setAuthUser(null)
+  }
 
   React.useEffect(() => {
     document.documentElement.dataset.primary = 'indigo'
@@ -178,21 +185,21 @@ function TopHeaderShell({
                   'dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white',
                 )}
               >
-                <UserAvatar name="超级管理员" size={30}/>
-                <span className="hidden text-sm md:inline">超级管理员</span>
+                <UserAvatar name={authUser?.name ?? '未登录'} size={30}/>
+                <span className="hidden text-sm md:inline">{authUser?.name ?? '未登录'}</span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <div className="px-2 py-2">
-                <p className="text-sm font-medium">超级管理员</p>
-                <p className="text-xs text-muted-foreground">admin@example.com</p>
+                <p className="text-sm font-medium">{authUser?.name ?? '未登录'}</p>
+                <p className="text-xs text-muted-foreground">{authUser?.email ?? ''}</p>
               </div>
               <DropdownMenuSeparator/>
               <DropdownMenuItem asChild>
                 <Link to="/settings/user">个人设置</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/login">退出登录</Link>
+                <Link to="/login" onClick={logout}>退出登录</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

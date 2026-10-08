@@ -32,6 +32,12 @@ export interface User {
   teams?: string[]
 }
 
+export interface Department {
+  id: string
+  name: string
+  parent: string | null
+}
+
 export interface BusinessObjectField {
   name: string
   label: string

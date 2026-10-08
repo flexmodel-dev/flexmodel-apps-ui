@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import {HashRouter, Routes, Route, Navigate, Outlet, useLocation} from 'react-router-dom'
 import './index.css'
 
 import Login from '@/pages/Login'
@@ -27,6 +27,7 @@ import {
   AdminTriggers,
 } from '@/pages/admin'
 import { getAppById, getAppMenus } from '@/data/mock'
+import {getAuthSession} from '@/services/auth'
 
 function AppHomeRedirect() {
   const { appId } = { appId: window.location.hash.split('/')[2] }
@@ -36,40 +37,51 @@ function AppHomeRedirect() {
     : <Navigate to="/dashboard/home" replace />
 }
 
+function RequireAuth() {
+  const location = useLocation()
+  if (!getAuthSession()) {
+    return <Navigate to="/login" replace state={{from: location.pathname}}/>
+  }
+  return <Outlet/>
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <HashRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard/home" replace />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/settings/user" element={<UserSettings />} />
-        <Route path="/dashboard/home" element={<DashboardHome />} />
-        {/* 业务对象 */}
-        <Route path="/app/:appId" element={<AppHomeRedirect />} />
-        <Route path="/app/:appId/:menuId" element={<RecordList />} />
-        <Route path="/app/:appId/:menuId/view/:recordId" element={<RecordView />} />
-        <Route path="/menu/:menuId" element={<MenuPlaceholder/>}/>
-        <Route path="/admin/apps" element={<AppManagement />} />
-        <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic" />} />
-        <Route path="/admin/apps/:appId/settings/business-objects" element={<AppSettings section="business-objects"/>}/>
-        <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals" />} />
-        <Route path="/admin/apps/:appId/settings/triggers" element={<AppSettings section="triggers" />} />
-        {/* 内置模块 */}
-        <Route path="/approval/home" element={<ApprovalHome />} />
-        <Route path="/feeds/home" element={<FeedsHome />} />
-        <Route path="/files/home" element={<FilesDocs />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/notifications/todo" element={<Notifications />} />
-        <Route path="/project/:projectId/tasks" element={<ProjectTasks />} />
-        <Route path="/contacts/home" element={<ContactsHome />} />
-        {/* 管理中心 */}
-        <Route path="/admin/business-objects" element={<AdminBusinessObjects/>}/>
-        <Route path="/admin/business-object/:businessObject/form-design" element={<FormDesign/>}/>
-        <Route path="/admin/bizuser/users" element={<AdminUsers />} />
-        <Route path="/admin/bizuser/role-privileges" element={<AdminRoles />} />
-        <Route path="/admin/bizuser/teams" element={<AdminTeams />} />
-        <Route path="/admin/robot/approvals" element={<AdminApprovals />} />
-        <Route path="/admin/robot/triggers" element={<AdminTriggers />} />
+        <Route element={<RequireAuth/>}>
+          <Route path="/settings/user" element={<UserSettings/>}/>
+          <Route path="/dashboard/home" element={<DashboardHome/>}/>
+          {/* 业务对象 */}
+          <Route path="/app/:appId" element={<AppHomeRedirect/>}/>
+          <Route path="/app/:appId/:menuId" element={<RecordList/>}/>
+          <Route path="/app/:appId/:menuId/view/:recordId" element={<RecordView/>}/>
+          <Route path="/menu/:menuId" element={<MenuPlaceholder/>}/>
+          <Route path="/admin/apps" element={<AppManagement/>}/>
+          <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic"/>}/>
+          <Route path="/admin/apps/:appId/settings/business-objects"
+                 element={<AppSettings section="business-objects"/>}/>
+          <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals"/>}/>
+          <Route path="/admin/apps/:appId/settings/triggers" element={<AppSettings section="triggers"/>}/>
+          {/* 内置模块 */}
+          <Route path="/approval/home" element={<ApprovalHome/>}/>
+          <Route path="/feeds/home" element={<FeedsHome/>}/>
+          <Route path="/files/home" element={<FilesDocs/>}/>
+          <Route path="/notifications" element={<Notifications/>}/>
+          <Route path="/notifications/todo" element={<Notifications/>}/>
+          <Route path="/project/:projectId/tasks" element={<ProjectTasks/>}/>
+          <Route path="/contacts/home" element={<ContactsHome/>}/>
+          {/* 管理中心 */}
+          <Route path="/admin/business-objects" element={<AdminBusinessObjects/>}/>
+          <Route path="/admin/business-object/:businessObject/form-design" element={<FormDesign/>}/>
+          <Route path="/admin/bizuser/users" element={<AdminUsers/>}/>
+          <Route path="/admin/bizuser/role-privileges" element={<AdminRoles/>}/>
+          <Route path="/admin/bizuser/teams" element={<AdminTeams/>}/>
+          <Route path="/admin/robot/approvals" element={<AdminApprovals/>}/>
+          <Route path="/admin/robot/triggers" element={<AdminTriggers/>}/>
+        </Route>
         {/* 兜底 */}
         <Route path="*" element={<Navigate to="/dashboard/home" replace />} />
       </Routes>
