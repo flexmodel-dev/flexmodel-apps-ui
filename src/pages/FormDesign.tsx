@@ -18,6 +18,7 @@ import {
   Boxes,
   Calendar,
   CalendarClock,
+  ChevronDown,
   CircleUser,
   Clock,
   FileSignature,
@@ -592,6 +593,9 @@ export default function FormDesign() {
                       >
                         <div className="flex min-w-0 items-center gap-2">
                           <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          {isFormDividerField(item.field.name) && (
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground"/>
+                          )}
                           <span className="min-w-0 truncate text-sm font-medium">
                             {isFormDividerField(item.field.name)
                               ? (getDividerLabel(item.field.name) || '分栏')
