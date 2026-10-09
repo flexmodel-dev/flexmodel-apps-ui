@@ -1,3 +1,4 @@
+import * as React from 'react'
 import {
   Select,
   SelectContent,
@@ -9,31 +10,77 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {entityMenuLinks, systemMenuLinks} from '@/data/mock'
+import {getAppMenuTargets, type AppMenuTargets} from '@/services/appMenus'
+
+interface MenuLinkOption {
+  id: string
+  label: string
+  value: string
+}
 
 export function MenuLinkPicker({
                                  value,
                                  onChange,
+                                 appId,
                                }: {
   value?: string
   onChange: (value?: string) => void
+  appId?: string
 }) {
-  const menuLinks = [...systemMenuLinks, ...entityMenuLinks]
-  const selectedValue = menuLinks.some((link) => link.to === value) ? value : 'none'
+  const [appTargets, setAppTargets] = React.useState<AppMenuTargets>({builtIn: [], entities: []})
+
+  React.useEffect(() => {
+    if (!appId) {
+      setAppTargets({builtIn: [], entities: []})
+      return
+    }
+    let cancelled = false
+    getAppMenuTargets(appId)
+      .then((targets) => !cancelled && setAppTargets(targets))
+      .catch(() => !cancelled && setAppTargets({builtIn: [], entities: []}))
+    return () => {
+      cancelled = true
+    }
+  }, [appId])
+
+  const builtInLinks: MenuLinkOption[] = appId
+    ? appTargets.builtIn.map((target) => ({
+      id: target.id,
+      label: target.label ?? target.id,
+      value: `${target.type}:${target.id}`,
+    }))
+    : systemMenuLinks.map((link) => ({
+      id: link.id,
+      label: link.label,
+      value: link.to,
+    }))
+  const entityLinks: MenuLinkOption[] = appId
+    ? appTargets.entities.map((target) => ({
+      id: target.id,
+      label: target.label ?? target.id,
+      value: `${target.type}:${target.id}`,
+    }))
+    : entityMenuLinks.map((link) => ({
+      id: link.id,
+      label: link.label,
+      value: link.to,
+    }))
+  const menuLinks = [...builtInLinks, ...entityLinks]
+  const selectedValue = menuLinks.find((link) => link.value === value)?.value
 
   return (
     <Select
       value={selectedValue}
-      onValueChange={(nextValue) => onChange(nextValue === 'none' ? undefined : nextValue)}
+      onValueChange={onChange}
     >
       <SelectTrigger>
-        <SelectValue placeholder="未关联"/>
+        <SelectValue placeholder="请选择关联项"/>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="none">未关联</SelectItem>
         <SelectGroup>
           <SelectLabel>系统内置</SelectLabel>
-          {systemMenuLinks.map((link) => (
-            <SelectItem key={link.id} value={link.to}>
+          {builtInLinks.map((link) => (
+            <SelectItem key={link.id} value={link.value}>
               {link.label}
             </SelectItem>
           ))}
@@ -41,8 +88,8 @@ export function MenuLinkPicker({
         <SelectSeparator/>
         <SelectGroup>
           <SelectLabel>实体</SelectLabel>
-          {entityMenuLinks.map((link) => (
-            <SelectItem key={link.id} value={link.to}>
+          {entityLinks.map((link) => (
+            <SelectItem key={link.id} value={link.value}>
               {link.label}
             </SelectItem>
           ))}

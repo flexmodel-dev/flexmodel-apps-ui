@@ -5,6 +5,7 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -25,6 +26,22 @@ import {Empty} from '@/components/ui/empty'
 import {OptionalIconPicker} from '@/components/biz/IconPicker'
 import {MenuLinkPicker} from '@/components/biz/MenuLinkPicker'
 import {cn} from '@/lib/utils'
+import {
+  createAppMenu,
+  deleteAppMenu,
+  getAppMenus,
+  reorderAppMenus,
+  updateAppMenu,
+  type AppMenu,
+  type AppMenuInput,
+  type AppMenuTargetType,
+} from '@/services/appMenus'
+import {
+  menuOrderInput,
+  moveMenuNode,
+  reorderMenuChildren,
+  toTopNavigationItem,
+} from '@/services/appMenuNavigation'
 import {
   createLeftMenu,
   createLeftSubmenu,
@@ -68,15 +85,32 @@ function iconName(icon?: NavItem['icon']) {
   return navIconOptions.find((name) => navIcons[name] === icon) ?? 'none'
 }
 
+function LeftMenuDropArea({
+                            droppableId,
+                            children,
+                          }: {
+  droppableId: string
+  children: React.ReactNode
+}) {
+  const {setNodeRef} = useDroppable({id: droppableId})
+  return (
+    <div ref={setNodeRef} className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+      {children}
+    </div>
+  )
+}
+
 function TopMenuRow({
                       menu,
                       selected,
+                      canDelete,
                       onSelect,
                       onEdit,
                       onDelete,
                     }: {
   menu: TopNavItem
   selected: boolean
+  canDelete: boolean
   onSelect: (menu: TopNavItem) => void
   onEdit: (menu: TopNavItem) => void
   onDelete: (menu: TopNavItem) => void
@@ -129,7 +163,7 @@ function TopMenuRow({
         size="icon"
         className="h-8 w-8"
         title="删除一级菜单"
-        disabled={topNavs.length <= 1}
+        disabled={!canDelete}
         onClick={() => onDelete(menu)}
       >
         <Trash2 className="h-4 w-4"/>
@@ -286,18 +320,43 @@ function SubmenuRow({
   )
 }
 
+function findMenuById(menus: AppMenu[], menuId: string): AppMenu | undefined {
+  for (const menu of menus) {
+    if (menu.id === menuId) return menu
+    const child = findMenuById(menu.children ?? [], menuId)
+    if (child) return child
+  }
+  return undefined
+}
+
+function targetValue(target?: { type: AppMenuTargetType; id: string } | null) {
+  return target ? `${target.type}:${target.id}` : undefined
+}
+
+function targetFromValue(value?: string) {
+  if (!value) return null
+  const separatorIndex = value.indexOf(':')
+  if (separatorIndex < 0) return null
+  return {
+    type: value.slice(0, separatorIndex) as AppMenuTargetType,
+    id: value.slice(separatorIndex + 1),
+  }
+}
+
 function MenuEditorDialog({
                             open,
                             onOpenChange,
                             activeTopId,
                             onActiveTopIdChange,
                             onMenusChange,
+                            appId,
                           }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   activeTopId: string
   onActiveTopIdChange: (id: string) => void
-  onMenusChange: () => void
+  onMenusChange: (menus?: AppMenu[]) => void
+  appId?: string
 }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -305,6 +364,10 @@ function MenuEditorDialog({
   const [form, setForm] = React.useState<EditorForm | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null)
   const wasOpenRef = React.useRef(false)
+  const [apiMenus, setApiMenus] = React.useState<AppMenu[]>([])
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [actionError, setActionError] = React.useState<string | null>(null)
+  const [isSaving, setIsSaving] = React.useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, sensorsOptions),
@@ -316,7 +379,34 @@ function MenuEditorDialog({
     wasOpenRef.current = open
   }, [open, activeTopId])
 
-  const selectedTop = getTopNavById(selectedTopId) ?? topNavs[0]
+  const loadMenus = React.useCallback(async (): Promise<AppMenu[]> => {
+    if (!appId) return []
+    setIsLoading(true)
+    setActionError(null)
+    try {
+      const loadedMenus = await getAppMenus(appId)
+      setApiMenus(loadedMenus)
+      return loadedMenus
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : '加载应用菜单失败，请稍后重试。')
+      return []
+    } finally {
+      setIsLoading(false)
+    }
+  }, [appId])
+
+  React.useEffect(() => {
+    if (!open || !appId) return
+    void loadMenus()
+  }, [open, appId, loadMenus])
+
+  const topMenus = React.useMemo(
+    () => appId ? apiMenus.map((menu) => toTopNavigationItem(menu, appId)) : topNavs,
+    [appId, apiMenus],
+  )
+  const selectedTop = topMenus.find((menu) => menu.id === selectedTopId)
+    ?? topMenus[0]
+    ?? {id: '', text: '未选择菜单', to: '', navs: []}
 
   const startTop = () => setForm({kind: 'top', text: ''})
   const startLeft = (type: LeftMenuItemType) =>
@@ -330,7 +420,7 @@ function MenuEditorDialog({
       kind: 'left',
       id: item.id,
       text: item.text,
-      link: item.to,
+      link: appId ? targetValue(findMenuById(apiMenus, item.id)?.target) : item.to,
       icon: iconName(item.icon),
       type: item.sub ? 'group' : 'menu',
     })
@@ -340,86 +430,204 @@ function MenuEditorDialog({
       id: item.id,
       parentId,
       text: item.text,
-      link: item.to,
+      link: appId ? targetValue(findMenuById(apiMenus, item.id)?.target) : item.to,
       icon: iconName(item.icon),
     })
 
   const isValid = (() => {
     if (!form) return false
-    return Boolean(form.text.trim())
+    if (!form.text.trim()) return false
+    if (appId && form.kind === 'left' && form.type === 'menu') {
+      return Boolean(form.link)
+    }
+    if (appId && form.kind === 'sub') return Boolean(form.link)
+    return true
   })()
 
   const save = () => {
     if (!form || !isValid) return
 
-    if (form.kind === 'top') {
-      const values: TopMenuItemInput = {text: form.text.trim()}
-      const saved = form.id ? updateTopMenu(form.id, values) : createTopMenu(values)
-      if (saved) {
-        setSelectedTopId(saved.id)
-        onActiveTopIdChange(saved.id)
-        editTop(saved)
+    if (!appId) {
+      if (form.kind === 'top') {
+        const values: TopMenuItemInput = {text: form.text.trim()}
+        const saved = form.id ? updateTopMenu(form.id, values) : createTopMenu(values)
+        if (saved) {
+          setSelectedTopId(saved.id)
+          onActiveTopIdChange(saved.id)
+          editTop(saved)
+        }
+      } else if (form.kind === 'left') {
+        const values = {
+          text: form.text.trim(),
+          to: form.link,
+          icon: form.icon === 'none' ? undefined : navIcons[form.icon],
+          type: form.type,
+        }
+        const saved = form.id
+          ? updateLeftMenu(selectedTop.id, form.id, values)
+          : createLeftMenu(selectedTop.id, values)
+        if (saved) editLeft(saved)
+      } else {
+        const values = {
+          text: form.text.trim(),
+          to: form.link,
+          icon: form.icon === 'none' ? undefined : navIcons[form.icon],
+          type: 'menu' as const,
+        }
+        const saved = form.id
+          ? updateLeftSubmenu(selectedTop.id, form.parentId, form.id, values)
+          : createLeftSubmenu(selectedTop.id, form.parentId, values)
+        if (saved) editSub(form.parentId, saved)
       }
-    } else if (form.kind === 'left') {
-      const values = {
-        text: form.text.trim(),
-        to: form.link,
-        icon: form.icon === 'none' ? undefined : navIcons[form.icon],
-        type: form.type,
-      }
-      const saved = form.id
-        ? updateLeftMenu(selectedTop.id, form.id, values)
-        : createLeftMenu(selectedTop.id, values)
-      if (saved) editLeft(saved)
-    } else {
-      const values = {
-        text: form.text.trim(),
-        to: form.link,
-        icon: form.icon === 'none' ? undefined : navIcons[form.icon],
-        type: 'menu' as const,
-      }
-      const saved = form.id
-        ? updateLeftSubmenu(selectedTop.id, form.parentId, form.id, values)
-        : createLeftSubmenu(selectedTop.id, form.parentId, values)
-      if (saved) editSub(form.parentId, saved)
+      onMenusChange()
+      return
     }
 
-    onMenusChange()
+    const saveToApi = async () => {
+      setIsSaving(true)
+      setActionError(null)
+      try {
+        let input: AppMenuInput
+        if (form.kind === 'top') {
+          input = {type: 'GROUP', name: form.text.trim(), iconName: null}
+        } else if (form.kind === 'left') {
+          input = {
+            type: form.type === 'group' ? 'GROUP' : 'ITEM',
+            name: form.text.trim(),
+            iconName: form.icon === 'none' ? null : form.icon,
+            parentId: selectedTop.id,
+            target: form.type === 'group' ? null : targetFromValue(form.link),
+          }
+        } else {
+          input = {
+            type: 'ITEM',
+            name: form.text.trim(),
+            iconName: form.icon === 'none' ? null : form.icon,
+            parentId: form.parentId,
+            target: targetFromValue(form.link),
+          }
+        }
+
+        const saved = form.id ? await updateAppMenu(appId, form.id, input) : await createAppMenu(appId, input)
+        if (form.kind === 'top' && !form.id) {
+          setSelectedTopId(saved.id)
+          onActiveTopIdChange(saved.id)
+        }
+        const nextMenus = await loadMenus()
+        onMenusChange(nextMenus)
+
+        if (form.kind === 'top') {
+          setForm({kind: 'top', id: saved.id, text: saved.name})
+        } else if (form.kind === 'left') {
+          setForm({
+            kind: 'left',
+            id: saved.id,
+            text: saved.name,
+            link: targetValue(saved.target),
+            icon: (saved.iconName ?? 'none') as NavIconName | 'none',
+            type: saved.type === 'GROUP' ? 'group' : 'menu',
+          })
+        } else {
+          setForm({
+            kind: 'sub',
+            id: saved.id,
+            parentId: form.parentId,
+            text: saved.name,
+            link: targetValue(saved.target),
+            icon: (saved.iconName ?? 'none') as NavIconName | 'none',
+          })
+        }
+      } catch (caught) {
+        setActionError(caught instanceof Error ? caught.message : '保存菜单失败，请稍后重试。')
+      } finally {
+        setIsSaving(false)
+      }
+    }
+    void saveToApi()
   }
 
   const confirmDelete = () => {
-    if (!deleteTarget) return
+    const target = deleteTarget
+    if (!target) return
 
-    if (deleteTarget.kind === 'top') {
-      const nextTop = topNavs.find((nav) => nav.id !== deleteTarget.item.id) ?? topNavs[0]
-      if (!deleteTopMenu(deleteTarget.item.id)) {
-        setDeleteTarget(null)
-        return
+    if (!appId) {
+      if (target.kind === 'top') {
+        const nextTop = topNavs.find((nav) => nav.id !== target.item.id) ?? topNavs[0]
+        if (!deleteTopMenu(target.item.id)) {
+          setDeleteTarget(null)
+          return
+        }
+        if (target.item.id === activeTopId) {
+          onActiveTopIdChange(nextTop.id)
+          navigate(nextTop.to)
+        }
+        setSelectedTopId(nextTop.id)
+        setForm(null)
+      } else if (target.kind === 'left') {
+        if (!deleteLeftMenu(selectedTop.id, target.item.id)) {
+          setDeleteTarget(null)
+          return
+        }
+        if (pathMatches(location.pathname, target.item.to)) navigate(selectedTop.to)
+        setForm(null)
+      } else {
+        if (!deleteLeftSubmenu(selectedTop.id, target.parentId, target.item.id)) {
+          setDeleteTarget(null)
+          return
+        }
+        if (pathMatches(location.pathname, target.item.to)) navigate(selectedTop.to)
+        setForm(null)
       }
-      if (deleteTarget.item.id === activeTopId) {
-        onActiveTopIdChange(nextTop.id)
-        navigate(nextTop.to)
-      }
-      setSelectedTopId(nextTop.id)
-      setForm(null)
-    } else if (deleteTarget.kind === 'left') {
-      if (!deleteLeftMenu(selectedTop.id, deleteTarget.item.id)) {
-        setDeleteTarget(null)
-        return
-      }
-      if (pathMatches(location.pathname, deleteTarget.item.to)) navigate(selectedTop.to)
-      setForm(null)
-    } else {
-      if (!deleteLeftSubmenu(selectedTop.id, deleteTarget.parentId, deleteTarget.item.id)) {
-        setDeleteTarget(null)
-        return
-      }
-      if (pathMatches(location.pathname, deleteTarget.item.to)) navigate(selectedTop.to)
-      setForm(null)
+      setDeleteTarget(null)
+      onMenusChange()
+      return
     }
 
-    setDeleteTarget(null)
-    onMenusChange()
+    const deleteFromApi = async () => {
+      setIsSaving(true)
+      setActionError(null)
+      try {
+        await deleteAppMenu(appId, target.item.id)
+        const nextMenus = await loadMenus()
+        if (target.kind === 'top') {
+          const nextTopId = nextMenus[0]?.id ?? ''
+          if (target.item.id === activeTopId) {
+            onActiveTopIdChange(nextTopId)
+            navigate(`/apps/${appId}`)
+          }
+          setSelectedTopId(nextTopId)
+        } else if (pathMatches(location.pathname, target.item.to)) {
+          navigate(selectedTop.to || `/apps/${appId}`)
+        }
+        setForm(null)
+        setDeleteTarget(null)
+        onMenusChange(nextMenus)
+      } catch (caught) {
+        setActionError(caught instanceof Error ? caught.message : '删除菜单失败，请稍后重试。')
+      } finally {
+        setIsSaving(false)
+      }
+    }
+    void deleteFromApi()
+  }
+
+  const saveOrder = (nextMenus: AppMenu[]) => {
+    if (!appId) return
+    const persistOrder = async () => {
+      setIsSaving(true)
+      setActionError(null)
+      try {
+        const savedMenus = await reorderAppMenus(appId, menuOrderInput(nextMenus))
+        setApiMenus(savedMenus)
+        onMenusChange(savedMenus)
+      } catch (caught) {
+        setActionError(caught instanceof Error ? caught.message : '保存菜单顺序失败，请稍后重试。')
+        await loadMenus()
+      } finally {
+        setIsSaving(false)
+      }
+    }
+    void persistOrder()
   }
 
   const handleTopDragEnd = (event: DragEndEvent) => {
@@ -427,44 +635,125 @@ function MenuEditorDialog({
     if (!over || active.id === over.id) return
     const activeId = String(active.id).slice(4)
     const overId = String(over.id).slice(4)
-    const oldIndex = topNavs.findIndex((item) => item.id === activeId)
-    const newIndex = topNavs.findIndex((item) => item.id === overId)
+    const oldIndex = topMenus.findIndex((item) => item.id === activeId)
+    const newIndex = topMenus.findIndex((item) => item.id === overId)
     if (oldIndex < 0 || newIndex < 0) return
-    reorderTopMenus(arrayMove(topNavs, oldIndex, newIndex).map((item) => item.id))
-    onMenusChange()
+    const orderedIds = arrayMove(topMenus, oldIndex, newIndex).map((item) => item.id)
+    if (!appId) {
+      reorderTopMenus(orderedIds)
+      onMenusChange()
+      return
+    }
+    const menusById = new Map(apiMenus.map((menu) => [menu.id, menu]))
+    saveOrder(orderedIds.map((id) => menusById.get(id)).filter((menu): menu is AppMenu => Boolean(menu)))
   }
 
-  const handleLeftDragEnd = (event: DragEndEvent) => {
-    const {active, over} = event
-    if (!over || active.id === over.id) return
-    const activeId = String(active.id).slice(5)
-    const overId = String(over.id).slice(5)
-    const oldIndex = selectedTop.navs.findIndex((item) => item.id === activeId)
-    const newIndex = selectedTop.navs.findIndex((item) => item.id === overId)
-    if (oldIndex < 0 || newIndex < 0) return
-    reorderLeftMenus(
-      selectedTop.id,
-      arrayMove(selectedTop.navs, oldIndex, newIndex).map((item) => item.id),
-    )
-    onMenusChange()
+  const dragInfo = (dragId: string) => {
+    const value = String(dragId)
+    if (value.startsWith('left-root-')) {
+      return {menuId: undefined, parentId: selectedTop.id, index: undefined}
+    }
+    if (value.startsWith('left-')) {
+      const menuId = value.slice(5)
+      return {
+        menuId,
+        parentId: selectedTop.id,
+        index: selectedTop.navs.findIndex((item) => item.id === menuId) + 1,
+      }
+    }
+    if (value.startsWith('child-')) {
+      const [parentId, menuId] = value.slice(6).split('__')
+      const group = findMenuById(apiMenus, parentId)
+      return {
+        menuId,
+        parentId,
+        index: (group?.children ?? []).findIndex((item) => item.id === menuId) + 1,
+      }
+    }
+    return undefined
   }
 
-  const handleChildDragEnd = (parentId: string) => (event: DragEndEvent) => {
-    const group = getLeftMenuGroup(selectedTop.id, parentId)
-    if (!group) return
+  const moveMenuToParent = async (
+    menu: AppMenu,
+    targetParentId: string,
+    targetIndex: number,
+  ) => {
+    setIsSaving(true)
+    setActionError(null)
+    try {
+      const input: AppMenuInput = {
+        type: menu.type,
+        name: menu.name,
+        iconName: menu.iconName ?? null,
+        parentId: targetParentId,
+        target: menu.target ? {type: menu.target.type, id: menu.target.id} : null,
+      }
+      await updateAppMenu(appId!, menu.id, input)
+      const nextMenus = moveMenuNode(apiMenus, menu.id, targetParentId, targetIndex)
+      const savedMenus = await reorderAppMenus(appId!, menuOrderInput(nextMenus))
+      setApiMenus(savedMenus)
+      onMenusChange(savedMenus)
+      if (form?.id === menu.id) {
+        setForm(targetParentId === selectedTop.id
+          ? {
+            kind: 'left',
+            id: menu.id,
+            text: menu.name,
+            link: targetValue(menu.target),
+            icon: (menu.iconName ?? 'none') as NavIconName | 'none',
+            type: 'menu',
+          }
+          : {
+            kind: 'sub',
+            id: menu.id,
+            parentId: targetParentId,
+            text: menu.name,
+            link: targetValue(menu.target),
+            icon: (menu.iconName ?? 'none') as NavIconName | 'none',
+          })
+      }
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : '移动菜单失败，请稍后重试。')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleMenuDragEnd = (event: DragEndEvent) => {
     const {active, over} = event
-    if (!over || active.id === over.id) return
-    const activeId = String(active.id).split('__')[1]
-    const overId = String(over.id).split('__')[1]
-    const oldIndex = group.sub.findIndex((item) => item.id === activeId)
-    const newIndex = group.sub.findIndex((item) => item.id === overId)
-    if (oldIndex < 0 || newIndex < 0) return
-    reorderLeftSubmenus(
-      selectedTop.id,
-      parentId,
-      arrayMove(group.sub, oldIndex, newIndex).map((item) => item.id),
-    )
-    onMenusChange()
+    if (!over) return
+    const activeInfo = dragInfo(String(active.id))
+    const overInfo = dragInfo(String(over.id))
+    if (!activeInfo?.menuId || !overInfo) return
+
+    const activeMenu = appId ? findMenuById(apiMenus, activeInfo.menuId) : undefined
+    const activeParentId = activeMenu?.parentId ?? activeInfo.parentId
+    if (activeParentId === overInfo.parentId) {
+      if (!overInfo.menuId) return
+      const children = appId
+        ? (findMenuById(apiMenus, overInfo.parentId)?.children ?? [])
+        : (getLeftMenuGroup(selectedTop.id, overInfo.parentId)?.sub ?? [])
+      const oldIndex = children.findIndex((item) => item.id === activeInfo.menuId)
+      const newIndex = children.findIndex((item) => item.id === overInfo.menuId)
+      if (oldIndex < 0 || newIndex < 0) return
+      const orderedMenus = [...children]
+      const [movedMenu] = orderedMenus.splice(oldIndex, 1)
+      orderedMenus.splice(newIndex, 0, movedMenu)
+      const orderedIds = orderedMenus.map((item) => item.id)
+      if (!appId) {
+        if (overInfo.parentId === selectedTop.id) reorderLeftMenus(selectedTop.id, orderedIds)
+        else reorderLeftSubmenus(selectedTop.id, overInfo.parentId, orderedIds)
+        onMenusChange()
+        return
+      }
+      saveOrder(reorderMenuChildren(apiMenus, overInfo.parentId, orderedIds))
+      return
+    }
+
+    if (!appId || !activeMenu || activeMenu.type !== 'ITEM') return
+    const targetParent = findMenuById(apiMenus, overInfo.parentId)
+    const targetIndex = overInfo.index ?? (targetParent?.children.length ?? 0)
+    void moveMenuToParent(activeMenu, overInfo.parentId, targetIndex)
   }
 
   const deleteText =
@@ -479,28 +768,36 @@ function MenuEditorDialog({
   return (
     <>
       <BizDialog open={open} onOpenChange={onOpenChange} title="菜单编辑" width={1180} height="85vh">
-        <div className="h-full grid gap-4 lg:grid-cols-3 lg:grid-rows-1">
+        {actionError ? (
+          <div
+            className="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            role="alert">
+            {actionError}
+          </div>
+        ) : null}
+        <div className={cn('grid gap-4 lg:grid-cols-3 lg:grid-rows-1', isLoading ? 'h-[calc(100%-3rem)]' : 'h-full')}>
           <section className="flex min-h-0 flex-col rounded-lg border bg-background p-3 lg:h-full">
             <header className="flex items-center justify-between gap-2 border-b border-border pb-3">
               <div className="min-w-0">
                 <h6 className="truncate text-sm font-semibold text-foreground">一级菜单</h6>
                 <p className="truncate text-xs text-muted-foreground">顶部导航</p>
               </div>
-              <Button type="button" size="sm" onClick={startTop}>
+              <Button type="button" size="sm" onClick={startTop} disabled={isSaving}>
                 <Plus className="h-4 w-4"/> 新增
               </Button>
             </header>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTopDragEnd}>
               <SortableContext
-                items={topNavs.map((item) => `top-${item.id}`)}
+                items={topMenus.map((item) => `top-${item.id}`)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                  {topNavs.map((item) => (
+                  {topMenus.map((item) => (
                     <TopMenuRow
                       key={item.id}
                       menu={item}
                       selected={selectedTop.id === item.id}
+                      canDelete={appId ? true : topMenus.length > 1}
                       onSelect={(menu) => {
                         setSelectedTopId(menu.id)
                         editTop(menu)
@@ -523,20 +820,22 @@ function MenuEditorDialog({
                 <p className="truncate text-xs text-muted-foreground">支持分组和分组内菜单</p>
               </div>
               <div className="flex gap-2">
-                <Button type="button" size="sm" onClick={() => startLeft('menu')}>
+                <Button type="button" size="sm" onClick={() => startLeft('menu')}
+                        disabled={!selectedTop.id || isSaving}>
                   <Plus className="h-4 w-4"/> 菜单
                 </Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => startLeft('group')}>
+                <Button type="button" size="sm" variant="outline" onClick={() => startLeft('group')}
+                        disabled={!selectedTop.id || isSaving}>
                   <Plus className="h-4 w-4"/> 分组
                 </Button>
               </div>
             </header>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleLeftDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMenuDragEnd}>
               <SortableContext
                 items={selectedTop.navs.map((item) => `left-${item.id}`)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                <LeftMenuDropArea droppableId={`left-root-${selectedTop.id}`}>
                   {selectedTop.navs.map((item) => (
                     <div key={item.id} className="space-y-2">
                       <LeftMenuRow
@@ -555,6 +854,7 @@ function MenuEditorDialog({
                               size="sm"
                               variant="ghost"
                               onClick={() => startSub(item.id)}
+                              disabled={isSaving}
                             >
                               <Plus className="h-4 w-4"/> 新增子菜单
                             </Button>
@@ -562,11 +862,7 @@ function MenuEditorDialog({
                           {item.sub.length === 0 && (
                             <Empty className="py-6" description={<span className="text-xs">暂无子菜单</span>}/>
                           )}
-                          <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleChildDragEnd(item.id)}
-                          >
+
                             <SortableContext
                               items={item.sub.map((child) => `child-${item.id}__${child.id}`)}
                               strategy={verticalListSortingStrategy}
@@ -584,12 +880,12 @@ function MenuEditorDialog({
                                 />
                               ))}
                             </SortableContext>
-                          </DndContext>
+
                         </div>
                       )}
                     </div>
                   ))}
-                </div>
+                </LeftMenuDropArea>
               </SortableContext>
             </DndContext>
           </section>
@@ -644,6 +940,7 @@ function MenuEditorDialog({
                     <MenuLinkPicker
                       value={form.link}
                       onChange={(link) => setForm({...form, link})}
+                      appId={appId}
                     />
                   </>
                 )}
@@ -654,6 +951,7 @@ function MenuEditorDialog({
                     <MenuLinkPicker
                       value={form.link}
                       onChange={(link) => setForm({...form, link})}
+                      appId={appId}
                     />
                   </>
                 )}
@@ -674,7 +972,7 @@ function MenuEditorDialog({
                   <Button type="button" variant="secondary" onClick={() => setForm(null)}>
                     取消
                   </Button>
-                  <Button type="button" onClick={save} disabled={!isValid}>
+                  <Button type="button" onClick={save} disabled={!isValid || isSaving}>
                     保存
                   </Button>
                 </div>
@@ -693,7 +991,7 @@ function MenuEditorDialog({
             <Button type="button" variant="secondary" onClick={() => setDeleteTarget(null)}>
               取消
             </Button>
-            <Button type="button" variant="danger" onClick={confirmDelete}>
+            <Button type="button" variant="danger" onClick={confirmDelete} disabled={isSaving}>
               删除
             </Button>
           </>

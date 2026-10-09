@@ -81,7 +81,7 @@ export default function AppMenuPage() {
   }
 
   const menu = findMenu(menus, menuId)
-  if (!menu || menu.type !== 'MENU') {
+  if (!menu || menu.type !== 'ITEM') {
     return (
       <AppLayout>
         <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">菜单不存在或已被删除。</div>

@@ -1,3 +1,5 @@
+import {clearAppDataCache} from '@/services/appDataCache'
+
 export interface AuthUser {
   id: string
   name: string
@@ -63,6 +65,7 @@ export function getAuthToken() {
 }
 
 export function saveAuthSession(session: AuthSession, remember: boolean) {
+  clearAppDataCache()
   const storage = getStorage(remember)
   const oppositeStorage = remember ? window.sessionStorage : window.localStorage
   ;[tokenStorageKey, userStorageKey, permissionsStorageKey, expiresInStorageKey].forEach((key) => {
@@ -76,6 +79,7 @@ export function saveAuthSession(session: AuthSession, remember: boolean) {
 }
 
 export function clearAuthSession() {
+  clearAppDataCache()
   ;[window.localStorage, window.sessionStorage].forEach((storage) => {
     ;[tokenStorageKey, userStorageKey, permissionsStorageKey, expiresInStorageKey].forEach((key) => {
       storage.removeItem(key)

@@ -1,6 +1,7 @@
 import {requestJson} from '@/services/http'
+import {createAppDataCache} from '@/services/appDataCache'
 
-export type AppMenuType = 'GROUP' | 'MENU'
+export type AppMenuType = 'GROUP' | 'ITEM'
 export type AppMenuTargetType = 'BUILT_IN' | 'ENTITY'
 
 export interface AppMenuTarget {
@@ -40,6 +41,9 @@ export interface AppMenuOrderInput {
 
 const API_BASE = '/api/apps'
 
+const menuCache = createAppDataCache<AppMenu[]>()
+const menuTargetCache = createAppDataCache<AppMenuTargets>()
+
 function normalizeMenus(menus: AppMenu[]): AppMenu[] {
   return menus.map((menu) => ({
     ...menu,
@@ -48,12 +52,30 @@ function normalizeMenus(menus: AppMenu[]): AppMenu[] {
 }
 
 export async function getAppMenus(appId: string): Promise<AppMenu[]> {
-  const menus = await requestJson<AppMenu[]>(`${API_BASE}/${appId}/menus`)
-  return normalizeMenus(menus)
+  let menuRequest = menuCache.get(appId)
+  if (!menuRequest) {
+    menuRequest = requestJson<AppMenu[]>(`${API_BASE}/${appId}/menus`)
+      .then(normalizeMenus)
+      .catch((caught: unknown) => {
+        menuCache.delete(appId)
+        throw caught
+      })
+    menuCache.set(appId, menuRequest)
+  }
+  return menuRequest
 }
 
 export async function getAppMenuTargets(appId: string): Promise<AppMenuTargets> {
-  return requestJson<AppMenuTargets>(`${API_BASE}/${appId}/menus/targets`)
+  let menuTargetRequest = menuTargetCache.get(appId)
+  if (!menuTargetRequest) {
+    menuTargetRequest = requestJson<AppMenuTargets>(`${API_BASE}/${appId}/menus/targets`)
+      .catch((caught: unknown) => {
+        menuTargetCache.delete(appId)
+        throw caught
+      })
+    menuTargetCache.set(appId, menuTargetRequest)
+  }
+  return menuTargetRequest
 }
 
 export async function createAppMenu(appId: string, input: AppMenuInput): Promise<AppMenu> {
@@ -61,6 +83,7 @@ export async function createAppMenu(appId: string, input: AppMenuInput): Promise
     method: 'POST',
     body: JSON.stringify(input),
   })
+  menuCache.delete(appId)
   return {...menu, children: menu.children ?? []}
 }
 
@@ -73,11 +96,13 @@ export async function updateAppMenu(
     method: 'PUT',
     body: JSON.stringify(input),
   })
+  menuCache.delete(appId)
   return {...menu, children: menu.children ?? []}
 }
 
 export async function deleteAppMenu(appId: string, menuId: string): Promise<void> {
   await requestJson<null>(`${API_BASE}/${appId}/menus/${menuId}`, {method: 'DELETE'})
+  menuCache.delete(appId)
 }
 
 export async function reorderAppMenus(
@@ -88,5 +113,7 @@ export async function reorderAppMenus(
     method: 'PUT',
     body: JSON.stringify(input),
   })
-  return normalizeMenus(menus)
+  const normalizedMenus = normalizeMenus(menus)
+  menuCache.set(appId, Promise.resolve(normalizedMenus))
+  return normalizedMenus
 }

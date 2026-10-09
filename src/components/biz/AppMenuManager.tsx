@@ -46,6 +46,7 @@ import {
   type AppMenuTargets,
   type AppMenuType,
 } from '@/services/appMenus'
+import {menuOrderInput} from '@/services/appMenuNavigation'
 import {cn} from '@/lib/utils'
 
 interface MenuForm {
@@ -58,7 +59,7 @@ interface MenuForm {
 }
 
 const emptyForm: MenuForm = {
-  type: 'MENU',
+  type: 'ITEM',
   name: '',
   iconName: 'none',
   parentId: 'root',
@@ -194,7 +195,7 @@ export function AppMenuManager({
   }
 
   const save = async () => {
-    if (!form?.name.trim() || (form.type === 'MENU' && !form.targetValue)) return
+    if (!form?.name.trim() || (form.type === 'ITEM' && !form.targetValue)) return
     setIsSaving(true)
     setFormError(null)
     const [targetType, targetId] = form.targetValue.split(':')
@@ -203,7 +204,7 @@ export function AppMenuManager({
       name: form.name.trim(),
       iconName: form.iconName === 'none' ? null : form.iconName,
       parentId: form.parentId === 'root' ? null : form.parentId,
-      target: form.type === 'MENU'
+      target: form.type === 'ITEM'
         ? {type: targetType as AppMenuTargetType, id: targetId}
         : null,
     }
@@ -233,14 +234,7 @@ export function AppMenuManager({
     }
   }
 
-  const orderInput = (nextMenus: AppMenu[]) => ({
-    root: nextMenus.map((menu) => menu.id),
-    children: Object.fromEntries(
-      nextMenus
-        .filter((menu) => menu.type === 'GROUP')
-        .map((menu) => [menu.id, (menu.children ?? []).map((child) => child.id)]),
-    ),
-  })
+  const orderInput = (nextMenus: AppMenu[]) => menuOrderInput(nextMenus)
 
   const reorder = async (nextMenus: AppMenu[]) => {
     setMenus(nextMenus)
@@ -277,7 +271,7 @@ export function AppMenuManager({
     void reorder(nextMenus)
   }
 
-  const canSave = Boolean(form?.name.trim()) && (form?.type !== 'MENU' || Boolean(form?.targetValue))
+  const canSave = Boolean(form?.name.trim()) && (form?.type !== 'ITEM' || Boolean(form?.targetValue))
 
   return (
     <div className="space-y-4">
@@ -287,7 +281,7 @@ export function AppMenuManager({
           <p className="m-0 text-xs text-muted-foreground">支持分组、子菜单、拖拽排序和页面绑定</p>
         </div>
         <div className="flex gap-2">
-          <Button type="button" size="sm" onClick={() => startCreate('MENU')}>
+          <Button type="button" size="sm" onClick={() => startCreate('ITEM')}>
             <Plus className="h-4 w-4"/> 新增菜单
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={() => startCreate('GROUP')}>
@@ -381,7 +375,7 @@ export function AppMenuManager({
               >
                 <SelectTrigger><SelectValue/></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MENU">菜单</SelectItem>
+                  <SelectItem value="ITEM">菜单</SelectItem>
                   <SelectItem value="GROUP">分组</SelectItem>
                 </SelectContent>
               </Select>
@@ -394,7 +388,7 @@ export function AppMenuManager({
                 onChange={(event) => setForm({...form, name: event.target.value})}
               />
             </div>
-            {form.type === 'MENU' && (
+            {form.type === 'ITEM' && (
               <div>
                 <label className="mb-1 block text-sm font-medium text-foreground">父级分组</label>
                 <Select
@@ -411,16 +405,15 @@ export function AppMenuManager({
                 </Select>
               </div>
             )}
-            {form.type === 'MENU' && (
+            {form.type === 'ITEM' && (
               <div>
                 <label className="mb-1 block text-sm font-medium text-foreground">关联项</label>
                 <Select
-                  value={form.targetValue || 'none'}
-                  onValueChange={(value) => setForm({...form, targetValue: value === 'none' ? '' : value})}
+                  value={form.targetValue || undefined}
+                  onValueChange={(value) => setForm({...form, targetValue: value})}
                 >
                   <SelectTrigger><SelectValue placeholder="选择后才能绑定页面"/></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">未关联</SelectItem>
                     <SelectGroup>
                       <SelectLabel>内置模块</SelectLabel>
                       {targets.builtIn.map((target) => (
@@ -439,7 +432,7 @@ export function AppMenuManager({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                {form.targetValue && form.targetValue !== 'none' ? (
+                {form.targetValue ? (
                   <p className="mt-2 text-xs text-muted-foreground">
                     已自动绑定页面：/apps/{appId}/{form.id ?? '菜单ID'}
                   </p>
