@@ -19,6 +19,7 @@ export interface App {
   iconName: AppIconName
   primaryColor: AppPrimaryColor
   enabled: boolean
+  owner: string
   createdAt: string
   updatedAt: string
 }
@@ -38,6 +39,7 @@ interface AppPayload {
   iconName?: AppIconName
   primaryColor?: AppPrimaryColor
   enabled?: boolean
+  owner?: string
   createdAt?: string
   updatedAt?: string
   message?: string
@@ -52,6 +54,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return requestJson<T>(path, init)
 }
 
+function formatDateTime(value?: string): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join('-') + ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
 function normalizeApp(payload: AppPayload): App {
   return {
     id: payload.id ?? payload.projectId ?? '',
@@ -61,8 +76,9 @@ function normalizeApp(payload: AppPayload): App {
     iconName: (payload.iconName ?? 'Boxes') as AppIconName,
     primaryColor: (payload.primaryColor ?? 'indigo') as AppPrimaryColor,
     enabled: payload.enabled ?? true,
-    createdAt: payload.createdAt ?? '',
-    updatedAt: payload.updatedAt ?? '',
+    owner: payload.owner ?? 'admin',
+    createdAt: formatDateTime(payload.createdAt),
+    updatedAt: formatDateTime(payload.updatedAt),
   }
 }
 

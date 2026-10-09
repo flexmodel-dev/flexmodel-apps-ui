@@ -18,7 +18,6 @@ import {
 import {
   appIconOptions,
   appIcons,
-  getAppBusinessObjectCount,
 } from '@/data/mock'
 import {
   createApp,
@@ -38,6 +37,33 @@ interface AppFormValues {
 }
 
 const emptyForm: AppFormValues = {name: '', iconName: 'Boxes', primaryColor: 'indigo', description: ''}
+
+const appPrimaryStyles: Record<AppPrimaryColor, { icon: string; border: string }> = {
+  indigo: {
+    icon: 'bg-indigo-500/10 text-indigo-500 dark:text-indigo-400',
+    border: 'hover:border-indigo-500/60',
+  },
+  blue: {
+    icon: 'bg-blue-500/10 text-blue-500 dark:text-blue-400',
+    border: 'hover:border-blue-500/60',
+  },
+  green: {
+    icon: 'bg-teal-600/10 text-teal-600 dark:text-teal-400',
+    border: 'hover:border-teal-600/60',
+  },
+  amber: {
+    icon: 'bg-amber-500/10 text-amber-500 dark:text-amber-400',
+    border: 'hover:border-amber-500/60',
+  },
+  rose: {
+    icon: 'bg-rose-500/10 text-rose-500 dark:text-rose-400',
+    border: 'hover:border-rose-500/60',
+  },
+  black: {
+    icon: 'bg-black/10 text-black dark:bg-white/10 dark:text-white',
+    border: 'hover:border-black/60 dark:hover:border-white/60',
+  },
+}
 
 function AppForm({
   value,
@@ -186,17 +212,19 @@ export default function AppManagement() {
           ) : apps.length === 0 ? (
             <Empty description="暂无应用"/>
           ) : (
-            <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {apps.map((app) => {
                 const Icon = appIcons[app.iconName] ?? appIcons.Boxes
+                const primaryStyle = appPrimaryStyles[app.primaryColor] ?? appPrimaryStyles.indigo
                 return (
                   <div
                     key={app.id}
-                    className="relative min-w-0 overflow-hidden rounded-lg border bg-background transition-colors hover:border-primary/60 hover:bg-accent/40"
+                    className={`relative min-w-0 overflow-hidden rounded-lg border bg-background transition-colors hover:bg-accent/40 ${primaryStyle.border}`}
                   >
                     <Link to={`/apps/${app.id}`} className="block min-w-0 p-4 pr-12">
                       <div className="flex items-start gap-3">
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <span
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${primaryStyle.icon}`}>
                           <Icon className="h-6 w-6" />
                         </span>
                         <span className="min-w-0">
@@ -207,7 +235,7 @@ export default function AppManagement() {
                         </span>
                       </div>
                       <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>业务对象 {getAppBusinessObjectCount(app.id)} 个</span>
+                        <span>所有者：{app.owner}</span>
                         <span className="h-3 w-px bg-border" />
                         <span>更新于 {app.updatedAt}</span>
                       </div>
