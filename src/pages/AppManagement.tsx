@@ -17,16 +17,17 @@ import {
 import {
   appIconOptions,
   appIcons,
+  getAppBusinessObjectCount,
+} from '@/data/mock'
+import {
   createApp,
   deleteApp,
-  getAppById,
-  getAppBusinessObjectCount,
   getApps,
   updateApp,
+  type App,
   type AppIconName,
   type AppPrimaryColor,
-  type AppMeta,
-} from '@/data/mock'
+} from '@/services/apps'
 
 interface AppFormValues {
   name: string
@@ -88,12 +89,34 @@ function AppForm({
 
 export default function AppManagement() {
   const navigate = useNavigate()
-  const [version, setVersion] = React.useState(0)
+  const [apps, setApps] = React.useState<App[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [listError, setListError] = React.useState<string | null>(null)
   const [formOpen, setFormOpen] = React.useState(false)
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [formValue, setFormValue] = React.useState<AppFormValues>(emptyForm)
-  const [deleteTarget, setDeleteTarget] = React.useState<AppMeta | null>(null)
-  const apps = React.useMemo(() => getApps(), [version])
+  const [formError, setFormError] = React.useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [deleteTarget, setDeleteTarget] = React.useState<App | null>(null)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = React.useState(false)
+
+  const loadApps = React.useCallback(async () => {
+    setIsLoading(true)
+    setListError(null)
+    try {
+      setApps(await getApps())
+    } catch (error) {
+      setApps([])
+      setListError(error instanceof Error ? error.message : '加载应用失败，请稍后重试。')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    void loadApps()
+  }, [loadApps])
 
   const openCreate = () => {
     setEditingId(null)
@@ -101,25 +124,42 @@ export default function AppManagement() {
     setFormOpen(true)
   }
 
-  const openEdit = (app: AppMeta) => {
+  const openEdit = (app: App) => {
     setEditingId(app.id)
     setFormValue({name: app.name, iconName: app.iconName, primaryColor: app.primaryColor, description: app.description})
     setFormOpen(true)
   }
 
-  const submitForm = () => {
+  const submitForm = async () => {
     if (!formValue.name.trim()) return
     const values = { ...formValue, name: formValue.name.trim() }
-    if (editingId) updateApp(editingId, values)
-    else createApp(values)
-    setFormOpen(false)
-    setVersion((value) => value + 1)
+    setIsSubmitting(true)
+    setFormError(null)
+    try {
+      if (editingId) await updateApp(editingId, values)
+      else await createApp(values)
+      setFormOpen(false)
+      await loadApps()
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '保存应用失败，请稍后重试。')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const confirmDelete = () => {
-    if (deleteTarget) deleteApp(deleteTarget.id)
-    setDeleteTarget(null)
-    setVersion((value) => value + 1)
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteApp(deleteTarget.id)
+      setDeleteTarget(null)
+      await loadApps()
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : '删除应用失败，请稍后重试。')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -136,7 +176,13 @@ export default function AppManagement() {
         </div>
 
         <div className="min-w-0 max-w-full p-4">
-          {apps.length === 0 ? (
+          {isLoading ? (
+            <AppNoData text="正在加载应用..."/>
+          ) : listError ? (
+            <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+              {listError}
+            </div>
+          ) : apps.length === 0 ? (
             <AppNoData text="暂无应用"/>
           ) : (
             <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -198,28 +244,41 @@ export default function AppManagement() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setFormOpen(false)}>取消</Button>
-            <Button onClick={submitForm} disabled={!formValue.name.trim()}>
-              保存
+            <Button onClick={submitForm} disabled={!formValue.name.trim() || isSubmitting}>
+              {isSubmitting ? '保存中...' : '保存'}
             </Button>
           </>
         }
       >
         <AppForm value={formValue} onChange={setFormValue} />
+        {formError ? (
+          <div className="text-sm text-destructive" role="alert">{formError}</div>
+        ) : null}
       </BizDialog>
 
       <BizDialog
         open={Boolean(deleteTarget)}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
         title="删除应用"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>取消</Button>
-            <Button variant="danger" onClick={confirmDelete}>删除</Button>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>取消</Button>
+            <Button variant="danger" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? '删除中...' : '删除'}
+            </Button>
           </>
         }
       >
         <div className="pt-1">
           确认删除应用「{deleteTarget?.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占业务对象和记录。
+          {deleteError ? (
+            <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
+          ) : null}
         </div>
       </BizDialog>
     </AdminLayout>

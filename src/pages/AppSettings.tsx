@@ -7,17 +7,16 @@ import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {IconPicker} from '@/components/biz/IconPicker'
+import {AppNoData} from '@/components/biz/AppLoading'
 import {AdminApprovals, AdminBusinessObjects, AdminTriggers} from '@/pages/admin'
 import {
   appIconOptions,
   appIcons,
   appPrimaryColors,
-  deleteApp,
-  getAppById,
-  updateApp,
   type AppIconName,
   type AppPrimaryColor,
 } from '@/data/mock'
+import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
 
 const settingsNavs = [
   { key: 'basic', label: '基本设置' },
@@ -29,56 +28,118 @@ const settingsNavs = [
 export default function AppSettings({ section }: { section: string }) {
   const navigate = useNavigate()
   const { appId } = useParams<{ appId: string }>()
-  const app = getAppById(appId)
+  const [app, setApp] = React.useState<App | null>(null)
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [loadError, setLoadError] = React.useState<string | null>(null)
   const activeSection = settingsNavs.some((item) => item.key === section) ? section : 'basic'
 
   const [formOpen, setFormOpen] = React.useState(false)
   const [formValue, setFormValue] = React.useState(() => ({
-    name: app?.name ?? '',
-    iconName: (app?.iconName ?? 'Boxes') as AppIconName,
-    primaryColor: (app?.primaryColor ?? 'indigo') as AppPrimaryColor,
-    description: app?.description ?? '',
+    name: '',
+    iconName: 'Boxes' as AppIconName,
+    primaryColor: 'indigo' as AppPrimaryColor,
+    description: '',
   }))
+  const [formError, setFormError] = React.useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
-  const [version, setVersion] = React.useState(0)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = React.useState(false)
 
   React.useEffect(() => {
-    setFormValue({
-      name: app?.name ?? '',
-      iconName: app?.iconName ?? 'Boxes',
-      primaryColor: app?.primaryColor ?? 'indigo',
-      description: app?.description ?? '',
-    })
-  }, [app?.name, app?.iconName, app?.primaryColor, app?.description])
+    if (!appId) {
+      setApp(null)
+      setIsLoading(false)
+      setLoadError('缺少应用 ID。')
+      return
+    }
+
+    let cancelled = false
+    setIsLoading(true)
+    setLoadError(null)
+    getAppById(appId)
+      .then((loadedApp) => {
+        if (cancelled) return
+        setApp(loadedApp)
+        setFormValue({
+          name: loadedApp.name,
+          iconName: loadedApp.iconName,
+          primaryColor: loadedApp.primaryColor,
+          description: loadedApp.description,
+        })
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setApp(null)
+        setLoadError(error instanceof Error ? error.message : '加载应用失败，请稍后重试。')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [appId])
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <AppNoData text="正在加载应用..."/>
+      </AdminLayout>
+    )
+  }
 
   if (!app) {
     return (
-        <AdminLayout>
+      <AdminLayout>
         <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
           应用不存在或已被删除。
+          {loadError ? <div className="mt-1 text-destructive" role="alert">{loadError}</div> : null}
           <Link className="ml-1 text-primary hover:underline" to="/admin/apps">返回应用管理</Link>
         </div>
-        </AdminLayout>
+      </AdminLayout>
     )
   }
 
   const Icon = appIcons[app.iconName] ?? appIcons.Boxes
-  const saveApp = () => {
+  const saveApp = async () => {
     if (!formValue.name.trim()) return
-    updateApp(app.id, {
-      name: formValue.name.trim(),
-      iconName: formValue.iconName,
-      primaryColor: formValue.primaryColor,
-      description: formValue.description,
-    })
-    setFormOpen(false)
-    setVersion((value) => value + 1)
+    setIsSubmitting(true)
+    setFormError(null)
+    try {
+      const updatedApp = await updateApp(app.id, {
+        name: formValue.name.trim(),
+        iconName: formValue.iconName,
+        primaryColor: formValue.primaryColor,
+        description: formValue.description,
+      })
+      setApp(updatedApp)
+      setFormValue({
+        name: updatedApp.name,
+        iconName: updatedApp.iconName,
+        primaryColor: updatedApp.primaryColor,
+        description: updatedApp.description,
+      })
+      setFormOpen(false)
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '保存应用失败，请稍后重试。')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const removeApp = () => {
-    deleteApp(app.id)
-    setDeleteOpen(false)
-    navigate('/admin/apps')
+  const removeApp = async () => {
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteApp(app.id)
+      setDeleteOpen(false)
+      navigate('/admin/apps')
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : '删除应用失败，请稍后重试。')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -121,7 +182,7 @@ export default function AppSettings({ section }: { section: string }) {
             )}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4" key={version}>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4" key={app.updatedAt}>
             {activeSection === 'basic' && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-md border p-4">
@@ -170,7 +231,9 @@ export default function AppSettings({ section }: { section: string }) {
         footer={
           <>
             <Button variant="secondary" onClick={() => setFormOpen(false)}>取消</Button>
-            <Button onClick={saveApp} disabled={!formValue.name.trim()}>保存</Button>
+            <Button onClick={saveApp} disabled={!formValue.name.trim() || isSubmitting}>
+              {isSubmitting ? '保存中...' : '保存'}
+            </Button>
           </>
         }
       >
@@ -200,20 +263,33 @@ export default function AppSettings({ section }: { section: string }) {
                                    onChange={(primaryColor) => setFormValue((value) => ({...value, primaryColor}))}/>
           </div>
         </div>
+          {formError ? (
+            <div className="text-sm text-destructive" role="alert">{formError}</div>
+          ) : null}
         </BizDialog>
 
         <BizDialog
         open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeleteOpen(false)
+            setDeleteError(null)
+          }
+        }}
         title="删除应用"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>取消</Button>
-            <Button variant="danger" onClick={removeApp}>删除</Button>
+            <Button variant="secondary" onClick={() => setDeleteOpen(false)} disabled={isDeleting}>取消</Button>
+            <Button variant="danger" onClick={removeApp} disabled={isDeleting}>
+              {isDeleting ? '删除中...' : '删除'}
+            </Button>
           </>
         }
       >
           <div className="pt-1">确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占业务对象和记录。
+            {deleteError ? (
+              <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
+            ) : null}
           </div>
         </BizDialog>
       </AdminLayout>
