@@ -1,4 +1,4 @@
-import {getAuthToken} from '@/services/auth'
+import {requestJson} from '@/services/http'
 
 export type AppIconName =
   | 'ShoppingCart'
@@ -45,19 +45,7 @@ interface AppPayload {
 const API_BASE = '/api/apps'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAuthToken()
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? {Authorization: `Bearer ${token}`} : {}),
-    },
-  })
-  const payload = await response.json().catch(() => null) as AppPayload | null
-  if (!response.ok) {
-    throw new Error(payload?.message ?? `请求失败（${response.status}）`)
-  }
-  return payload as T
+  return requestJson<T>(path, init)
 }
 
 function normalizeApp(payload: AppPayload): App {

@@ -12,23 +12,24 @@ import {
 import {
   appIcons,
   businessObjects,
-  getAppById,
   getAppMenuForBusinessObject,
   topNavs,
   type NavItem,
+  type TopNavItem,
 } from '@/data/mock'
+import {type App} from '@/services/apps'
 import {TopHeaderShell, headerActionClass} from './TopHeaderShell'
 
 const createItems = businessObjects.flatMap((businessObject) => {
   const menu = getAppMenuForBusinessObject(businessObject.name)
-  return menu ? [{label: businessObject.label, to: `/app/${menu.appId}/${menu.menuId}`}] : []
+  return menu ? [{label: businessObject.label, to: `/apps/${menu.appId}/${menu.menuId}`}] : []
 })
 
 const searchSuggestions = [
   {label: '工作台', to: '/dashboard/home'},
   ...businessObjects.flatMap((businessObject) => {
     const menu = getAppMenuForBusinessObject(businessObject.name)
-    return menu ? [{label: businessObject.label, to: `/app/${menu.appId}/${menu.menuId}`}] : []
+    return menu ? [{label: businessObject.label, to: `/apps/${menu.appId}/${menu.menuId}`}] : []
   }),
   {label: '审批中心', to: '/approval/home'},
   {label: '动态', to: '/feeds/home'},
@@ -40,10 +41,14 @@ export function AppTopHeader({
                                activeTopId,
                                onTopNavChange,
                                mobileNavs,
+                               app,
+                               topNavItems = topNavs,
                              }: {
   activeTopId: string
   onTopNavChange: (id: string) => void
   mobileNavs: NavItem[]
+  app?: App
+  topNavItems?: TopNavItem[]
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -74,8 +79,7 @@ export function AppTopHeader({
     setSearchValue('')
   }
 
-  const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
-  const currentApp = getAppById(currentAppId)
+  const currentApp = app
   const brand = currentApp?.name ?? '销售管理'
   const LogoIcon = appIcons[currentApp?.iconName ?? 'Boxes'] ?? appIcons.Boxes
 
@@ -89,7 +93,7 @@ export function AppTopHeader({
       logoIcon={LogoIcon}
       mobileTitle="菜单"
       mobileNavs={mobileNavs}
-      topNavs={topNavs}
+      topNavs={topNavItems}
       activeTopId={activeTopId}
       onTopNavChange={onTopNavChange}
       extraActions={

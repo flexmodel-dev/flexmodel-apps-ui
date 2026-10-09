@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
+import * as React from 'react'
 import { LayoutGrid } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {Empty} from '@/components/ui/empty'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,11 +12,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { appIcons, getApps, type AppIconName } from '@/data/mock'
+import {appIcons} from '@/data/mock'
+import {getApps, type AppIconName} from '@/services/apps'
 import { cn } from '@/lib/utils'
 
 export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; currentAppId?: string }) {
-  const apps = getApps()
+  const [apps, setApps] = React.useState<Array<{
+    id: string;
+    name: string;
+    description?: string;
+    iconName: AppIconName
+  }>>([])
+
+  React.useEffect(() => {
+    let cancelled = false
+    getApps()
+      .then((loadedApps) => !cancelled && setApps(loadedApps))
+      .catch(() => !cancelled && setApps([]))
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <DropdownMenu>
@@ -48,13 +66,14 @@ export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; 
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <div className="max-h-72 overflow-y-auto p-1">
+          {apps.length === 0 && <Empty className="py-8" description="暂无应用"/>}
           {apps.map((app) => {
             const Icon = appIcons[app.iconName] ?? appIcons.Boxes
             const active = app.id === currentAppId
             return (
               <DropdownMenuItem key={app.id} asChild>
                 <Link
-                  to={`/app/${app.id}`}
+                  to={`/apps/${app.id}`}
                   className={cn(
                     'flex items-start gap-3 rounded-md p-2',
                     active && 'bg-primary/10 text-primary',

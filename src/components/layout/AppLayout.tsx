@@ -1,7 +1,8 @@
 import * as React from 'react'
 import {useLocation} from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import {getAppById, getTopNavIdByPath, topNavs} from '@/data/mock'
+import {getTopNavIdByPath, navIcons, topNavs, type NavIconName, type NavItem} from '@/data/mock'
+import {getAppById, type App} from '@/services/apps'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
 import {MenuEditorDialog} from './MenuEditorDialog'
@@ -24,6 +25,8 @@ export function AppLayout({
   const [activeTopId, setActiveTopId] = React.useState(() => getTopNavIdByPath(location.pathname))
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
   const [menuVersion, setMenuVersion] = React.useState(0)
+  const appId = location.pathname.match(/^\/apps\/([^/]+)/)?.[1]
+  const [app, setApp] = React.useState<App | null>(null)
 
   React.useEffect(() => {
     const nextTopId = getTopNavIdByPath(location.pathname, activeTopId)
@@ -31,15 +34,34 @@ export function AppLayout({
   }, [location.pathname, activeTopId, menuVersion])
 
   React.useEffect(() => {
-    const appId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
-    const app = appId ? getAppById(appId) : undefined
     document.documentElement.dataset.primary = app?.primaryColor ?? 'indigo'
     return () => {
       document.documentElement.dataset.primary = 'indigo'
     }
-  }, [location.pathname])
+  }, [app?.primaryColor])
+
+  React.useEffect(() => {
+    if (!appId) {
+      setApp(null)
+      return
+    }
+    let cancelled = false
+    getAppById(appId)
+      .then((loadedApp) => {
+        if (cancelled) return
+        setApp(loadedApp)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setApp(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [appId])
 
   const activeTop = topNavs.find((nav) => nav.id === activeTopId) ?? topNavs[0]
+  const editMenus = () => setMenuEditorOpen(true)
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -47,17 +69,19 @@ export function AppLayout({
         <AppTopHeader
           activeTopId={activeTop.id}
           onTopNavChange={setActiveTopId}
-          mobileNavs={activeTop.navs}
+          mobileNavs={appId ? [] : activeTop.navs}
+          app={app ?? undefined}
+          topNavItems={appId ? [] : topNavs}
         />
       )}
 
       {!hideHeader && (
         <AppLeftSidebar
           collapsed={collapsed}
-          navs={activeTop.navs}
+          navs={appId ? [] : activeTop.navs}
           sectionKey={activeTop.id}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
-          onEditMenus={() => setMenuEditorOpen(true)}
+          onEditMenus={editMenus}
         />
       )}
 

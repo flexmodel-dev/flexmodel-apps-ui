@@ -3,7 +3,7 @@ import { Search, X } from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
 import {Pagination} from '@/components/biz/Pagination'
-import {AppNoData} from '@/components/biz/AppLoading'
+import {Empty} from '@/components/ui/empty'
 import { cn, paginate } from '@/lib/utils'
 
 export interface AdminColumn<T> {
@@ -100,7 +100,7 @@ export function AdminTablePage<T extends { id: string }>({
               ))}
             </tbody>
           </table>
-        {pageRows.length === 0 && <AppNoData/>}
+        {pageRows.length === 0 && <Empty/>}
           <div className="mt-3 flex justify-end">
             <Pagination page={page} pages={pages} total={total} size={size} onChange={setPage} />
           </div>

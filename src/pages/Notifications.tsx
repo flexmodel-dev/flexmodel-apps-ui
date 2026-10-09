@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
+import {Empty} from '@/components/ui/empty'
 import { UserAvatar } from '@/components/ui/avatar'
 import { notifications } from '@/data/mock'
 import { cn } from '@/lib/utils'
@@ -102,7 +103,7 @@ export default function Notifications() {
                     <a className="mt-1 cursor-pointer text-xs text-muted-foreground hover:text-primary">标记已读</a>
                   </div>
                 ))}
-                {list.length === 0 && <div className="py-14 text-center text-sm text-muted-foreground">暂无通知</div>}
+                {list.length === 0 && <Empty description="暂无通知"/>}
               </div>
             </div>
           </div>

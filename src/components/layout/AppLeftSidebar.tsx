@@ -110,7 +110,7 @@ export function AppLeftSidebar({
   onEditMenus?: () => void
 }) {
   const location = useLocation()
-  const currentAppId = location.pathname.match(/^\/app\/([^/]+)/)?.[1]
+  const currentAppId = location.pathname.match(/^\/apps\/([^/]+)/)?.[1]
   const [openMenus, setOpenMenus] = React.useState<string[]>(() =>
     getActiveMenuIds(navs, location.pathname),
   )

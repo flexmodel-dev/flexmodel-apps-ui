@@ -47,6 +47,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
+import {Empty} from '@/components/ui/empty'
 import {getBusinessObject, type BusinessObjectField} from '@/data/mock'
 import {
   formFieldWidthClasses,
@@ -663,11 +664,15 @@ export default function FormDesign() {
                   ))}
                 </div>
                 {layoutFields.length === 0 && (
-                  <div className="flex min-h-[240px] flex-col items-center justify-center rounded-lg border border-dashed text-center text-muted-foreground">
-                    <LayoutDashboard className="h-7 w-7" />
-                    <p className="mt-2 text-sm">暂无布局字段</p>
-                    <p className="mt-1 text-xs">点击右侧字段添加</p>
-                  </div>
+                  <Empty
+                    className="min-h-[240px] rounded-lg border border-dashed"
+                    description={
+                      <>
+                        <p className="m-0 font-medium text-foreground">暂无布局字段</p>
+                        <p className="mt-1">点击右侧字段添加</p>
+                      </>
+                    }
+                  />
                 )}
               </TabsContent>
 

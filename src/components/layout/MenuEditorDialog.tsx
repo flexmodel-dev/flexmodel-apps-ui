@@ -21,6 +21,7 @@ import {Folder, GripVertical, Pencil, Plus, Trash2} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {Empty} from '@/components/ui/empty'
 import {OptionalIconPicker} from '@/components/biz/IconPicker'
 import {MenuLinkPicker} from '@/components/biz/MenuLinkPicker'
 import {cn} from '@/lib/utils'
@@ -559,10 +560,7 @@ function MenuEditorDialog({
                             </Button>
                           </div>
                           {item.sub.length === 0 && (
-                            <div
-                              className="rounded-md border border-dashed px-3 py-3 text-center text-xs text-muted-foreground">
-                              暂无子菜单
-                            </div>
+                            <Empty className="py-6" description={<span className="text-xs">暂无子菜单</span>}/>
                           )}
                           <DndContext
                             sensors={sensors}

@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {IconPicker} from '@/components/biz/IconPicker'
-import {AppNoData} from '@/components/biz/AppLoading'
+import {AppLoading} from '@/components/biz/AppLoading'
+import {Empty} from '@/components/ui/empty'
+import {AppMenuManager} from '@/components/biz/AppMenuManager'
 import {AdminApprovals, AdminBusinessObjects, AdminTriggers} from '@/pages/admin'
 import {
   appIconOptions,
@@ -20,6 +22,7 @@ import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
 
 const settingsNavs = [
   { key: 'basic', label: '基本设置' },
+  {key: 'menus', label: '菜单管理'},
   {key: 'business-objects', label: '业务对象'},
   { key: 'approvals', label: '审批流程' },
   { key: 'triggers', label: '触发器' },
@@ -84,7 +87,7 @@ export default function AppSettings({ section }: { section: string }) {
   if (isLoading) {
     return (
       <AdminLayout>
-        <AppNoData text="正在加载应用..."/>
+        <AppLoading center className="min-h-[400px]"/>
       </AdminLayout>
     )
   }
@@ -215,6 +218,8 @@ export default function AppSettings({ section }: { section: string }) {
             )}
 
             {activeSection === 'business-objects' && <AdminBusinessObjects embedded/>}
+
+            {activeSection === 'menus' && <AppMenuManager appId={app.id}/>}
 
             {activeSection === 'approvals' && <AdminApprovals embedded />}
 

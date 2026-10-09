@@ -19,7 +19,7 @@ export function BusinessObjectManagementContent({businessObjects}: { businessObj
               key={businessObject.name}
               to={(() => {
                 const menu = getAppMenuForBusinessObject(businessObject.name)
-                return menu ? `/app/${menu.appId}/${menu.menuId}` : '/admin/apps'
+                return menu ? `/apps/${menu.appId}/${menu.menuId}` : '/admin/apps'
               })()}
               className="block rounded-md border bg-card transition-colors hover:bg-accent"
             >

@@ -444,7 +444,7 @@ export const entityMenuLinks: MenuLinkOption[] = businessObjects.flatMap((busine
       id: businessObject.name,
       label: businessObject.label,
       kind: 'entity',
-      to: `/app/${menu.appId}/${menu.menuId}`,
+      to: `/apps/${menu.appId}/${menu.menuId}`,
     }]
     : []
 })
@@ -898,9 +898,9 @@ export interface NavItem {
 
 export const userNavs: NavItem[] = [
   { id: 'dashboard-home', icon: Home, text: '首页', to: '/dashboard/home' },
-  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
-  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
-  { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/app-sales/menu-product' },
+  {id: 'nav_entity-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
+  {id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
+  {id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/apps/app-sales/menu-product'},
   {
     id: 'group-common',
     icon: Folder,
@@ -953,8 +953,8 @@ function nextMenuPath(id: string) {
 }
 
 const customerNavs: NavItem[] = [
-  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
-  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
+  {id: 'nav_entity-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
+  {id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
   { id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home' },
   {
     id: 'group-customer-collaboration',
@@ -969,9 +969,9 @@ const customerNavs: NavItem[] = [
 ]
 
 const salesNavs: NavItem[] = [
-  { id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/app/app-sales/menu-opportunity' },
-  { id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/app/app-sales/menu-product' },
-  { id: 'nav_entity-Customer', icon: User, text: '客户', to: '/app/app-sales/menu-customer' },
+  {id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
+  {id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/apps/app-sales/menu-product'},
+  {id: 'nav_entity-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
   {
     id: 'group-sales-follow',
     icon: Folder,
@@ -994,15 +994,15 @@ export const topNavs: TopNavItem[] = [
   {
     id: 'top-customer',
     text: '客户',
-    to: '/app/app-sales/menu-customer',
-    match: ['/app/app-sales'],
+    to: '/apps/app-sales/menu-customer',
+    match: ['/apps/app-sales'],
     navs: customerNavs,
   },
   {
     id: 'top-sales',
     text: '销售',
-    to: '/app/app-sales/menu-opportunity',
-    match: ['/app/app-sales'],
+    to: '/apps/app-sales/menu-opportunity',
+    match: ['/apps/app-sales'],
     navs: salesNavs,
   },
 ]

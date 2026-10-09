@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
+import {Empty} from '@/components/ui/empty'
 import { UserAvatar } from '@/components/ui/avatar'
 import { contactsList } from '@/data/mock'
 import { Plus } from 'lucide-react'
@@ -57,7 +58,7 @@ export default function ContactsHome() {
               ))}
             </tbody>
           </table>
-          {list.length === 0 && <div className="py-14 text-center text-sm text-muted-foreground">暂无联系人</div>}
+          {list.length === 0 && <Empty description="暂无联系人"/>}
         </div>
       </div>
     </AppLayout>

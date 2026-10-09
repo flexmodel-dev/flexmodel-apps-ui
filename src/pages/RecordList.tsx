@@ -23,7 +23,7 @@ import {BizDialog} from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { UserAvatar } from '@/components/ui/avatar'
 import {Pagination} from '@/components/biz/Pagination'
-import {AppNoData} from '@/components/biz/AppLoading'
+import {Empty} from '@/components/ui/empty'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { RecordDetailContent } from '@/pages/RecordView'
 import {getAppMenuItem, getBusinessObject, getRecords} from '@/data/mock'
@@ -34,11 +34,12 @@ const defaultViewTabs = ['全部']
 const compactButtonClass = 'h-8 px-2.5 text-xs'
 
 /** 记录列表页（复刻 general/record-list.html + app-datalist） */
-export default function RecordList() {
+export default function RecordList({businessObjectId}: { businessObjectId?: string }) {
   const { appId, menuId } = useParams<{ appId: string; menuId: string }>()
   const menuItem = getAppMenuItem(appId, menuId)
-  const meta = getBusinessObject(menuItem?.businessObjectId ?? '')
-  const [rows, setRows] = React.useState(() => getRecords(menuItem?.businessObjectId ?? ''))
+  const resolvedBusinessObjectId = businessObjectId ?? menuItem?.businessObjectId ?? ''
+  const meta = getBusinessObject(resolvedBusinessObjectId)
+  const [rows, setRows] = React.useState(() => getRecords(resolvedBusinessObjectId))
   const [q, setQ] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [size, setSize] = React.useState(20)
@@ -356,7 +357,7 @@ export default function RecordList() {
                 ))}
               </tbody>
             </table>
-            {pageRows.length === 0 && <AppNoData text="暂无数据"/>}
+            {pageRows.length === 0 && <Empty description="暂无数据"/>}
           </div>
 
           {/* 分页 */}

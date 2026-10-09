@@ -9,12 +9,3 @@ export function AppLoading({className, center}: { className?: string; center?: b
     </div>
   )
 }
-
-export function AppNoData({text = '暂无数据'}: { text?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-2 py-14 text-muted-foreground">
-      <Loader2 className="h-6 w-6" />
-      <span className="text-sm">{text}</span>
-    </div>
-  )
-}

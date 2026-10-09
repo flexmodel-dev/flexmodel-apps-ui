@@ -5,7 +5,8 @@ import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
-import {AppNoData} from '@/components/biz/AppLoading'
+import {AppLoading} from '@/components/biz/AppLoading'
+import {Empty} from '@/components/ui/empty'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {IconPicker} from '@/components/biz/IconPicker'
 import {
@@ -177,13 +178,13 @@ export default function AppManagement() {
 
         <div className="min-w-0 max-w-full p-4">
           {isLoading ? (
-            <AppNoData text="正在加载应用..."/>
+            <AppLoading center className="min-h-[240px]"/>
           ) : listError ? (
             <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
               {listError}
             </div>
           ) : apps.length === 0 ? (
-            <AppNoData text="暂无应用"/>
+            <Empty description="暂无应用"/>
           ) : (
             <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {apps.map((app) => {
@@ -193,7 +194,7 @@ export default function AppManagement() {
                     key={app.id}
                     className="relative min-w-0 overflow-hidden rounded-lg border bg-background transition-colors hover:border-primary/60 hover:bg-accent/40"
                   >
-                    <Link to={`/app/${app.id}`} className="block min-w-0 p-4 pr-12">
+                    <Link to={`/apps/${app.id}`} className="block min-w-0 p-4 pr-12">
                       <div className="flex items-start gap-3">
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                           <Icon className="h-6 w-6" />

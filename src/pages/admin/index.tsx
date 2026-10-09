@@ -4,7 +4,7 @@ import { AdminTablePage } from './AdminTablePage'
 import {BusinessObjectManagementContent} from './AdminContent'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
-import {AppNoData} from '@/components/biz/AppLoading'
+import {Empty} from '@/components/ui/empty'
 import {Pagination} from '@/components/biz/Pagination'
 import {businessObjects, users, departments, teams, type Department} from '@/data/mock'
 import {cn, paginate} from '@/lib/utils'
@@ -194,7 +194,7 @@ export function AdminUsers() {
               ))}
               </tbody>
             </table>
-            {pageUsers.length === 0 && <AppNoData/>}
+            {pageUsers.length === 0 && <Empty/>}
           </div>
 
           <div className="shrink-0 border-t bg-card px-4 py-3">

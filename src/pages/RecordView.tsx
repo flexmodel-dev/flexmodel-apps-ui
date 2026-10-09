@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {BizDialog} from '@/components/ui/dialog'
+import {Empty} from '@/components/ui/empty'
 import {getAppMenuItem, getBusinessObject, getRecords, feeds} from '@/data/mock'
 import { cn } from '@/lib/utils'
 import {RecordFormModal} from '@/components/biz/RecordFormModal'
@@ -314,17 +315,17 @@ export function RecordDetailContent({
   )
 }
 
-export default function RecordView() {
+export default function RecordView({businessObjectId}: { businessObjectId?: string }) {
   const { appId, menuId, id } = useParams<{ appId: string; menuId: string; id: string }>()
   const navigate = useNavigate()
   const menuItem = getAppMenuItem(appId, menuId)
-  const businessObject = menuItem?.businessObjectId ?? ''
+  const businessObject = businessObjectId ?? menuItem?.businessObjectId ?? ''
 
   return (
     <RecordDetailContent
       businessObject={businessObject}
       id={id ?? ''}
-      onDeleted={() => navigate(`/app/${appId}/${menuId}`)}
+      onDeleted={() => navigate(`/apps/${appId}/${menuId}`)}
     />
   )
 }

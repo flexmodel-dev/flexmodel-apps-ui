@@ -7,6 +7,9 @@ import Login from '@/pages/Login'
 import DashboardHome from '@/pages/DashboardHome'
 import AppManagement from '@/pages/AppManagement'
 import AppSettings from '@/pages/AppSettings'
+import AppHome from '@/pages/AppHome'
+import AppMenuPage from '@/pages/AppMenuPage'
+import AppRecordView from '@/pages/AppRecordView'
 import RecordList from '@/pages/RecordList'
 import RecordView from '@/pages/RecordView'
 import MenuPlaceholder from '@/pages/MenuPlaceholder'
@@ -26,16 +29,7 @@ import {
   AdminApprovals,
   AdminTriggers,
 } from '@/pages/admin'
-import { getAppById, getAppMenus } from '@/data/mock'
 import {getAuthSession} from '@/services/auth'
-
-function AppHomeRedirect() {
-  const { appId } = { appId: window.location.hash.split('/')[2] }
-  const firstMenu = getAppMenus(appId)[0]
-  return getAppById(appId) && firstMenu
-    ? <Navigate to={`/app/${appId}/${firstMenu.id}`} replace />
-    : <Navigate to="/dashboard/home" replace />
-}
 
 function RequireAuth() {
   const location = useLocation()
@@ -55,12 +49,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/settings/user" element={<UserSettings/>}/>
           <Route path="/dashboard/home" element={<DashboardHome/>}/>
           {/* 业务对象 */}
-          <Route path="/app/:appId" element={<AppHomeRedirect/>}/>
-          <Route path="/app/:appId/:menuId" element={<RecordList/>}/>
-          <Route path="/app/:appId/:menuId/view/:recordId" element={<RecordView/>}/>
+          <Route path="/apps/:appId" element={<AppHome/>}/>
+          <Route path="/apps/:appId/:menuId" element={<AppMenuPage/>}/>
+          <Route path="/apps/:appId/:menuId/view/:recordId" element={<AppRecordView/>}/>
           <Route path="/menu/:menuId" element={<MenuPlaceholder/>}/>
           <Route path="/admin/apps" element={<AppManagement/>}/>
           <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic"/>}/>
+          <Route path="/admin/apps/:appId/settings/menus" element={<AppSettings section="menus"/>}/>
           <Route path="/admin/apps/:appId/settings/business-objects"
                  element={<AppSettings section="business-objects"/>}/>
           <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals"/>}/>

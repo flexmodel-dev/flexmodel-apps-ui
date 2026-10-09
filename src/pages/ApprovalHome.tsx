@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { UserAvatar } from '@/components/ui/avatar'
 import {AppLoading} from '@/components/biz/AppLoading'
+import {Empty} from '@/components/ui/empty'
 import { approvals, currentUser } from '@/data/mock'
 import { cn } from '@/lib/utils'
 import {
@@ -277,10 +278,15 @@ export default function ApprovalHome() {
                 })}
 
                 {list.length === 0 && (
-                  <div className="rounded-xl border bg-card py-16 text-center">
-                    <Inbox className="mx-auto h-8 w-8 text-muted-foreground" />
-                    <p className="mt-3 text-sm font-medium">暂无审批</p>
-                    <p className="mt-1 text-xs text-muted-foreground">当前筛选条件下没有可展示的数据</p>
+                  <div className="rounded-xl border bg-card">
+                    <Empty
+                      description={
+                        <>
+                          <p className="m-0 font-medium text-foreground">暂无审批</p>
+                          <p className="mt-1">当前筛选条件下没有可展示的数据</p>
+                        </>
+                      }
+                    />
                   </div>
                 )}
 
