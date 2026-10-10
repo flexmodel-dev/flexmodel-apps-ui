@@ -16,9 +16,14 @@ export const formFieldWidthClasses: Record<FormFieldWidth, string> = {
 export type StoredFormFieldWidths = Record<string, FormFieldWidth>
 
 export const formDividerPrefix = '$DIVIDER$-'
+export const formSubformPrefix = '$SUBFORM$-'
 
 export function isFormDividerField(name: string) {
   return name.startsWith(formDividerPrefix)
+}
+
+export function isFormSubformField(name: string) {
+  return name.startsWith(formSubformPrefix)
 }
 
 export interface FormItemProperties {
@@ -41,6 +46,10 @@ export interface StoredFormLayout {
   fields: string[]
   widths: StoredFormFieldWidths
   properties?: Record<string, FormItemProperties>
+  subforms?: Record<string, {
+    formName: string
+    referenceField: string
+  }>
   customFields?: StoredCustomField[]
 }
 

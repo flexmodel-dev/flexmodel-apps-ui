@@ -35,6 +35,7 @@ import {
   QrCode,
   Search,
   Sigma,
+  Table2,
   Tags,
   ToggleLeft,
   Type,
@@ -49,7 +50,15 @@ import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {Empty} from '@/components/ui/empty'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   createAppFormField,
+  getAppForms,
   getAppForm,
   updateAppFormField,
   saveAppFormLayout,
@@ -58,11 +67,14 @@ import {
   type AppForm,
   type AppFormLayout,
   type AppFormItemProperties,
+  type AppFormSubform,
 } from '@/services/appForms'
 import {
   formFieldWidthClasses,
   formFieldWidthOptions,
+  formSubformPrefix,
   isFormDividerField,
+  isFormSubformField,
   type FormFieldWidth,
 } from '@/lib/form-layout'
 import { cn } from '@/lib/utils'
@@ -132,7 +144,10 @@ const fieldTypePalette: {
   { type: 'STATE', label: '状态', icon: Activity },
 ]
 
-type DesignFormField = Omit<AppFormField, 'type'> & { type: string }
+type DesignFormField = Omit<AppFormField, 'type'> & {
+  type: string
+  subform?: AppFormSubform
+}
 
 interface DesignForm {
   name: string
@@ -169,6 +184,13 @@ type FieldCreateDraft = {
   defaultLabel: string
   label: string
   remark: string
+}
+
+type SubformDraft = {
+  id?: string
+  formName: string
+  referenceField: string
+  label: string
 }
 
 const formFieldColumns: Record<FormFieldWidth, number> = {
@@ -260,6 +282,11 @@ export default function FormDesign() {
   const dragCompletedRef = React.useRef(false)
   const [widths, setWidths] = React.useState<Record<string, FormFieldWidth>>({})
   const [itemProperties, setItemProperties] = React.useState<Record<string, AppFormItemProperties>>({})
+  const [subforms, setSubforms] = React.useState<Record<string, AppFormSubform>>({})
+  const [availableForms, setAvailableForms] = React.useState<AppForm[]>([])
+  const [subformDraft, setSubformDraft] = React.useState<SubformDraft | null>(null)
+  const [subformError, setSubformError] = React.useState<string | null>(null)
+  const [isSavingSubform, setIsSavingSubform] = React.useState(false)
   const [editingItem, setEditingItem] = React.useState<EditingItem | null>(null)
   const [creatingField, setCreatingField] = React.useState<FieldCreateDraft | null>(null)
   const [fieldError, setFieldError] = React.useState<string | null>(null)
@@ -288,18 +315,22 @@ export default function FormDesign() {
         const serverLayout = designForm.layout
         if (serverLayout) {
           const fieldNames = new Set(designForm.fields.map((field) => field.name))
-          setLayout(serverLayout.fields.filter((name) => fieldNames.has(name) || isFormDividerField(name)))
+          setLayout(serverLayout.fields.filter((name) =>
+            fieldNames.has(name) || isFormDividerField(name) || isFormSubformField(name)
+          ))
           setWidths(Object.fromEntries(
             Object.entries(serverLayout.widths ?? {}).filter(([, width]) =>
               formFieldWidthOptions.includes(width as FormFieldWidth),
             ),
           ) as Record<string, FormFieldWidth>)
           setItemProperties(serverLayout.properties ?? {})
+          setSubforms(serverLayout.subforms ?? {})
           setAdvancedControls(serverLayout.advanced ?? {})
         } else {
           setLayout(designForm.fields.filter((field) => !field.builtin).map((field) => field.name))
           setWidths({})
           setItemProperties({})
+          setSubforms({})
           setAdvancedControls({})
         }
       })
@@ -311,6 +342,24 @@ export default function FormDesign() {
       cancelled = true
     }
   }, [appId, formName])
+
+  React.useEffect(() => {
+    if (!appId) {
+      setAvailableForms([])
+      return
+    }
+    let cancelled = false
+    getAppForms(appId)
+      .then((forms) => {
+        if (!cancelled) setAvailableForms(forms)
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableForms([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [appId])
 
   React.useEffect(() => {
     if (!resizing) return
@@ -365,6 +414,16 @@ export default function FormDesign() {
       if (isFormDividerField(name)) {
         return {name, label: '分栏', type: 'TEXT', required: false, builtin: false}
       }
+      if (isFormSubformField(name) && subforms[name]) {
+        return {
+          name,
+          label: '子表单',
+          type: 'SUBFORM',
+          required: false,
+          builtin: false,
+          subform: subforms[name],
+        }
+      }
       return undefined
     })
     .filter((field): field is DesignFormField => Boolean(field))
@@ -380,7 +439,9 @@ export default function FormDesign() {
       rowColumns = 0
     }
     layout.forEach((name) => {
-      const columns = isFormDividerField(name) ? 12 : formFieldColumns[widths[name] ?? 50]
+      const columns = isFormDividerField(name) || isFormSubformField(name)
+        ? 12
+        : formFieldColumns[widths[name] ?? 50]
       if (rowColumns + columns > 12) finishRow()
       rowNames.push(name)
       rowColumns += columns
@@ -430,13 +491,92 @@ export default function FormDesign() {
   const addDivider = () => {
     setLayout((previous) => [...previous, `$DIVIDER$-${Date.now()}`])
   }
+  const openSubformCreate = () => {
+    setSubformError(null)
+    setSubformDraft({
+      formName: '',
+      referenceField: '',
+      label: '',
+    })
+  }
+  const openSubformEdit = (name: string) => {
+    const subform = subforms[name]
+    if (!subform) return
+    setSubformError(null)
+    setSubformDraft({
+      id: name,
+      formName: subform.formName,
+      referenceField: subform.referenceField,
+      label: getItemProperties(name).label?.trim() || '',
+    })
+  }
+  const saveSubform = async () => {
+    if (!subformDraft || !form) return
+    const selectedForm = availableForms.find((item) => item.name === subformDraft.formName)
+    if (!selectedForm) {
+      setSubformError('请选择子表单')
+      return
+    }
+    setIsSavingSubform(true)
+    setSubformError(null)
+    try {
+      let referenceField = subformDraft.referenceField
+      if (!referenceField) {
+        const createdField = await createAppFormField(appId, selectedForm.name, {
+          label: `${form.label.slice(0, 96)}引用`,
+          type: 'REFERENCE',
+          required: false,
+          referenceForm: form.name,
+        })
+        referenceField = createdField.name
+        setAvailableForms((previous) => previous.map((item) => item.name === selectedForm.name
+          ? {...item, fields: [...item.fields, createdField]}
+          : item))
+      }
+      const id = subformDraft.id ?? `${formSubformPrefix}${Date.now()}-${Math.random().toString(16).slice(2)}`
+      setSubforms((previous) => ({
+        ...previous, [id]: {
+          formName: selectedForm.name,
+          referenceField,
+        }
+      }))
+      setLayout((previous) => subformDraft.id
+        ? previous
+        : [...previous, id])
+      updateItemProperties(id, {label: subformDraft.label.trim() || undefined})
+      setWidths((previous) => ({...previous, [id]: 100}))
+      setSubformDraft(null)
+    } catch (caught) {
+      setSubformError(caught instanceof Error ? caught.message : '保存子表单失败')
+    } finally {
+      setIsSavingSubform(false)
+    }
+  }
   const removeField = (fieldName: string) => {
     setLayout((previous) => previous.filter((name) => name !== fieldName))
+    if (isFormSubformField(fieldName)) {
+      setSubforms((previous) => {
+        const next = {...previous}
+        delete next[fieldName]
+        return next
+      })
+      setWidths((previous) => {
+        const next = {...previous}
+        delete next[fieldName]
+        return next
+      })
+      setItemProperties((previous) => {
+        const next = {...previous}
+        delete next[fieldName]
+        return next
+      })
+    }
   }
   const resetLayout = () => {
     setLayout(allFields.filter((field) => !field.builtin).map((field) => field.name))
     setWidths({})
     setItemProperties({})
+    setSubforms({})
   }
   const saveLayout = async () => {
     if (!form) return
@@ -447,6 +587,7 @@ export default function FormDesign() {
         fields: layout,
         widths,
         properties: itemProperties,
+        subforms,
         advanced: advancedControls,
       })
       setForm(toDesignForm(updatedForm))
@@ -478,6 +619,7 @@ export default function FormDesign() {
   const getDisplayLabel = (field: DesignFormField) =>
     getItemProperties(field.name).label?.trim() || field.label
   const getDividerLabel = (name: string) => getItemProperties(name).label?.trim() || ''
+  const getSubformLabel = (name: string) => getItemProperties(name).label?.trim() || '子表单'
   const getItemTip = (name: string) => getItemProperties(name).tip?.trim() || ''
   const openEdit = (field: DesignFormField) => {
     const properties = getItemProperties(field.name)
@@ -563,6 +705,11 @@ export default function FormDesign() {
     }))
   })()
 
+  const selectedSubformForm = availableForms.find((item) => item.name === subformDraft?.formName)
+  const subformReferenceFields = selectedSubformForm?.fields.filter((field) =>
+    field.type === 'REFERENCE' && field.referenceForm === form.name
+  ) ?? []
+
   return (
     <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card text-card-foreground shadow-sm">
@@ -606,6 +753,9 @@ export default function FormDesign() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={addDivider}>
                   <Columns3 className="h-4 w-4" /> 分栏
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={openSubformCreate}>
+                  <Table2 className="h-4 w-4"/> 子表单
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -660,6 +810,8 @@ export default function FormDesign() {
                           'group relative flex cursor-grab items-center rounded-md px-3 transition-colors active:cursor-grabbing',
                           isFormDividerField(item.field.name)
                             ? 'h-9 border-y border-dashed border-primary/40 bg-primary/10 text-foreground hover:border-primary/60 md:col-span-12'
+                            : isFormSubformField(item.field.name)
+                              ? 'min-h-14 border border-primary/40 bg-primary/10 text-foreground hover:border-primary/60 md:col-span-12'
                             : cn(
                                 'border bg-background py-2 hover:border-primary',
                                 formFieldWidthClasses[getLayoutWidth(item.field.name)],
@@ -672,26 +824,36 @@ export default function FormDesign() {
                           {isFormDividerField(item.field.name) && (
                             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground"/>
                           )}
+                          {isFormSubformField(item.field.name) && (
+                            <Table2 className="h-4 w-4 shrink-0 text-primary"/>
+                          )}
                           <span className="min-w-0 truncate text-sm font-medium">
                             {isFormDividerField(item.field.name)
                               ? (getDividerLabel(item.field.name) || '分栏')
-                              : getDisplayLabel(item.field)}
+                              : isFormSubformField(item.field.name)
+                                ? getSubformLabel(item.field.name)
+                                : getDisplayLabel(item.field)}
                             {getItemTip(item.field.name) && (
                               <Info className="ml-1 inline-block h-3.5 w-3.5 align-[-2px] text-muted-foreground" />
                             )}
                           </span>
+                          {isFormSubformField(item.field.name) && item.field.subform && (
+                            <span className="ml-2 hidden shrink-0 truncate text-xs text-muted-foreground md:block">
+                              {item.field.subform.formName}
+                            </span>
+                          )}
                         </div>
 
                         {item.field.name === form.displayField && (
                           <Badge className="bg-primary/10 text-primary">名称</Badge>
                         )}
-                        {!isFormDividerField(item.field.name) && (
+                        {!isFormDividerField(item.field.name) && !isFormSubformField(item.field.name) && (
                           <span className="ml-auto hidden shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground group-hover:opacity-0 md:block">
                             {typeLabels[item.field.type]}
                           </span>
                         )}
 
-                        {!isFormDividerField(item.field.name) &&
+                        {!isFormDividerField(item.field.name) && !isFormSubformField(item.field.name) &&
                           (rowWidthTotals.get(item.field.name) ?? 12) < 12 && (
                           <div
                             className="absolute right-0 top-1/2 z-40 h-10 w-1.5 -translate-y-1/2 cursor-col-resize rounded-full bg-border opacity-0 transition-opacity group-hover:opacity-100"
@@ -700,7 +862,7 @@ export default function FormDesign() {
                         )}
 
                         <div className="absolute right-1.5 top-1/2 z-50 hidden -translate-y-1/2 items-center gap-0.5 p-0.5 group-hover:flex">
-                          {!isFormDividerField(item.field.name) && (
+                          {!isFormDividerField(item.field.name) && !isFormSubformField(item.field.name) && (
                             <WidthSelector
                               value={getLayoutWidth(item.field!.name)}
                               onChange={(width) => updateLayoutWidth(item.field!.name, width)}
@@ -713,6 +875,8 @@ export default function FormDesign() {
                             title="修改"
                             onClick={() => isFormDividerField(item.field!.name)
                               ? openDividerEdit(item.field!.name)
+                              : isFormSubformField(item.field!.name)
+                                ? openSubformEdit(item.field!.name)
                               : openEdit(item.field!)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -732,7 +896,9 @@ export default function FormDesign() {
                         key={item.key}
                         className={cn(
                           'rounded-md border-2 border-dashed border-primary/50 bg-primary/10',
-                          dragging && isFormDividerField(dragging) ? 'md:col-span-12' : formFieldWidthClasses[getLayoutWidth(dragging!)],
+                          dragging && (isFormDividerField(dragging) || isFormSubformField(dragging))
+                            ? 'md:col-span-12'
+                            : formFieldWidthClasses[getLayoutWidth(dragging!)],
                         )}
                       />
                     )
@@ -763,7 +929,9 @@ export default function FormDesign() {
                       </tr>
                     </thead>
                     <tbody>
-                      {layoutFields.filter((field) => !isFormDividerField(field.name)).map((field) => (
+                    {layoutFields.filter((field) =>
+                      !isFormDividerField(field.name) && !isFormSubformField(field.name)
+                    ).map((field) => (
                         <tr key={field.name}>
                           <td>
                             <span className="font-medium">{getDisplayLabel(field)}</span>
@@ -942,6 +1110,88 @@ export default function FormDesign() {
                     ? { ...previous, remark: event.target.value }
                     : previous)}
                 />
+              </div>
+            </div>
+          )}
+        </BizDialog>
+
+        <BizDialog
+          open={Boolean(subformDraft)}
+          onOpenChange={(open) => !open && setSubformDraft(null)}
+          width={480}
+          title={subformDraft?.id ? '修改子表单' : '添加子表单'}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setSubformDraft(null)} disabled={isSavingSubform}>
+                取消
+              </Button>
+              <Button onClick={saveSubform} disabled={isSavingSubform}>
+                {isSavingSubform ? '保存中' : '保存'}
+              </Button>
+            </>
+          }
+        >
+          {subformDraft && (
+            <div className="space-y-4">
+              {subformError && (
+                <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {subformError}
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">展示名称</label>
+                <Input
+                  value={subformDraft.label}
+                  maxLength={100}
+                  placeholder={selectedSubformForm?.label ?? '子表单'}
+                  onChange={(event) => setSubformDraft((previous) => previous
+                    ? {...previous, label: event.target.value}
+                    : previous)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">子表单</label>
+                <Select
+                  value={subformDraft.formName}
+                  onValueChange={(value) => setSubformDraft((previous) => previous
+                    ? {...previous, formName: value, referenceField: ''}
+                    : previous)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择子表单"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableForms.map((item) => (
+                      <SelectItem key={item.name} value={item.name}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">引用字段</label>
+                <Select
+                  value={subformDraft.referenceField || '__AUTO__'}
+                  onValueChange={(value) => setSubformDraft((previous) => previous
+                    ? {...previous, referenceField: value === '__AUTO__' ? '' : value}
+                    : previous)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="自动创建引用字段"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__AUTO__">自动创建引用字段</SelectItem>
+                    {subformReferenceFields.map((field) => (
+                      <SelectItem key={field.name} value={field.name}>
+                        {field.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="m-0 text-xs text-muted-foreground">
+                  不选择引用字段时，保存后将自动在子表单上创建指向当前表单的引用字段。
+                </p>
               </div>
             </div>
           )}

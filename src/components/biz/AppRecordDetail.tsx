@@ -4,10 +4,11 @@ import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
+import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {Empty} from '@/components/ui/empty'
 import {cn} from '@/lib/utils'
-import {isFormDividerField} from '@/lib/form-layout'
-import {getAppForm, type AppForm, type AppFormField} from '@/services/appForms'
+import {isFormDividerField, isFormSubformField} from '@/lib/form-layout'
+import {getAppForm, type AppForm, type AppFormField, type AppFormSubform} from '@/services/appForms'
 import {deleteAppRecord, getAppRecord, type AppRecord} from '@/services/appRecords'
 
 function renderValue(field: AppFormField, value: unknown) {
@@ -102,6 +103,19 @@ export function AppRecordDetail({
       sections[sections.length - 1].fields.push(field)
     }
   })
+  const subformItems = layoutNames
+    .filter(isFormSubformField)
+    .map((name) => {
+      const subform = form.layout?.subforms?.[name]
+      return subform
+        ? {
+          name,
+          subform,
+          label: form.layout?.properties?.[name]?.label?.trim() || '子表单',
+        }
+        : null
+    })
+    .filter((item): item is { name: string; subform: AppFormSubform; label: string } => Boolean(item))
 
   return (
     <div className="space-y-4">
@@ -161,6 +175,17 @@ export function AppRecordDetail({
           )
         })}
       </div>
+
+      {subformItems.map((item) => (
+        <AppSubformRecords
+          key={item.name}
+          appId={appId}
+          mainFormName={form.name}
+          mainRecordId={recordId}
+          subform={item.subform}
+          label={item.label}
+        />
+      ))}
 
       <AppRecordFormModal
         open={editOpen}

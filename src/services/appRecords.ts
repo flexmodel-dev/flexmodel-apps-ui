@@ -15,10 +15,29 @@ export interface AppRecordQuery {
   sortOrder?: 'ASC' | 'DESC'
 }
 
+export interface AppRecordContext {
+  mainFormName: string
+  mainRecordId: string
+  referenceField?: string
+}
+
 const API_BASE = '/api/apps'
 
 function recordsPath(appId: string, formName: string) {
   return `${API_BASE}/${appId}/forms/${encodeURIComponent(formName)}/records`
+}
+
+function appendContext(params: URLSearchParams, context?: AppRecordContext) {
+  if (!context) return
+  params.set('mainFormName', context.mainFormName)
+  params.set('mainRecordId', context.mainRecordId)
+  if (context.referenceField) params.set('referenceField', context.referenceField)
+}
+
+function contextQuery(context?: AppRecordContext) {
+  const params = new URLSearchParams()
+  appendContext(params, context)
+  return params.size ? `?${params}` : ''
 }
 
 function normalizePage(page: AppRecordPage): AppRecordPage {
@@ -32,6 +51,7 @@ export async function getAppRecords(
   appId: string,
   formName: string,
   query: AppRecordQuery,
+  context?: AppRecordContext,
 ): Promise<AppRecordPage> {
   const params = new URLSearchParams({
     page: String(query.page),
@@ -40,6 +60,7 @@ export async function getAppRecords(
   if (query.search?.trim()) params.set('search', query.search.trim())
   if (query.sortField) params.set('sortField', query.sortField)
   if (query.sortOrder) params.set('sortOrder', query.sortOrder)
+  appendContext(params, context)
   return normalizePage(await requestJson<AppRecordPage>(`${recordsPath(appId, formName)}?${params}`))
 }
 
@@ -47,16 +68,20 @@ export async function getAppRecord(
   appId: string,
   formName: string,
   recordId: string,
+  context?: AppRecordContext,
 ): Promise<AppRecord> {
-  return requestJson<AppRecord>(`${recordsPath(appId, formName)}/${encodeURIComponent(recordId)}`)
+  return requestJson<AppRecord>(
+    `${recordsPath(appId, formName)}/${encodeURIComponent(recordId)}${contextQuery(context)}`,
+  )
 }
 
 export async function createAppRecord(
   appId: string,
   formName: string,
   values: AppRecord,
+  context?: AppRecordContext,
 ): Promise<AppRecord> {
-  return requestJson<AppRecord>(recordsPath(appId, formName), {
+  return requestJson<AppRecord>(`${recordsPath(appId, formName)}${contextQuery(context)}`, {
     method: 'POST',
     body: JSON.stringify(values),
   })
@@ -67,19 +92,27 @@ export async function updateAppRecord(
   formName: string,
   recordId: string,
   values: AppRecord,
+  context?: AppRecordContext,
 ): Promise<AppRecord> {
-  return requestJson<AppRecord>(`${recordsPath(appId, formName)}/${encodeURIComponent(recordId)}`, {
+  return requestJson<AppRecord>(
+    `${recordsPath(appId, formName)}/${encodeURIComponent(recordId)}${contextQuery(context)}`,
+    {
     method: 'PUT',
     body: JSON.stringify(values),
-  })
+    },
+  )
 }
 
 export async function deleteAppRecord(
   appId: string,
   formName: string,
   recordId: string,
+  context?: AppRecordContext,
 ): Promise<void> {
-  await requestJson<null>(`${recordsPath(appId, formName)}/${encodeURIComponent(recordId)}`, {
+  await requestJson<null>(
+    `${recordsPath(appId, formName)}/${encodeURIComponent(recordId)}${contextQuery(context)}`,
+    {
     method: 'DELETE',
-  })
+    },
+  )
 }

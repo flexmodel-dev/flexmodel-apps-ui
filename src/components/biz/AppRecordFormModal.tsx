@@ -29,6 +29,7 @@ import {
   getAppRecord,
   updateAppRecord,
   type AppRecord,
+  type AppRecordContext,
 } from '@/services/appRecords'
 
 type ReferenceOption = { value: string; label: string }
@@ -135,6 +136,7 @@ export function AppRecordFormModal({
                                      appId,
                                      form,
                                      recordId,
+                                     recordContext,
                                      onSaved,
                                    }: {
   open: boolean
@@ -142,6 +144,7 @@ export function AppRecordFormModal({
   appId: string
   form: AppForm
   recordId?: string | null
+  recordContext?: AppRecordContext
   onSaved?: (id: string) => void
 }) {
   const [values, setValues] = React.useState<AppRecord>({})
@@ -154,7 +157,10 @@ export function AppRecordFormModal({
     : form.fields.map((field) => field.name)
   const fieldsByName = new Map(form.fields.map((field) => [field.name, field]))
   const layoutFields = layoutNames
-    .filter((name) => isDivider(name) || fieldsByName.has(name))
+    .filter((name) =>
+      isDivider(name)
+      || (fieldsByName.has(name) && !(recordContext && name === recordContext.referenceField))
+    )
     .map((name) => isDivider(name) ? name : fieldsByName.get(name)!)
   const properties = form.layout?.properties ?? {}
   const widths = form.layout?.widths ?? {}
@@ -173,11 +179,13 @@ export function AppRecordFormModal({
         cancelled = true
       }
     }
-    getAppRecord(appId, form.name, recordId)
+    getAppRecord(appId, form.name, recordId, recordContext)
       .then((record) => {
         if (cancelled) return
         const initial: AppRecord = {}
-        form.fields.filter((field) => !field.builtin).forEach((field) => {
+        form.fields.filter((field) => !field.builtin && !(
+          recordContext && field.name === recordContext.referenceField
+        )).forEach((field) => {
           initial[field.name] = toInputValue(field, record[field.name])
         })
         setValues(initial)
@@ -188,12 +196,16 @@ export function AppRecordFormModal({
     return () => {
       cancelled = true
     }
-  }, [appId, form, open, recordId])
+  }, [appId, form, open, recordContext, recordId])
 
   React.useEffect(() => {
     if (!open) return
     let cancelled = false
-    const referenceFields = form.fields.filter((field) => field.type === 'REFERENCE' && field.referenceForm)
+    const referenceFields = form.fields.filter((field) =>
+      field.type === 'REFERENCE'
+      && field.referenceForm
+      && !(recordContext && field.name === recordContext.referenceField)
+    )
     Promise.all(referenceFields.map(async (field) => {
       const referenceForm = await getAppForm(appId, field.referenceForm!)
       const page = await getAppRecords(appId, field.referenceForm!, {page: 1, size: 100})
@@ -212,7 +224,7 @@ export function AppRecordFormModal({
     return () => {
       cancelled = true
     }
-  }, [appId, form, open])
+  }, [appId, form, open, recordContext])
 
   const getProperties = (name: string): AppFormItemProperties => properties[name] ?? {}
   const getWidth = (name: string): FormFieldWidth => {
@@ -224,7 +236,9 @@ export function AppRecordFormModal({
 
   const submit = async () => {
     const payload: AppRecord = {}
-    for (const field of form.fields.filter((item) => !item.builtin)) {
+    for (const field of form.fields.filter((item) =>
+      !item.builtin && !(recordContext && item.name === recordContext.referenceField)
+    )) {
       const value = values[field.name]
       if (field.required && (value === undefined || value === null || value === '')) {
         setError(`${field.label}不能为空`)
@@ -242,8 +256,8 @@ export function AppRecordFormModal({
     setError('')
     try {
       const saved = recordId
-        ? await updateAppRecord(appId, form.name, recordId, payload)
-        : await createAppRecord(appId, form.name, payload)
+        ? await updateAppRecord(appId, form.name, recordId, payload, recordContext)
+        : await createAppRecord(appId, form.name, payload, recordContext)
       onOpenChange(false)
       onSaved?.(String(saved.id ?? ''))
     } catch (caught: unknown) {

@@ -95,10 +95,16 @@ export interface AppFormItemProperties {
   hidden?: boolean
 }
 
+export interface AppFormSubform {
+  formName: string
+  referenceField: string
+}
+
 export interface AppFormLayout {
   fields: string[]
   widths: Record<string, number>
   properties?: Record<string, AppFormItemProperties>
+  subforms?: Record<string, AppFormSubform>
   advanced?: Record<string, unknown>
 }
 

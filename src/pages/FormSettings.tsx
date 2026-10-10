@@ -20,6 +20,7 @@ import {
   deleteAppForm,
   deleteAppFormField,
   getAppForm,
+  getAppForms,
   updateAppForm,
   updateAppFormField,
   type AppFormField,
@@ -87,6 +88,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
   const [fieldDraft, setFieldDraft] = React.useState<FieldDraft | null>(null)
   const [fieldDelete, setFieldDelete] = React.useState<AppFormField | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [availableForms, setAvailableForms] = React.useState<AppForm[]>([])
 
   const loadForm = React.useCallback(() => {
     if (!appId || !formName) {
@@ -120,6 +122,24 @@ export default function FormSettings({section}: { section: FormSettingsSection }
   }, [appId, formName])
 
   React.useEffect(() => loadForm(), [loadForm])
+
+  React.useEffect(() => {
+    if (!appId) {
+      setAvailableForms([])
+      return
+    }
+    let cancelled = false
+    getAppForms(appId)
+      .then((forms) => {
+        if (!cancelled) setAvailableForms(forms)
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableForms([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [appId])
 
   if (isLoading) {
     return <AdminLayout><AppLoading center className="min-h-[400px]"/></AdminLayout>
@@ -434,6 +454,26 @@ export default function FormSettings({section}: { section: FormSettingsSection }
                 </SelectContent>
               </Select>
             </div>
+            {fieldDraft.type === 'REFERENCE' && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">引用表单</label>
+                <Select
+                  value={fieldDraft.referenceForm}
+                  onValueChange={(referenceForm) => setFieldDraft({...fieldDraft, referenceForm})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择引用表单"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableForms.map((item) => (
+                      <SelectItem key={item.name} value={item.name}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {fieldDraft.name && (
               <div>
                 <label className="mb-1 block text-sm font-medium text-foreground">内部标识</label>
