@@ -52,17 +52,17 @@ import {
   createAppFormField,
   getAppForm,
   updateAppFormField,
+  saveAppFormLayout,
   type AppFormField,
   type AppFormFieldType,
   type AppForm,
+  type AppFormLayout,
+  type AppFormItemProperties,
 } from '@/services/appForms'
 import {
   formFieldWidthClasses,
   formFieldWidthOptions,
-  getStoredFormLayout,
   isFormDividerField,
-  saveStoredFormLayout,
-  type FormItemProperties,
   type FormFieldWidth,
 } from '@/lib/form-layout'
 import { cn } from '@/lib/utils'
@@ -140,6 +140,7 @@ interface DesignForm {
   description: string
   nameField?: string | null
   fields: DesignFormField[]
+  layout?: AppFormLayout | null
 }
 
 function toDesignForm(form: AppForm): DesignForm {
@@ -149,6 +150,7 @@ function toDesignForm(form: AppForm): DesignForm {
     description: form.description,
     nameField: form.nameField,
     fields: form.fields.map((field) => ({...field})),
+    layout: form.layout,
   }
 }
 
@@ -257,7 +259,7 @@ export default function FormDesign() {
   const [saved, setSaved] = React.useState(false)
   const dragCompletedRef = React.useRef(false)
   const [widths, setWidths] = React.useState<Record<string, FormFieldWidth>>({})
-  const [itemProperties, setItemProperties] = React.useState<Record<string, FormItemProperties>>({})
+  const [itemProperties, setItemProperties] = React.useState<Record<string, AppFormItemProperties>>({})
   const [editingItem, setEditingItem] = React.useState<EditingItem | null>(null)
   const [creatingField, setCreatingField] = React.useState<FieldCreateDraft | null>(null)
   const [fieldError, setFieldError] = React.useState<string | null>(null)
@@ -267,6 +269,9 @@ export default function FormDesign() {
     startColumns: number
     columnWidth: number
   } | null>(null)
+  const [advancedControls, setAdvancedControls] = React.useState<Record<string, unknown>>({})
+  const [isSavingLayout, setIsSavingLayout] = React.useState(false)
+  const [layoutError, setLayoutError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!appId || !formName) {
@@ -280,15 +285,22 @@ export default function FormDesign() {
         if (cancelled) return
         const designForm = toDesignForm(loadedForm)
         setForm(designForm)
-        const storedLayout = getStoredFormLayout(designForm.name)
-        if (storedLayout) {
-          setLayout(storedLayout.fields)
-          setWidths(storedLayout.widths)
-          setItemProperties(storedLayout.properties ?? {})
+        const serverLayout = designForm.layout
+        if (serverLayout) {
+          const fieldNames = new Set(designForm.fields.map((field) => field.name))
+          setLayout(serverLayout.fields.filter((name) => fieldNames.has(name) || isFormDividerField(name)))
+          setWidths(Object.fromEntries(
+            Object.entries(serverLayout.widths ?? {}).filter(([, width]) =>
+              formFieldWidthOptions.includes(width as FormFieldWidth),
+            ),
+          ) as Record<string, FormFieldWidth>)
+          setItemProperties(serverLayout.properties ?? {})
+          setAdvancedControls(serverLayout.advanced ?? {})
         } else {
           setLayout(designForm.fields.map((field) => field.name))
           setWidths({})
           setItemProperties({})
+          setAdvancedControls({})
         }
       })
       .catch(() => {
@@ -426,15 +438,25 @@ export default function FormDesign() {
     setWidths({})
     setItemProperties({})
   }
-  const saveLayout = () => {
-    saveStoredFormLayout(form.name, {
-      fields: layout,
-      widths,
-      properties: itemProperties,
-      customFields: [],
-    })
-    setSaved(true)
-    window.setTimeout(() => setSaved(false), 1600)
+  const saveLayout = async () => {
+    if (!form) return
+    setIsSavingLayout(true)
+    setLayoutError(null)
+    try {
+      const updatedForm = await saveAppFormLayout(appId, form.name, {
+        fields: layout,
+        widths,
+        properties: itemProperties,
+        advanced: advancedControls,
+      })
+      setForm(toDesignForm(updatedForm))
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 1600)
+    } catch (caught) {
+      setLayoutError(caught instanceof Error ? caught.message : '保存布局失败')
+    } finally {
+      setIsSavingLayout(false)
+    }
   }
   const moveField = (from: number, to: number) => {
     if (to < 0 || to >= layout.length) return
@@ -449,8 +471,8 @@ export default function FormDesign() {
   const updateLayoutWidth = (name: string, width: FormFieldWidth) => {
     setWidths((previous) => ({ ...previous, [name]: width }))
   }
-  const getItemProperties = (name: string): FormItemProperties => itemProperties[name] ?? {}
-  const updateItemProperties = (name: string, properties: FormItemProperties) => {
+  const getItemProperties = (name: string): AppFormItemProperties => itemProperties[name] ?? {}
+  const updateItemProperties = (name: string, properties: AppFormItemProperties) => {
     setItemProperties((previous) => ({ ...previous, [name]: { ...previous[name], ...properties } }))
   }
   const getDisplayLabel = (field: DesignFormField) =>
@@ -587,9 +609,12 @@ export default function FormDesign() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button onClick={saveLayout}>
+            <Button onClick={saveLayout} disabled={isSavingLayout}>
               <Save className="h-4 w-4" /> 保存
             </Button>
+            {layoutError && (
+              <span className="text-sm text-destructive">{layoutError}</span>
+            )}
           </div>
         </div>
 

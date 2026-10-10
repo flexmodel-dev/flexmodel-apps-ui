@@ -56,6 +56,7 @@ export interface AppForm {
   createdAt?: string | null
   updatedAt?: string | null
   fields: AppFormField[]
+  layout?: AppFormLayout | null
 }
 
 export interface AppFormInput {
@@ -85,6 +86,21 @@ export interface AppFormFieldUpdateInput {
   referenceForm?: string
 }
 
+export interface AppFormItemProperties {
+  label?: string
+  tip?: string
+  required?: boolean
+  readonly?: boolean
+  hidden?: boolean
+}
+
+export interface AppFormLayout {
+  fields: string[]
+  widths: Record<string, number>
+  properties?: Record<string, AppFormItemProperties>
+  advanced?: Record<string, unknown>
+}
+
 const API_BASE = '/api/apps'
 const formListCache = createAppDataCache<AppForm[]>()
 const formCache = createAppDataCache<AppForm>()
@@ -98,6 +114,7 @@ function normalizeForm(form: AppForm): AppForm {
     ...form,
     description: form.description ?? '',
     fields: Array.isArray(form.fields) ? form.fields : [],
+    layout: form.layout ?? null,
   }
 }
 
@@ -169,6 +186,23 @@ export async function deleteAppForm(appId: string, name: string): Promise<void> 
     method: 'DELETE',
   })
   invalidateFormCaches(appId, name)
+}
+
+export async function saveAppFormLayout(
+  appId: string,
+  name: string,
+  layout: AppFormLayout,
+): Promise<AppForm> {
+  const form = normalizeForm(await requestJson<AppForm>(
+    `${API_BASE}/${appId}/forms/${encodeURIComponent(name)}/layout`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(layout),
+    },
+  ))
+  formListCache.delete(appId)
+  formCache.delete(detailKey(appId, name))
+  return form
 }
 
 export async function createAppFormField(

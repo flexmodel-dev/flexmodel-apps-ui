@@ -200,7 +200,13 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     setIsSubmitting(true)
     try {
       await deleteAppFormField(appId, form.name, fieldDelete.name)
-      setForm({...form, fields: form.fields.filter((field) => field.name !== fieldDelete.name)})
+      const isNameField = fieldDelete.name === form.nameField
+      setForm({
+        ...form,
+        fields: form.fields.filter((field) => field.name !== fieldDelete.name),
+        nameField: isNameField ? null : form.nameField,
+        searchField: isNameField ? null : form.searchField,
+      })
       setFieldDelete(null)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '删除字段失败')
