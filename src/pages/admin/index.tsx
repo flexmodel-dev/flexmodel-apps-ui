@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import { AdminTablePage } from './AdminTablePage'
-import {BusinessObjectManagementContent} from './AdminContent'
+import {FormManagementContent} from './AdminContent'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import {Empty} from '@/components/ui/empty'
@@ -10,9 +10,9 @@ import {businessObjects, users, departments, teams, type Department} from '@/dat
 import {cn, paginate} from '@/lib/utils'
 import {Building2, ChevronRight, CirclePlus, Search, Users, X} from 'lucide-react'
 
-/** 表单（admin/metadata/business-objects.html：卡片网格） */
-export function AdminBusinessObjects({embedded = false}: { embedded?: boolean } = {}) {
-  const content = <BusinessObjectManagementContent businessObjects={businessObjects}/>
+/** 表单管理（卡片网格） */
+export function AdminForms({embedded = false, appId}: { embedded?: boolean; appId?: string } = {}) {
+  const content = <FormManagementContent appId={appId}/>
   return embedded ? content : <AdminLayout>{content}</AdminLayout>
 }
 

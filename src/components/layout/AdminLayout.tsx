@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {Link, useLocation} from 'react-router-dom'
 import {cn} from '@/lib/utils'
-import {getBusinessObject, topNavs} from '@/data/mock'
+import {topNavs} from '@/data/mock'
 import {AdminTopHeader} from './AdminTopHeader'
 import {AdminLeftSidebar, adminNavs} from './AdminLeftSidebar'
 import {MenuEditorDialog} from './MenuEditorDialog'
@@ -24,45 +24,46 @@ export function AdminLayout({
   const [activeTopId, setActiveTopId] = React.useState(topNavs[0].id)
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
 
-  const showBusinessObjectSidebar = /^\/admin\/business-object\//.test(location.pathname)
-  const currentBusinessObject = location.pathname.match(/^\/admin\/business-object\/([^/]+)/)?.[1]
-  const currentBusinessObjectMeta = currentBusinessObject ? getBusinessObject(currentBusinessObject) : undefined
-  const mobileNavs = showBusinessObjectSidebar && currentBusinessObject
+  const showFormSidebar = /^\/admin\/apps\/[^/]+\/forms\//.test(location.pathname)
+  const currentFormMatch = location.pathname.match(/^\/admin\/apps\/([^/]+)\/forms\/([^/]+)/)
+  const currentAppId = currentFormMatch?.[1] ?? ''
+  const currentFormName = currentFormMatch?.[2] ?? ''
+  const mobileNavs = showFormSidebar && currentFormName
     ? [
       ...adminNavs,
       {
-        id: 'mobile-business-object',
-        text: currentBusinessObjectMeta?.label ?? '表单',
+        id: 'mobile-form',
+        text: currentFormName,
         sub: [
           {
-            id: 'mobile-business-object-base',
+            id: 'mobile-form-base',
             text: '基本信息',
-            to: `/admin/business-object/${currentBusinessObject}/base`
+            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/base`
           },
           {
-            id: 'mobile-business-object-fields',
+            id: 'mobile-form-fields',
             text: '字段管理',
-            to: `/admin/business-object/${currentBusinessObject}/fields`
+            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`
           },
           {
-            id: 'mobile-business-object-form-design',
+            id: 'mobile-form-design',
             text: '表单设计',
-            to: `/admin/business-object/${currentBusinessObject}/form-design`
+            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/form-design`
           },
           {
-            id: 'mobile-business-object-easy-action',
+            id: 'mobile-form-easy-action',
             text: '自定义操作',
-            to: `/admin/business-object/${currentBusinessObject}/easy-action`
+            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/easy-action`
           },
           {
-            id: 'mobile-business-object-record-alerts',
+            id: 'mobile-form-record-alerts',
             text: '记录锁定',
-            to: `/admin/business-object/${currentBusinessObject}/record-alerts`
+            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/record-alerts`
           },
           {
-            id: 'mobile-business-object-advanced',
+            id: 'mobile-form-advanced',
             text: '高级配置',
-            to: `/admin/business-object/${currentBusinessObject}/advanced`
+            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/advanced`
           },
         ],
       },
@@ -89,7 +90,7 @@ export function AdminLayout({
         onMenusChange={() => undefined}
       />
 
-      {showBusinessObjectSidebar && (
+      {showFormSidebar && (
         <aside
           className={cn(
             'fixed top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 border-r bg-background md:block',
@@ -99,35 +100,34 @@ export function AdminLayout({
           <div className="flex h-full flex-col">
             <div className="border-b px-4 py-4">
               <div className="text-xl font-semibold text-foreground">
-                {currentBusinessObjectMeta?.label ?? '表单'}
+                {currentFormName}
               </div>
-              {currentBusinessObjectMeta?.description && (
-                <p className="mb-0 mt-1 text-xs text-muted-foreground">
-                  {currentBusinessObjectMeta.description}
-                </p>
-              )}
             </div>
             <nav className="min-h-0 flex-1 overflow-y-auto p-3">
               <ul className="space-y-1">
                 {[
-                  {key: 'base', label: '基本信息', to: `/admin/business-object/${currentBusinessObject}/base`},
-                  {key: 'fields', label: '字段管理', to: `/admin/business-object/${currentBusinessObject}/fields`},
+                  {key: 'base', label: '基本信息', to: `/admin/apps/${currentAppId}/forms/${currentFormName}/base`},
+                  {key: 'fields', label: '字段管理', to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`},
                   {
                     key: 'form-design',
                     label: '表单设计',
-                    to: `/admin/business-object/${currentBusinessObject}/form-design`
+                    to: `/admin/apps/${currentAppId}/forms/${currentFormName}/form-design`
                   },
                   {
                     key: 'easy-action',
                     label: '自定义操作',
-                    to: `/admin/business-object/${currentBusinessObject}/easy-action`
+                    to: `/admin/apps/${currentAppId}/forms/${currentFormName}/easy-action`
                   },
                   {
                     key: 'record-alerts',
                     label: '记录锁定',
-                    to: `/admin/business-object/${currentBusinessObject}/record-alerts`
+                    to: `/admin/apps/${currentAppId}/forms/${currentFormName}/record-alerts`
                   },
-                  {key: 'advanced', label: '高级配置', to: `/admin/business-object/${currentBusinessObject}/advanced`},
+                  {
+                    key: 'advanced',
+                    label: '高级配置',
+                    to: `/admin/apps/${currentAppId}/forms/${currentFormName}/advanced`
+                  },
                 ].map((item) => (
                   <li key={item.key}>
                     <Link
@@ -156,7 +156,7 @@ export function AdminLayout({
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
           hideHeader
             ? ''
-            : showBusinessObjectSidebar
+            : showFormSidebar
               ? collapsed
                 ? 'md:ml-[20rem]'
                 : 'md:ml-[32rem]'

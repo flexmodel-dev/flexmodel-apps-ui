@@ -419,7 +419,7 @@ export function getAppMenuForBusinessObject(businessObjectName: string): { appId
   return undefined
 }
 
-export type MenuLinkKind = 'system' | 'entity'
+export type MenuLinkKind = 'system' | 'form'
 
 export interface MenuLinkOption {
   id: string
@@ -437,13 +437,13 @@ export const systemMenuLinks: MenuLinkOption[] = [
   {id: 'notifications', label: '通知', kind: 'system', to: '/notifications'},
 ]
 
-export const entityMenuLinks: MenuLinkOption[] = businessObjects.flatMap((businessObject) => {
+export const formMenuLinks: MenuLinkOption[] = businessObjects.flatMap((businessObject) => {
   const menu = getAppMenuForBusinessObject(businessObject.name)
   return menu
     ? [{
       id: businessObject.name,
       label: businessObject.label,
-      kind: 'entity',
+      kind: 'form',
       to: `/apps/${menu.appId}/${menu.menuId}`,
     }]
     : []
@@ -644,7 +644,7 @@ export function updateRecord(businessObject: string, id: string, values: Record<
 
 export interface ApprovalItem {
   id: string
-  entityLabel: string
+  formLabel: string
   recordName: string
   applicant: string
   submittedOn: string
@@ -654,16 +654,106 @@ export interface ApprovalItem {
 }
 
 export const approvals: ApprovalItem[] = [
-  { id: '031-0001', entityLabel: '报销单', recordName: '差旅费报销 - 上海出差', applicant: '赵云', submittedOn: d(1, 9, 12), status: '待审批', currentNode: '部门经理审批', content: '申请报销差旅费 4,280 元' },
-  { id: '031-0002', entityLabel: '请假单', recordName: '年假申请 - 孙丽', applicant: '孙丽', submittedOn: d(1, 10, 5), status: '待审批', currentNode: '人事备案', content: '年假 3 天（09-10 ~ 09-12）' },
-  { id: '031-0003', entityLabel: '报价单', recordName: '华辰科技 - ERP 报价', applicant: '钱迅', submittedOn: d(2, 15, 40), status: '待审批', currentNode: '总经理审批', content: '总金额 120,000 元，折扣 88%' },
-  { id: '031-0004', entityLabel: '报销单', recordName: '招待费报销', applicant: '吴征', submittedOn: d(3, 11, 20), status: '待审批', currentNode: '财务复核', content: '客户招待费 1,680 元' },
-  { id: '031-0005', entityLabel: '合同评审', recordName: '深圳数联 - 智慧园区合同', applicant: '钱迅', submittedOn: d(4, 16, 8), status: '待审批', currentNode: '法务审批', content: '合同金额 580,000 元' },
-  { id: '031-0006', entityLabel: '请假单', recordName: '调休申请 - 周武', applicant: '周武', submittedOn: d(5, 9, 45), status: '已通过', currentNode: '流程结束', content: '调休 1 天（09-09）' },
-  { id: '031-0007', entityLabel: '报销单', recordName: '办公用品采购报销', applicant: '李杰', submittedOn: d(6, 14, 30), status: '已通过', currentNode: '流程结束', content: '办公耗材 960 元' },
-  { id: '031-0008', entityLabel: '报价单', recordName: '北京云图 - 云迁移报价', applicant: '孙丽', submittedOn: d(7, 10, 15), status: '已通过', currentNode: '流程结束', content: '总金额 86,000 元，折扣 95%' },
-  { id: '031-0009', entityLabel: '合同评审', recordName: '杭州点智 - 数据中台合同', applicant: '赵云', submittedOn: d(9, 17, 22), status: '已驳回', currentNode: '流程结束', content: '合同金额 320,000 元（付款条款未达标）' },
-  { id: '031-0010', entityLabel: '报销单', recordName: '培训费报销', applicant: '孙丽', submittedOn: d(11, 9, 5), status: '已通过', currentNode: '流程结束', content: '技术大会门票 2,400 元' },
+  {
+    id: '031-0001',
+    formLabel: '报销单',
+    recordName: '差旅费报销 - 上海出差',
+    applicant: '赵云',
+    submittedOn: d(1, 9, 12),
+    status: '待审批',
+    currentNode: '部门经理审批',
+    content: '申请报销差旅费 4,280 元'
+  },
+  {
+    id: '031-0002',
+    formLabel: '请假单',
+    recordName: '年假申请 - 孙丽',
+    applicant: '孙丽',
+    submittedOn: d(1, 10, 5),
+    status: '待审批',
+    currentNode: '人事备案',
+    content: '年假 3 天（09-10 ~ 09-12）'
+  },
+  {
+    id: '031-0003',
+    formLabel: '报价单',
+    recordName: '华辰科技 - ERP 报价',
+    applicant: '钱迅',
+    submittedOn: d(2, 15, 40),
+    status: '待审批',
+    currentNode: '总经理审批',
+    content: '总金额 120,000 元，折扣 88%'
+  },
+  {
+    id: '031-0004',
+    formLabel: '报销单',
+    recordName: '招待费报销',
+    applicant: '吴征',
+    submittedOn: d(3, 11, 20),
+    status: '待审批',
+    currentNode: '财务复核',
+    content: '客户招待费 1,680 元'
+  },
+  {
+    id: '031-0005',
+    formLabel: '合同评审',
+    recordName: '深圳数联 - 智慧园区合同',
+    applicant: '钱迅',
+    submittedOn: d(4, 16, 8),
+    status: '待审批',
+    currentNode: '法务审批',
+    content: '合同金额 580,000 元'
+  },
+  {
+    id: '031-0006',
+    formLabel: '请假单',
+    recordName: '调休申请 - 周武',
+    applicant: '周武',
+    submittedOn: d(5, 9, 45),
+    status: '已通过',
+    currentNode: '流程结束',
+    content: '调休 1 天（09-09）'
+  },
+  {
+    id: '031-0007',
+    formLabel: '报销单',
+    recordName: '办公用品采购报销',
+    applicant: '李杰',
+    submittedOn: d(6, 14, 30),
+    status: '已通过',
+    currentNode: '流程结束',
+    content: '办公耗材 960 元'
+  },
+  {
+    id: '031-0008',
+    formLabel: '报价单',
+    recordName: '北京云图 - 云迁移报价',
+    applicant: '孙丽',
+    submittedOn: d(7, 10, 15),
+    status: '已通过',
+    currentNode: '流程结束',
+    content: '总金额 86,000 元，折扣 95%'
+  },
+  {
+    id: '031-0009',
+    formLabel: '合同评审',
+    recordName: '杭州点智 - 数据中台合同',
+    applicant: '赵云',
+    submittedOn: d(9, 17, 22),
+    status: '已驳回',
+    currentNode: '流程结束',
+    content: '合同金额 320,000 元（付款条款未达标）'
+  },
+  {
+    id: '031-0010',
+    formLabel: '报销单',
+    recordName: '培训费报销',
+    applicant: '孙丽',
+    submittedOn: d(11, 9, 5),
+    status: '已通过',
+    currentNode: '流程结束',
+    content: '技术大会门票 2,400 元'
+  },
 ]
 
 /* ---------------- 通知 ---------------- */
@@ -898,22 +988,22 @@ export interface NavItem {
 
 export const userNavs: NavItem[] = [
   { id: 'dashboard-home', icon: Home, text: '首页', to: '/dashboard/home' },
-  {id: 'nav_entity-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
-  {id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
-  {id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/apps/app-sales/menu-product'},
+  {id: 'nav_form-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
+  {id: 'nav_form-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
+  {id: 'nav_form-Product', icon: ShoppingCart, text: '产品', to: '/apps/app-sales/menu-product'},
   {
     id: 'group-common',
     icon: Folder,
     text: '常用',
     sub: [
-      {id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
-      {id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
-      {id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home'},
-      {id: 'nav_entity--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home'},
+      {id: 'nav_form--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
+      {id: 'nav_form--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
+      {id: 'nav_form--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home'},
+      {id: 'nav_form--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home'},
     ],
   },
   {
-    id: 'nav_entity--PROJECT',
+    id: 'nav_form--PROJECT',
     icon: Shapes,
     text: '项目',
     sub: projects.map((p) => ({ id: `nav_project-${p.id}`, icon: Tags, text: p.name, to: `/project/${p.id}/tasks` })),
@@ -953,32 +1043,32 @@ function nextMenuPath(id: string) {
 }
 
 const customerNavs: NavItem[] = [
-  {id: 'nav_entity-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
-  {id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
-  { id: 'nav_entity--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home' },
+  {id: 'nav_form-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
+  {id: 'nav_form-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
+  {id: 'nav_form--CONTACTS', icon: BookUser, text: '通讯录', to: '/contacts/home'},
   {
     id: 'group-customer-collaboration',
     icon: Folder,
     text: '协作',
     sub: [
-      {id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
-      {id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
-      {id: 'nav_entity--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home'},
+      {id: 'nav_form--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
+      {id: 'nav_form--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
+      {id: 'nav_form--APPROVAL', icon: ClipboardCheck, text: '审批中心', to: '/approval/home'},
     ],
   },
 ]
 
 const salesNavs: NavItem[] = [
-  {id: 'nav_entity-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
-  {id: 'nav_entity-Product', icon: ShoppingCart, text: '产品', to: '/apps/app-sales/menu-product'},
-  {id: 'nav_entity-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
+  {id: 'nav_form-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
+  {id: 'nav_form-Product', icon: ShoppingCart, text: '产品', to: '/apps/app-sales/menu-product'},
+  {id: 'nav_form-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
   {
     id: 'group-sales-follow',
     icon: Folder,
     text: '跟进',
     sub: [
-      {id: 'nav_entity--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
-      {id: 'nav_entity--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
+      {id: 'nav_form--FEEDS', icon: PieChart, text: '动态', to: '/feeds/home'},
+      {id: 'nav_form--ATTACHMENT', icon: Folder, text: '文件', to: '/files/home'},
     ],
   },
 ]
@@ -1218,7 +1308,7 @@ export const loginLogs = [
 ]
 
 export const recycleBin = [
-  { id: 'r-1', entityLabel: '客户', recordName: '东莞虎门制造（重复录入）', deletedBy: '钱迅', deletedOn: d(2, 11, 30) },
-  { id: 'r-2', entityLabel: '商机', recordName: '苏州金鸡湖互联 - 网站改版', deletedBy: '孙丽', deletedOn: d(4, 16, 44) },
-  { id: 'r-3', entityLabel: '产品', recordName: '旧版报表模块', deletedBy: 'admin', deletedOn: d(6, 10, 5) },
+  {id: 'r-1', formLabel: '客户', recordName: '东莞虎门制造（重复录入）', deletedBy: '钱迅', deletedOn: d(2, 11, 30)},
+  {id: 'r-2', formLabel: '商机', recordName: '苏州金鸡湖互联 - 网站改版', deletedBy: '孙丽', deletedOn: d(4, 16, 44)},
+  {id: 'r-3', formLabel: '产品', recordName: '旧版报表模块', deletedBy: 'admin', deletedOn: d(6, 10, 5)},
 ]

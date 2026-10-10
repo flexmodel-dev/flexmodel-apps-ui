@@ -50,12 +50,18 @@ export default function AppRecordView() {
   }
 
   const menu = findMenu(menus, menuId)
-  if (menu?.target?.type !== 'ENTITY') {
+  if (menu?.target?.type !== 'FORM') {
     return (
       <AppLayout>
         <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">该菜单未绑定表单。</div>
       </AppLayout>
     )
   }
-  return <RecordView businessObjectId={menu.target.id}/>
+  return (
+    <AppLayout>
+      <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
+        已绑定表单「{menu.target.id}」，记录功能开发中。
+      </div>
+    </AppLayout>
+  )
 }

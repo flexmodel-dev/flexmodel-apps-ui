@@ -10,7 +10,7 @@ import {IconPicker} from '@/components/biz/IconPicker'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {Empty} from '@/components/ui/empty'
 import {AppMenuManager} from '@/components/biz/AppMenuManager'
-import {AdminApprovals, AdminBusinessObjects, AdminTriggers} from '@/pages/admin'
+import {AdminApprovals, AdminForms, AdminTriggers} from '@/pages/admin'
 import {
   appIconOptions,
   appIcons,
@@ -23,7 +23,7 @@ import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
 const settingsNavs = [
   { key: 'basic', label: '基本设置' },
   {key: 'menus', label: '菜单管理'},
-  {key: 'business-objects', label: '表单管理'},
+  {key: 'forms', label: '表单管理'},
   { key: 'approvals', label: '审批流程' },
   { key: 'triggers', label: '触发器' },
 ]
@@ -217,7 +217,7 @@ export default function AppSettings({ section }: { section: string }) {
               </div>
             )}
 
-            {activeSection === 'business-objects' && <AdminBusinessObjects embedded/>}
+            {activeSection === 'forms' && <AdminForms embedded appId={app.id}/>}
 
             {activeSection === 'menus' && <AppMenuManager appId={app.id}/>}
 

@@ -48,14 +48,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {Empty} from '@/components/ui/empty'
-import {getBusinessObject, type BusinessObjectField} from '@/data/mock'
+import {
+  createAppFormField,
+  getAppForm,
+  updateAppFormField,
+  type AppFormField,
+  type AppFormFieldType,
+  type AppForm,
+} from '@/services/appForms'
 import {
   formFieldWidthClasses,
   formFieldWidthOptions,
   getStoredFormLayout,
   isFormDividerField,
   saveStoredFormLayout,
-  type StoredCustomField,
   type FormItemProperties,
   type FormFieldWidth,
 } from '@/lib/form-layout'
@@ -126,7 +132,25 @@ const fieldTypePalette: {
   { type: 'STATE', label: '状态', icon: Activity },
 ]
 
-const customFieldPrefix = '$CUSTOM$-'
+type DesignFormField = Omit<AppFormField, 'type'> & { type: string }
+
+interface DesignForm {
+  name: string
+  label: string
+  description: string
+  nameField?: string | null
+  fields: DesignFormField[]
+}
+
+function toDesignForm(form: AppForm): DesignForm {
+  return {
+    name: form.name,
+    label: form.label,
+    description: form.description,
+    nameField: form.nameField,
+    fields: form.fields.map((field) => ({...field})),
+  }
+}
 
 type EditingItem = {
   kind: 'field' | 'divider'
@@ -221,11 +245,12 @@ function WidthSelector({
   )
 }
 
-/** 表单/视图设计（参考 admin/business-object/:businessObject/form-design） */
+/** 表单设计 */
 export default function FormDesign() {
-  const {businessObject} = useParams<{ businessObject: string }>()
+  const {appId = '', formName = ''} = useParams<{ appId: string; formName: string }>()
   const navigate = useNavigate()
-  const meta = getBusinessObject(businessObject ?? 'Customer')
+  const [form, setForm] = React.useState<DesignForm | null>(null)
+  const [isLoading, setIsLoading] = React.useState(true)
   const [layout, setLayout] = React.useState<string[]>([])
   const [dragging, setDragging] = React.useState<string | null>(null)
   const [dropIndex, setDropIndex] = React.useState<number | null>(null)
@@ -234,8 +259,8 @@ export default function FormDesign() {
   const [widths, setWidths] = React.useState<Record<string, FormFieldWidth>>({})
   const [itemProperties, setItemProperties] = React.useState<Record<string, FormItemProperties>>({})
   const [editingItem, setEditingItem] = React.useState<EditingItem | null>(null)
-  const [customFields, setCustomFields] = React.useState<StoredCustomField[]>([])
   const [creatingField, setCreatingField] = React.useState<FieldCreateDraft | null>(null)
+  const [fieldError, setFieldError] = React.useState<string | null>(null)
   const [resizing, setResizing] = React.useState<{
     name: string
     startX: number
@@ -244,22 +269,72 @@ export default function FormDesign() {
   } | null>(null)
 
   React.useEffect(() => {
-    if (!meta) return
-    const storedLayout = getStoredFormLayout(meta.name)
-    if (storedLayout) {
-      setLayout(storedLayout.fields)
-      setWidths(storedLayout.widths)
-      setItemProperties(storedLayout.properties ?? {})
-      setCustomFields(storedLayout.customFields ?? [])
-    } else {
-      setLayout(meta.fields.map((field) => field.name))
-      setWidths({})
-      setItemProperties({})
-      setCustomFields([])
+    if (!appId || !formName) {
+      setForm(null)
+      setIsLoading(false)
+      return
     }
-  }, [meta])
+    let cancelled = false
+    getAppForm(appId, formName)
+      .then((loadedForm) => {
+        if (cancelled) return
+        const designForm = toDesignForm(loadedForm)
+        setForm(designForm)
+        const storedLayout = getStoredFormLayout(designForm.name)
+        if (storedLayout) {
+          setLayout(storedLayout.fields)
+          setWidths(storedLayout.widths)
+          setItemProperties(storedLayout.properties ?? {})
+        } else {
+          setLayout(designForm.fields.map((field) => field.name))
+          setWidths({})
+          setItemProperties({})
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setForm(null)
+      })
+      .finally(() => !cancelled && setIsLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [appId, formName])
 
-  if (!meta) {
+  React.useEffect(() => {
+    if (!resizing) return
+    const handlePointerMove = (event: PointerEvent) => {
+      const nextColumns =
+        resizing.startColumns + (event.clientX - resizing.startX) / resizing.columnWidth
+      const width = formFieldWidthOptions.reduce((best, option) => (
+        Math.abs(formFieldColumns[option] - nextColumns) <
+        Math.abs(formFieldColumns[best] - nextColumns)
+          ? option
+          : best
+      ), formFieldWidthOptions[0])
+      setWidths((previous) => (
+        previous[resizing.name] === width ? previous : {...previous, [resizing.name]: width}
+      ))
+    }
+    const stopResize = () => setResizing(null)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', stopResize)
+    window.addEventListener('pointercancel', stopResize)
+    document.body.style.cursor = 'col-resize'
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', stopResize)
+      window.removeEventListener('pointercancel', stopResize)
+      document.body.style.cursor = ''
+    }
+  }, [resizing])
+
+  if (isLoading) {
+    return <AdminLayout>
+      <div className="min-h-[400px]"/>
+    </AdminLayout>
+  }
+
+  if (!form) {
     return (
       <AdminLayout>
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -269,18 +344,18 @@ export default function FormDesign() {
     )
   }
 
-  const allFields = [...meta.fields, ...customFields]
+  const allFields = form.fields
 
   const layoutFields = layout
     .map((name) => {
-      const metaField = allFields.find((field) => field.name === name)
-      if (metaField) return metaField
+      const formField = allFields.find((field) => field.name === name)
+      if (formField) return formField
       if (isFormDividerField(name)) {
-        return {name, label: '分栏', type: 'TEXT'} as BusinessObjectField
+        return {name, label: '分栏', type: 'TEXT', required: false, system: false}
       }
       return undefined
     })
-    .filter((field): field is BusinessObjectField => Boolean(field))
+    .filter((field): field is DesignFormField => Boolean(field))
   const availableFields = allFields.filter((field) => !layout.includes(field.name))
 
   const rowWidthTotals = (() => {
@@ -314,29 +389,31 @@ export default function FormDesign() {
       remark: '',
     })
   }
-  const saveFieldCreate = () => {
-    if (!creatingField) return
+  const saveFieldCreate = async () => {
+    if (!creatingField || !form) return
     const label = creatingField.label.trim() || creatingField.defaultLabel
     const remark = creatingField.remark.trim()
-
-    const customField: StoredCustomField = {
-      name: `${customFieldPrefix}${creatingField.type.toLowerCase()}-${Date.now()}`,
-      label,
-      type: creatingField.type,
-      options: creatingField.type === 'PICKLIST' || creatingField.type === 'MULTISELECT'
-        ? [{ id: '1', text: '选项一' }, { id: '2', text: '选项二' }]
-        : undefined,
-      refBusinessObject: creatingField.type === 'REFERENCE' ? 'Customer' : undefined,
+    setFieldError(null)
+    try {
+      const createdField = await createAppFormField(appId, form.name, {
+        label,
+        type: creatingField.type as AppFormFieldType,
+        required: false,
+      })
+      const designField = {...createdField}
+      setForm({
+        ...form,
+        fields: [...form.fields, designField],
+      })
+      setLayout((previous) => [...previous, createdField.name])
+      setWidths((previous) => ({...previous, [createdField.name]: 50}))
+      if (remark) {
+        updateItemProperties(createdField.name, {tip: remark})
+      }
+      setCreatingField(null)
+    } catch (caught) {
+      setFieldError(caught instanceof Error ? caught.message : '保存字段失败')
     }
-
-    setCustomFields((previous) => [...previous, customField])
-    setLayout((previous) => [...previous, customField.name])
-    setWidths((previous) => ({ ...previous, [customField.name]: 50 }))
-    if (remark) {
-      updateItemProperties(customField.name, { tip: remark })
-    }
-
-    setCreatingField(null)
   }
   const addDivider = () => {
     setLayout((previous) => [...previous, `$DIVIDER$-${Date.now()}`])
@@ -350,11 +427,11 @@ export default function FormDesign() {
     setItemProperties({})
   }
   const saveLayout = () => {
-    saveStoredFormLayout(meta.name, {
+    saveStoredFormLayout(form.name, {
       fields: layout,
       widths,
       properties: itemProperties,
-      customFields,
+      customFields: [],
     })
     setSaved(true)
     window.setTimeout(() => setSaved(false), 1600)
@@ -376,18 +453,18 @@ export default function FormDesign() {
   const updateItemProperties = (name: string, properties: FormItemProperties) => {
     setItemProperties((previous) => ({ ...previous, [name]: { ...previous[name], ...properties } }))
   }
-  const getDisplayLabel = (field: BusinessObjectField) =>
+  const getDisplayLabel = (field: DesignFormField) =>
     getItemProperties(field.name).label?.trim() || field.label
   const getDividerLabel = (name: string) => getItemProperties(name).label?.trim() || ''
   const getItemTip = (name: string) => getItemProperties(name).tip?.trim() || ''
-  const openEdit = (field: BusinessObjectField) => {
+  const openEdit = (field: DesignFormField) => {
     const properties = getItemProperties(field.name)
     setEditingItem({
       kind: 'field',
       name: field.name,
       label: properties.label?.trim() || field.label,
       tip: properties.tip || '',
-      required: properties.required ?? field.name === meta.nameField,
+      required: properties.required ?? field.name === form.nameField,
       readonly: properties.readonly ?? false,
       hidden: properties.hidden ?? false,
     })
@@ -433,33 +510,6 @@ export default function FormDesign() {
       columnWidth,
     })
   }
-  React.useEffect(() => {
-    if (!resizing) return
-    const handlePointerMove = (event: PointerEvent) => {
-      const nextColumns =
-        resizing.startColumns + (event.clientX - resizing.startX) / resizing.columnWidth
-      const width = formFieldWidthOptions.reduce((best, option) => (
-        Math.abs(formFieldColumns[option] - nextColumns) <
-          Math.abs(formFieldColumns[best] - nextColumns)
-          ? option
-          : best
-      ), formFieldWidthOptions[0])
-      setWidths((previous) => (
-        previous[resizing.name] === width ? previous : { ...previous, [resizing.name]: width }
-      ))
-    }
-    const stopResize = () => setResizing(null)
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', stopResize)
-    window.addEventListener('pointercancel', stopResize)
-    document.body.style.cursor = 'col-resize'
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', stopResize)
-      window.removeEventListener('pointercancel', stopResize)
-      document.body.style.cursor = ''
-    }
-  }, [resizing])
   const getDropIndex = (event: React.DragEvent<HTMLElement>, index: number) => {
     const rect = event.currentTarget.getBoundingClientRect()
     const insertBefore = event.clientX < rect.left + rect.width / 2
@@ -483,7 +533,7 @@ export default function FormDesign() {
       dropIndex + (sourceIndex >= 0 && sourceIndex < dropIndex ? 1 : 0),
       layoutFields.length,
     )
-    const next: Array<BusinessObjectField | null> = [...layoutFields]
+    const next: Array<DesignFormField | null> = [...layoutFields]
     next.splice(insertIndex, 0, null)
     return next.map((field, index) => ({
       key: field?.name ?? `drop-${index}`,
@@ -496,18 +546,22 @@ export default function FormDesign() {
       <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
           <div className="flex min-w-0 items-center gap-3">
-            <Button variant="secondary" size="icon" onClick={() => navigate('/admin/business-objects')} title="返回">
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={() => navigate(`/admin/apps/${appId}/settings/forms`)}
+              title="返回"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <meta.icon className="h-5 w-5 shrink-0 text-primary" />
                 <h1 className="m-0 truncate text-lg font-semibold">
-                  {meta.label} · 表单设计
+                  {form.label} · 表单设计
                 </h1>
               </div>
               <p className="mb-0 mt-0.5 truncate text-xs text-muted-foreground">
-                {meta.description || `${meta.name} 的表单布局配置`}
+                {form.description || `${form.label} 的表单布局配置`}
               </p>
             </div>
           </div>
@@ -603,7 +657,7 @@ export default function FormDesign() {
                           </span>
                         </div>
 
-                        {item.field.name === meta.nameField && (
+                        {item.field.name === form.nameField && (
                           <Badge className="bg-primary/10 text-primary">名称</Badge>
                         )}
                         {!isFormDividerField(item.field.name) && (
@@ -693,7 +747,7 @@ export default function FormDesign() {
                           {(['hidden', 'required', 'readonly'] as const).map((key) => (
                             <td key={key}>
                               <Checkbox
-                                checked={getItemProperties(field.name)[key] ?? (key === 'required' && field.name === meta.nameField)}
+                                checked={getItemProperties(field.name)[key] ?? (key === 'required' && field.name === form.nameField)}
                                 onCheckedChange={(checked) =>
                                   updateItemProperties(field.name, { [key]: checked === true })
                                 }

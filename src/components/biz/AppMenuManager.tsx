@@ -138,7 +138,7 @@ export function AppMenuManager({
     useSensor(KeyboardSensor, {coordinateGetter: sortableKeyboardCoordinates}),
   )
   const [menus, setMenus] = React.useState<AppMenu[]>([])
-  const [targets, setTargets] = React.useState<AppMenuTargets>({builtIn: [], entities: []})
+  const [targets, setTargets] = React.useState<AppMenuTargets>({builtIn: [], forms: []})
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [form, setForm] = React.useState<MenuForm | null>(null)
@@ -170,7 +170,7 @@ export function AppMenuManager({
     void loadMenus()
   }, [loadMenus])
 
-  const allTargets = [...targets.builtIn, ...targets.entities]
+  const allTargets = [...targets.builtIn, ...targets.forms]
   const targetLabel = (value: string) => {
     const [type, id] = value.split(':')
     return allTargets.find((target) => target.type === type && target.id === id)?.label
@@ -424,7 +424,7 @@ export function AppMenuManager({
                     </SelectGroup>
                     <SelectGroup>
                       <SelectLabel>表单</SelectLabel>
-                      {targets.entities.map((target) => (
+                      {targets.forms.map((target) => (
                         <SelectItem key={target.id} value={`${target.type}:${target.id}`}>
                           {target.label}
                         </SelectItem>

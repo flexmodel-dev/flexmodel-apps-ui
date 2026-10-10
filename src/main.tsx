@@ -21,9 +21,8 @@ import ProjectTasks from '@/pages/ProjectTasks'
 import ContactsHome from '@/pages/ContactsHome'
 import UserSettings from '@/pages/UserSettings'
 import FormDesign from '@/pages/FormDesign'
-import BusinessObjectSettings from '@/pages/BusinessObjectSettings'
+import FormSettings from '@/pages/FormSettings'
 import {
-  AdminBusinessObjects,
   AdminUsers,
   AdminRoles,
   AdminTeams,
@@ -57,8 +56,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/admin/apps" element={<AppManagement/>}/>
           <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic"/>}/>
           <Route path="/admin/apps/:appId/settings/menus" element={<AppSettings section="menus"/>}/>
-          <Route path="/admin/apps/:appId/settings/business-objects"
-                 element={<AppSettings section="business-objects"/>}/>
+          <Route path="/admin/apps/:appId/settings/forms"
+                 element={<AppSettings section="forms"/>}/>
           <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals"/>}/>
           <Route path="/admin/apps/:appId/settings/triggers" element={<AppSettings section="triggers"/>}/>
           {/* 内置模块 */}
@@ -70,18 +69,18 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/project/:projectId/tasks" element={<ProjectTasks/>}/>
           <Route path="/contacts/home" element={<ContactsHome/>}/>
           {/* 管理中心 */}
-          <Route path="/admin/business-objects" element={<AdminBusinessObjects/>}/>
-          <Route path="/admin/business-object/:businessObject/base"
-                 element={<BusinessObjectSettings section="base"/>}/>
-          <Route path="/admin/business-object/:businessObject/fields"
-                 element={<BusinessObjectSettings section="fields"/>}/>
-          <Route path="/admin/business-object/:businessObject/form-design" element={<FormDesign/>}/>
-          <Route path="/admin/business-object/:businessObject/easy-action"
-                 element={<BusinessObjectSettings section="easy-action"/>}/>
-          <Route path="/admin/business-object/:businessObject/record-alerts"
-                 element={<BusinessObjectSettings section="record-alerts"/>}/>
-          <Route path="/admin/business-object/:businessObject/advanced"
-                 element={<BusinessObjectSettings section="advanced"/>}/>
+          <Route path="/admin/apps/:appId/forms/:formName/base"
+                 element={<FormSettings section="base"/>}/>
+          <Route path="/admin/apps/:appId/forms/:formName/fields"
+                 element={<FormSettings section="fields"/>}/>
+          <Route path="/admin/apps/:appId/forms/:formName/form-design"
+                 element={<FormDesign/>}/>
+          <Route path="/admin/apps/:appId/forms/:formName/easy-action"
+                 element={<FormSettings section="easy-action"/>}/>
+          <Route path="/admin/apps/:appId/forms/:formName/record-alerts"
+                 element={<FormSettings section="record-alerts"/>}/>
+          <Route path="/admin/apps/:appId/forms/:formName/advanced"
+                 element={<FormSettings section="advanced"/>}/>
           <Route path="/admin/bizuser/users" element={<AdminUsers/>}/>
           <Route path="/admin/bizuser/role-privileges" element={<AdminRoles/>}/>
           <Route path="/admin/bizuser/teams" element={<AdminTeams/>}/>

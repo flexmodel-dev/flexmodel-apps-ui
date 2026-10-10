@@ -2,7 +2,7 @@ import {requestJson} from '@/services/http'
 import {createAppDataCache} from '@/services/appDataCache'
 
 export type AppMenuType = 'GROUP' | 'ITEM'
-export type AppMenuTargetType = 'BUILT_IN' | 'ENTITY'
+export type AppMenuTargetType = 'BUILT_IN' | 'FORM'
 
 export interface AppMenuTarget {
   type: AppMenuTargetType
@@ -31,7 +31,7 @@ export interface AppMenuInput {
 
 export interface AppMenuTargets {
   builtIn: Array<{ type: AppMenuTargetType; id: string; label: string }>
-  entities: Array<{ type: AppMenuTargetType; id: string; label: string }>
+  forms: Array<{ type: AppMenuTargetType; id: string; label: string }>
 }
 
 export interface AppMenuOrderInput {
@@ -43,6 +43,14 @@ const API_BASE = '/api/apps'
 
 const menuCache = createAppDataCache<AppMenu[]>()
 const menuTargetCache = createAppDataCache<AppMenuTargets>()
+
+export function invalidateAppMenus(appId: string) {
+  menuCache.delete(appId)
+}
+
+export function invalidateAppMenuTargets(appId: string) {
+  menuTargetCache.delete(appId)
+}
 
 function normalizeMenus(menus: AppMenu[]): AppMenu[] {
   return menus.map((menu) => ({

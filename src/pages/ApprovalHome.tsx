@@ -66,13 +66,13 @@ export default function ApprovalHome() {
   }, [tab, businessObject, sort])
 
   const businessObjectOptions = React.useMemo(
-    () => Array.from(new Set(approvals.map((item) => item.entityLabel))),
+    () => Array.from(new Set(approvals.map((item) => item.formLabel))),
     [],
   )
 
   const list = React.useMemo(() => {
     const matchesBusinessObject = (item: (typeof approvals)[number]) =>
-      businessObject === 'all' || item.entityLabel === businessObject
+      businessObject === 'all' || item.formLabel === businessObject
 
     let next = approvals.filter(matchesBusinessObject)
     if (tab === 1) next = next.filter((item) => item.status === '待审批')
@@ -238,7 +238,7 @@ export default function ApprovalHome() {
 
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <Badge className="bg-muted text-muted-foreground">{item.entityLabel}</Badge>
+                            <Badge className="bg-muted text-muted-foreground">{item.formLabel}</Badge>
                             <span className="truncate text-sm font-medium text-foreground">
                               {item.recordName}
                             </span>

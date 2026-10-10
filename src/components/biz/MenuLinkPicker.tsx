@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {entityMenuLinks, systemMenuLinks} from '@/data/mock'
+import {formMenuLinks, systemMenuLinks} from '@/data/mock'
 import {getAppMenuTargets, type AppMenuTargets} from '@/services/appMenus'
 
 interface MenuLinkOption {
@@ -27,17 +27,17 @@ export function MenuLinkPicker({
   onChange: (value?: string) => void
   appId?: string
 }) {
-  const [appTargets, setAppTargets] = React.useState<AppMenuTargets>({builtIn: [], entities: []})
+  const [appTargets, setAppTargets] = React.useState<AppMenuTargets>({builtIn: [], forms: []})
 
   React.useEffect(() => {
     if (!appId) {
-      setAppTargets({builtIn: [], entities: []})
+      setAppTargets({builtIn: [], forms: []})
       return
     }
     let cancelled = false
     getAppMenuTargets(appId)
       .then((targets) => !cancelled && setAppTargets(targets))
-      .catch(() => !cancelled && setAppTargets({builtIn: [], entities: []}))
+      .catch(() => !cancelled && setAppTargets({builtIn: [], forms: []}))
     return () => {
       cancelled = true
     }
@@ -54,18 +54,18 @@ export function MenuLinkPicker({
       label: link.label,
       value: link.to,
     }))
-  const entityLinks: MenuLinkOption[] = appId
-    ? appTargets.entities.map((target) => ({
+  const formLinks: MenuLinkOption[] = appId
+    ? appTargets.forms.map((target) => ({
       id: target.id,
       label: target.label ?? target.id,
       value: `${target.type}:${target.id}`,
     }))
-    : entityMenuLinks.map((link) => ({
+    : formMenuLinks.map((link) => ({
       id: link.id,
       label: link.label,
       value: link.to,
     }))
-  const menuLinks = [...builtInLinks, ...entityLinks]
+  const menuLinks = [...builtInLinks, ...formLinks]
   const selectedValue = menuLinks.find((link) => link.value === value)?.value
 
   return (
@@ -88,7 +88,7 @@ export function MenuLinkPicker({
         <SelectSeparator/>
         <SelectGroup>
           <SelectLabel>表单</SelectLabel>
-          {entityLinks.map((link) => (
+          {formLinks.map((link) => (
             <SelectItem key={link.id} value={link.value}>
               {link.label}
             </SelectItem>
