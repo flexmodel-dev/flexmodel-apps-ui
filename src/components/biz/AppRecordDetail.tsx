@@ -1,10 +1,11 @@
 import * as React from 'react'
-import {Pencil, Trash2} from 'lucide-react'
+import {ChevronDown, Pencil, Trash2} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {Empty} from '@/components/ui/empty'
+import {cn} from '@/lib/utils'
 import {isFormDividerField} from '@/lib/form-layout'
 import {getAppForm, type AppForm, type AppFormField} from '@/services/appForms'
 import {deleteAppRecord, getAppRecord, type AppRecord} from '@/services/appRecords'
@@ -38,6 +39,7 @@ export function AppRecordDetail({
   const [editOpen, setEditOpen] = React.useState(false)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [collapsedSections, setCollapsedSections] = React.useState<string[]>([])
 
   const load = React.useCallback(() => {
     let cancelled = false
@@ -103,10 +105,9 @@ export function AppRecordDetail({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
         <div className="min-w-0">
           <div className="truncate text-lg font-semibold">{String(record[form.displayField ?? 'id'] ?? record.id)}</div>
-          <div className="text-xs text-muted-foreground">{form.label}</div>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
@@ -118,26 +119,48 @@ export function AppRecordDetail({
         </div>
       </div>
 
-      {sections.filter((section) => section.fields.length).map((section) => (
-        <div key={section.key} className="rounded-xl border bg-card p-4">
-          {sections.length > 1 && (
-            <div className="mb-3 border-b pb-2 text-sm font-medium">{section.label}</div>
-          )}
-          <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
-            {section.fields.map((field) => {
-              const label = form.layout?.properties?.[field.name]?.label?.trim() || field.label
-              return (
-                <div key={field.name} className="min-w-0">
-                  <div className="text-xs text-muted-foreground">{label}</div>
-                  <div className="mt-1 truncate text-sm font-medium text-foreground">
-                    {renderValue(field, record[field.name])}
-                  </div>
+      <div className="space-y-5 rounded-xl border bg-card p-4 shadow-sm">
+        {sections.filter((section) => section.fields.length).map((section) => {
+          const collapsed = section.key !== 'default' && collapsedSections.includes(section.key)
+          return (
+            <section key={section.key} className="space-y-3">
+              {sections.length > 1 && section.key !== 'default' && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 text-left text-sm text-foreground"
+                  onClick={() => setCollapsedSections((previous) => previous.includes(section.key)
+                    ? previous.filter((item) => item !== section.key)
+                    : [...previous, section.key])}
+                >
+                  <span className="h-4 w-1 shrink-0 rounded-full bg-primary"/>
+                  <span className="min-w-0 truncate font-semibold">{section.label}</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                      collapsed && '-rotate-90',
+                    )}
+                  />
+                </button>
+              )}
+              {!collapsed && (
+                <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
+                  {section.fields.map((field) => {
+                    const label = form.layout?.properties?.[field.name]?.label?.trim() || field.label
+                    return (
+                      <div key={field.name} className="min-w-0">
+                        <div className="text-xs text-muted-foreground">{label}</div>
+                        <div className="mt-1 truncate text-sm font-medium text-foreground">
+                          {renderValue(field, record[field.name])}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      ))}
+              )}
+            </section>
+          )
+        })}
+      </div>
 
       <AppRecordFormModal
         open={editOpen}
