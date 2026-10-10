@@ -22,13 +22,11 @@ export function AppSubformRecords({
                                     mainFormName,
                                     mainRecordId,
                                     subform,
-                                    label,
                                   }: {
   appId: string
   mainFormName: string
   mainRecordId: string
   subform: AppFormSubform
-  label: string
 }) {
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [page, setPage] = React.useState(1)
@@ -128,9 +126,8 @@ export function AppSubformRecords({
         <div className="flex min-w-0 items-center gap-2">
           <span className="h-4 w-1 shrink-0 rounded-full bg-primary"/>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">{label}</div>
-            <div className="truncate text-xs text-muted-foreground">
-              {form?.label ?? subform.formName} · {records.total} 条
+            <div className="truncate text-sm font-semibold">
+              {form?.label ?? subform.formName}
             </div>
           </div>
         </div>

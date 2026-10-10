@@ -285,6 +285,7 @@ export default function FormDesign() {
   const [subforms, setSubforms] = React.useState<Record<string, AppFormSubform>>({})
   const [availableForms, setAvailableForms] = React.useState<AppForm[]>([])
   const [subformDraft, setSubformDraft] = React.useState<SubformDraft | null>(null)
+  const [subformForm, setSubformForm] = React.useState<AppForm | null>(null)
   const [subformError, setSubformError] = React.useState<string | null>(null)
   const [isSavingSubform, setIsSavingSubform] = React.useState(false)
   const [editingItem, setEditingItem] = React.useState<EditingItem | null>(null)
@@ -360,6 +361,26 @@ export default function FormDesign() {
       cancelled = true
     }
   }, [appId])
+
+  React.useEffect(() => {
+    const selectedFormName = subformDraft?.formName
+    if (!appId || !selectedFormName) {
+      setSubformForm(null)
+      return
+    }
+    setSubformForm(null)
+    let cancelled = false
+    getAppForm(appId, selectedFormName)
+      .then((loadedForm) => {
+        if (!cancelled) setSubformForm(loadedForm)
+      })
+      .catch(() => {
+        if (!cancelled) setSubformForm(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [appId, subformDraft?.formName])
 
   React.useEffect(() => {
     if (!resizing) return
@@ -705,10 +726,9 @@ export default function FormDesign() {
     }))
   })()
 
-  const selectedSubformForm = availableForms.find((item) => item.name === subformDraft?.formName)
-  const subformReferenceFields = selectedSubformForm?.fields.filter((field) =>
-    field.type === 'REFERENCE' && field.referenceForm === form.name
-  ) ?? []
+  const selectedSubformForm = subformForm
+    ?? availableForms.find((item) => item.name === subformDraft?.formName)
+  const subformReferenceFields = selectedSubformForm?.fields.filter((field) => !field.builtin) ?? []
 
   return (
     <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
@@ -1170,7 +1190,7 @@ export default function FormDesign() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">引用字段</label>
+                <label className="text-sm font-medium">关联字段</label>
                 <Select
                   value={subformDraft.referenceField || '__AUTO__'}
                   onValueChange={(value) => setSubformDraft((previous) => previous
@@ -1190,7 +1210,7 @@ export default function FormDesign() {
                   </SelectContent>
                 </Select>
                 <p className="m-0 text-xs text-muted-foreground">
-                  不选择引用字段时，保存后将自动在子表单上创建指向当前表单的引用字段。
+                  可选择子表单中的任意业务字段；该字段将保存主记录 ID。不选择时，保存后将自动在子表单上创建指向当前表单的引用字段。
                 </p>
               </div>
             </div>

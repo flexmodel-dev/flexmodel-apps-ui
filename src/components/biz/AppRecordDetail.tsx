@@ -111,11 +111,10 @@ export function AppRecordDetail({
         ? {
           name,
           subform,
-          label: form.layout?.properties?.[name]?.label?.trim() || '子表单',
         }
         : null
     })
-    .filter((item): item is { name: string; subform: AppFormSubform; label: string } => Boolean(item))
+    .filter((item): item is { name: string; subform: AppFormSubform } => Boolean(item))
 
   return (
     <div className="space-y-4">
@@ -183,7 +182,6 @@ export function AppRecordDetail({
           mainFormName={form.name}
           mainRecordId={recordId}
           subform={item.subform}
-          label={item.label}
         />
       ))}
 
