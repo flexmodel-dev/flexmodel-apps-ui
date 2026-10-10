@@ -32,7 +32,7 @@ export function AdminLayout({
       ...adminNavs,
       {
         id: 'mobile-business-object',
-        text: currentBusinessObjectMeta?.label ?? '业务对象',
+        text: currentBusinessObjectMeta?.label ?? '表单',
         sub: [
           {
             id: 'mobile-business-object-base',
@@ -99,7 +99,7 @@ export function AdminLayout({
           <div className="flex h-full flex-col">
             <div className="border-b px-4 py-4">
               <div className="text-xl font-semibold text-foreground">
-                {currentBusinessObjectMeta?.label ?? '业务对象'}
+                {currentBusinessObjectMeta?.label ?? '表单'}
               </div>
               {currentBusinessObjectMeta?.description && (
                 <p className="mb-0 mt-1 text-xs text-muted-foreground">

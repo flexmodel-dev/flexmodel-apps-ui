@@ -423,7 +423,7 @@ export function AppMenuManager({
                       ))}
                     </SelectGroup>
                     <SelectGroup>
-                      <SelectLabel>实体</SelectLabel>
+                      <SelectLabel>表单</SelectLabel>
                       {targets.entities.map((target) => (
                         <SelectItem key={target.id} value={`${target.type}:${target.id}`}>
                           {target.label}

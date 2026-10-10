@@ -120,7 +120,7 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
     setSortAsc(true)
   }, [appId, menuId])
 
-  if (!meta) return <AppLayout>未知业务对象</AppLayout>
+  if (!meta) return <AppLayout>未知表单</AppLayout>
 
   const columns = meta.fields.filter((f) => f.type !== 'DATETIME' || f.name.endsWith('On'))
 
@@ -320,7 +320,7 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col p-3">
-          {/* 数据表格 */}
+          {/* 表单内容 */}
           <div className="data-list app-table-scroll min-h-0 flex-1 overflow-x-auto">
             <table className="app-table w-full min-w-[900px] border-collapse bg-background">
               <thead>

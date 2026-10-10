@@ -53,7 +53,7 @@ export default function AppRecordView() {
   if (menu?.target?.type !== 'ENTITY') {
     return (
       <AppLayout>
-        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">该菜单未绑定实体。</div>
+        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">该菜单未绑定表单。</div>
       </AppLayout>
     )
   }

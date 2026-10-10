@@ -87,7 +87,7 @@ export function MenuLinkPicker({
         </SelectGroup>
         <SelectSeparator/>
         <SelectGroup>
-          <SelectLabel>实体</SelectLabel>
+          <SelectLabel>表单</SelectLabel>
           {entityLinks.map((link) => (
             <SelectItem key={link.id} value={link.value}>
               {link.label}

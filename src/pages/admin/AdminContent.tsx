@@ -12,7 +12,7 @@ export function BusinessObjectManagementContent({businessObjects}: { businessObj
   return (
     <div className="row -mx-2.5" id="businessObjectList">
       <div className="new-business-object mb-5 w-full px-2.5">
-        <h3 className="mb-4 text-base font-normal text-muted-foreground">实体</h3>
+        <h3 className="mb-4 text-base font-normal text-muted-foreground">表单管理</h3>
         <div className="grid grid-cols-2 gap-5 md:grid-cols-4 xl:grid-cols-6">
           {businessObjects.map((businessObject) => (
             <Link
@@ -40,7 +40,7 @@ export function BusinessObjectManagementContent({businessObjects}: { businessObj
           <a className="block cursor-pointer rounded-md border border-dashed border-input transition-colors hover:border-primary">
             <div className="card-body p-3 pt-1 text-center">
               <CirclePlus className="h-6 w-6 text-primary" />
-              <span className="mt-1 block text-xs text-muted-foreground">新建实体</span>
+              <span className="mt-1 block text-xs text-muted-foreground">新建表单</span>
             </div>
           </a>
         </div>

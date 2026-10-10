@@ -157,10 +157,10 @@ export default function ApprovalHome() {
                 />
                 <Select value={businessObject} onValueChange={setBusinessObject}>
                   <SelectTrigger className="h-9 w-[176px]">
-                    <SelectValue placeholder="业务对象" />
+                    <SelectValue placeholder="表单"/>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">全部业务对象</SelectItem>
+                    <SelectItem value="all">全部表单</SelectItem>
                     {businessObjectOptions.map((item) => (
                       <SelectItem key={item} value={item}>
                         {item}

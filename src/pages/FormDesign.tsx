@@ -267,7 +267,7 @@ export default function FormDesign() {
     return (
       <AdminLayout>
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          未找到业务对象
+          未找到表单
         </div>
       </AdminLayout>
     )

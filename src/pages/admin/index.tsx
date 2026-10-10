@@ -10,7 +10,7 @@ import {businessObjects, users, departments, teams, type Department} from '@/dat
 import {cn, paginate} from '@/lib/utils'
 import {Building2, ChevronRight, CirclePlus, Search, Users, X} from 'lucide-react'
 
-/** 业务对象（admin/metadata/business-objects.html：卡片网格） */
+/** 表单（admin/metadata/business-objects.html：卡片网格） */
 export function AdminBusinessObjects({embedded = false}: { embedded?: boolean } = {}) {
   const content = <BusinessObjectManagementContent businessObjects={businessObjects}/>
   return embedded ? content : <AdminLayout>{content}</AdminLayout>
@@ -335,7 +335,7 @@ export function AdminApprovals({ embedded = false }: { embedded?: boolean } = {}
   return (
     <AdminTablePage
       title="审批流程"
-      desc="业务对象审批流程配置"
+      desc="表单审批流程配置"
       bare={embedded}
       rows={[
         {
@@ -375,7 +375,7 @@ export function AdminApprovals({ embedded = false }: { embedded?: boolean } = {}
         { key: 'name', label: '流程名称', render: (r) => <span className="font-medium text-primary">{r.name}</span> },
         {
           key: 'businessObject',
-          label: '业务对象',
+          label: '表单',
           render: (r) => <span className="badge-secondary">{r.businessObject}</span>
         },
         { key: 'applies', label: '生效条件' },
@@ -430,7 +430,7 @@ export function AdminTriggers({ embedded = false }: { embedded?: boolean } = {})
         { key: 'name', label: '触发器名称', render: (r) => <span className="font-medium text-primary">{r.name}</span> },
         {
           key: 'businessObject',
-          label: '业务对象',
+          label: '表单',
           render: (r) => <span className="badge-secondary">{r.businessObject}</span>
         },
         { key: 'when', label: '触发时机' },

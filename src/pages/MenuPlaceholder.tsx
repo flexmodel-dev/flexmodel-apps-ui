@@ -23,7 +23,7 @@ export default function MenuPlaceholder() {
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="w-full max-w-md rounded-lg border bg-card p-8 text-center">
           <h2 className="text-lg font-semibold text-foreground">{menuText}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">该菜单暂未绑定业务对象</p>
+          <p className="mt-2 text-sm text-muted-foreground">该菜单暂未绑定表单</p>
         </div>
       </div>
     </AppLayout>

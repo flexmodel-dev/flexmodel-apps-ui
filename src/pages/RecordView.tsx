@@ -63,7 +63,7 @@ export function RecordDetailContent({
     [businessObject, id, refreshTick],
   )
 
-  if (!meta) return <div className="p-4 text-sm text-muted-foreground">未知业务对象</div>
+  if (!meta) return <div className="p-4 text-sm text-muted-foreground">未知表单</div>
 
   const owningUser = String(record?.owningUser ?? '超级管理员')
 

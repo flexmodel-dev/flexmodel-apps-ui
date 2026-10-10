@@ -23,7 +23,7 @@ import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
 const settingsNavs = [
   { key: 'basic', label: '基本设置' },
   {key: 'menus', label: '菜单管理'},
-  {key: 'business-objects', label: '业务对象'},
+  {key: 'business-objects', label: '表单管理'},
   { key: 'approvals', label: '审批流程' },
   { key: 'triggers', label: '触发器' },
 ]
@@ -291,7 +291,7 @@ export default function AppSettings({ section }: { section: string }) {
           </>
         }
       >
-          <div className="pt-1">确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占业务对象和记录。
+          <div className="pt-1">确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占表单和记录。
             {deleteError ? (
               <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
             ) : null}
