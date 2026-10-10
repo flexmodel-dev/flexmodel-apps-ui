@@ -2,7 +2,6 @@ import * as React from 'react'
 import { Link } from 'react-router-dom'
 import { CirclePlus } from 'lucide-react'
 import {
-  getAppMenuForBusinessObject,
   type AppApprovalFlow,
   type AppTriggerConfig,
   type BusinessObjectMeta
@@ -17,10 +16,7 @@ export function BusinessObjectManagementContent({businessObjects}: { businessObj
           {businessObjects.map((businessObject) => (
             <Link
               key={businessObject.name}
-              to={(() => {
-                const menu = getAppMenuForBusinessObject(businessObject.name)
-                return menu ? `/apps/${menu.appId}/${menu.menuId}` : '/admin/apps'
-              })()}
+              to={`/admin/business-object/${businessObject.name}/base`}
               className="block rounded-md border bg-card transition-colors hover:bg-accent"
             >
               <div className="card-body p-3">

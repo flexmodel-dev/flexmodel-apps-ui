@@ -21,6 +21,7 @@ import ProjectTasks from '@/pages/ProjectTasks'
 import ContactsHome from '@/pages/ContactsHome'
 import UserSettings from '@/pages/UserSettings'
 import FormDesign from '@/pages/FormDesign'
+import BusinessObjectSettings from '@/pages/BusinessObjectSettings'
 import {
   AdminBusinessObjects,
   AdminUsers,
@@ -70,7 +71,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/contacts/home" element={<ContactsHome/>}/>
           {/* 管理中心 */}
           <Route path="/admin/business-objects" element={<AdminBusinessObjects/>}/>
+          <Route path="/admin/business-object/:businessObject/base"
+                 element={<BusinessObjectSettings section="base"/>}/>
+          <Route path="/admin/business-object/:businessObject/fields"
+                 element={<BusinessObjectSettings section="fields"/>}/>
           <Route path="/admin/business-object/:businessObject/form-design" element={<FormDesign/>}/>
+          <Route path="/admin/business-object/:businessObject/easy-action"
+                 element={<BusinessObjectSettings section="easy-action"/>}/>
+          <Route path="/admin/business-object/:businessObject/record-alerts"
+                 element={<BusinessObjectSettings section="record-alerts"/>}/>
+          <Route path="/admin/business-object/:businessObject/advanced"
+                 element={<BusinessObjectSettings section="advanced"/>}/>
           <Route path="/admin/bizuser/users" element={<AdminUsers/>}/>
           <Route path="/admin/bizuser/role-privileges" element={<AdminRoles/>}/>
           <Route path="/admin/bizuser/teams" element={<AdminTeams/>}/>
