@@ -102,7 +102,7 @@ export function RecordDetailContent({
     return String(v)
   }
 
-  const recordName = record ? String(record[meta.nameField] ?? id) : id
+  const recordName = record ? String(record[meta.displayField] ?? id) : id
 
   return (
     <div>

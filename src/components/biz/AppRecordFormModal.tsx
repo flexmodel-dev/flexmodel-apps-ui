@@ -1,0 +1,311 @@
+import * as React from 'react'
+import {Info} from 'lucide-react'
+import {BizDialog} from '@/components/ui/dialog'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
+import {Checkbox} from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {cn} from '@/lib/utils'
+import {
+  formFieldWidthClasses,
+  isFormDividerField,
+  type FormFieldWidth,
+} from '@/lib/form-layout'
+import {
+  getAppForm,
+  type AppForm,
+  type AppFormField,
+  type AppFormItemProperties,
+} from '@/services/appForms'
+import {
+  createAppRecord,
+  getAppRecords,
+  getAppRecord,
+  updateAppRecord,
+  type AppRecord,
+} from '@/services/appRecords'
+
+type ReferenceOption = { value: string; label: string }
+
+function toInputValue(field: AppFormField, value: unknown) {
+  if (field.type === 'BOOL') return value === true || value === 'true'
+  return value === undefined || value === null ? '' : String(value)
+}
+
+function isDivider(name: string) {
+  return isFormDividerField(name)
+}
+
+function FieldControl({
+                        field,
+                        value,
+                        options,
+                        referenceOptions,
+                        disabled,
+                        onChange,
+                      }: {
+  field: AppFormField
+  value: unknown
+  options: Array<{ id?: string; text?: string; color?: string }>
+  referenceOptions: ReferenceOption[]
+  disabled?: boolean
+  onChange: (value: unknown) => void
+}) {
+  if (['PICKLIST', 'SELECT', 'CLASSIFICATION', 'MULTISELECT'].includes(field.type)) {
+    return (
+      <Select value={String(value)} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger>
+          <SelectValue placeholder={`请选择${field.label}`}/>
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.id ?? option.text} value={option.text ?? ''}>
+              {option.text ?? option.id}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  if (field.type === 'REFERENCE') {
+    return (
+      <Select value={String(value)} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger>
+          <SelectValue placeholder={`请选择${field.label}`}/>
+        </SelectTrigger>
+        <SelectContent>
+          {referenceOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  if (field.type === 'BOOL') {
+    return (
+      <label className="flex h-10 items-center gap-2 text-sm">
+        <Checkbox
+          checked={value === true}
+          disabled={disabled}
+          onCheckedChange={(checked) => onChange(checked === true)}
+        />
+        {value === true ? '是' : '否'}
+      </label>
+    )
+  }
+
+  const inputType = field.type === 'NUMBER' || field.type === 'DECIMAL'
+    ? 'number'
+    : field.type === 'DATE'
+      ? 'date'
+      : field.type === 'DATETIME'
+        ? 'datetime-local'
+        : field.type === 'TIME'
+          ? 'time'
+          : field.type === 'EMAIL'
+            ? 'email'
+            : field.type === 'PHONE'
+              ? 'tel'
+              : field.type === 'URL'
+                ? 'url'
+                : 'text'
+
+  return (
+    <Input
+      type={inputType}
+      value={String(value)}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={`请输入${field.label}`}
+    />
+  )
+}
+
+export function AppRecordFormModal({
+                                     open,
+                                     onOpenChange,
+                                     appId,
+                                     form,
+                                     recordId,
+                                     onSaved,
+                                   }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  appId: string
+  form: AppForm
+  recordId?: string | null
+  onSaved?: (id: string) => void
+}) {
+  const [values, setValues] = React.useState<AppRecord>({})
+  const [error, setError] = React.useState('')
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [referenceOptions, setReferenceOptions] = React.useState<Record<string, ReferenceOption[]>>({})
+
+  const layoutNames = form.layout?.fields?.length
+    ? form.layout.fields
+    : form.fields.map((field) => field.name)
+  const fieldsByName = new Map(form.fields.map((field) => [field.name, field]))
+  const layoutFields = layoutNames
+    .filter((name) => isDivider(name) || fieldsByName.has(name))
+    .map((name) => isDivider(name) ? name : fieldsByName.get(name)!)
+  const properties = form.layout?.properties ?? {}
+  const widths = form.layout?.widths ?? {}
+
+  React.useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setError('')
+    if (!recordId) {
+      const initial: AppRecord = {}
+      form.fields.filter((field) => !field.builtin).forEach((field) => {
+        initial[field.name] = field.type === 'BOOL' ? false : ''
+      })
+      if (!cancelled) setValues(initial)
+      return () => {
+        cancelled = true
+      }
+    }
+    getAppRecord(appId, form.name, recordId)
+      .then((record) => {
+        if (cancelled) return
+        const initial: AppRecord = {}
+        form.fields.filter((field) => !field.builtin).forEach((field) => {
+          initial[field.name] = toInputValue(field, record[field.name])
+        })
+        setValues(initial)
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) setError(caught instanceof Error ? caught.message : '加载记录失败')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [appId, form, open, recordId])
+
+  React.useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    const referenceFields = form.fields.filter((field) => field.type === 'REFERENCE' && field.referenceForm)
+    Promise.all(referenceFields.map(async (field) => {
+      const referenceForm = await getAppForm(appId, field.referenceForm!)
+      const page = await getAppRecords(appId, field.referenceForm!, {page: 1, size: 100})
+      return [field.name, page.list.map((record) => ({
+        value: String(record.id ?? ''),
+        label: String(record[referenceForm.displayField ?? 'id'] ?? record.id ?? ''),
+      }))] as const
+    }))
+      .then((entries) => {
+        if (cancelled) return
+        setReferenceOptions(Object.fromEntries(entries))
+      })
+      .catch(() => {
+        if (!cancelled) setReferenceOptions({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [appId, form, open])
+
+  const getProperties = (name: string): AppFormItemProperties => properties[name] ?? {}
+  const getWidth = (name: string): FormFieldWidth => {
+    const width = widths[name]
+    return width === 25 || width === 33 || width === 50 || width === 66 || width === 75 || width === 100
+      ? width
+      : 50
+  }
+
+  const submit = async () => {
+    const payload: AppRecord = {}
+    for (const field of form.fields.filter((item) => !item.builtin)) {
+      const value = values[field.name]
+      if (field.required && (value === undefined || value === null || value === '')) {
+        setError(`${field.label}不能为空`)
+        return
+      }
+      if (field.type === 'NUMBER' || field.type === 'DECIMAL') {
+        payload[field.name] = value === '' ? null : Number(value)
+      } else if (field.type === 'BOOL') {
+        payload[field.name] = value === true
+      } else {
+        payload[field.name] = value === '' ? null : value
+      }
+    }
+    setIsSubmitting(true)
+    setError('')
+    try {
+      const saved = recordId
+        ? await updateAppRecord(appId, form.name, recordId, payload)
+        : await createAppRecord(appId, form.name, payload)
+      onOpenChange(false)
+      onSaved?.(String(saved.id ?? ''))
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : '保存记录失败')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <BizDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      width={960}
+      title={recordId ? `编辑${form.label}` : `新建${form.label}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            取消
+          </Button>
+          <Button onClick={submit} disabled={isSubmitting}>保存</Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-12">
+          {layoutFields.map((item) => {
+            if (typeof item === 'string') {
+              const label = getProperties(item).label?.trim() || '分栏'
+              return (
+                <div key={item} className="md:col-span-12">
+                  <div className="border-b text-sm font-medium text-foreground">{label}</div>
+                </div>
+              )
+            }
+            const field = item
+            const property = getProperties(field.name)
+            if (property.hidden) return null
+            return (
+              <div
+                key={field.name}
+                className={cn('space-y-1.5', formFieldWidthClasses[getWidth(field.name)])}
+              >
+                <label className="flex items-center gap-1 text-sm font-medium">
+                  {property.label?.trim() || field.label}
+                  {field.required && <span className="text-destructive">*</span>}
+                  {property.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
+                </label>
+                <FieldControl
+                  field={field}
+                  value={values[field.name]}
+                  options={field.options ?? []}
+                  referenceOptions={referenceOptions[field.name] ?? []}
+                  disabled={property.readonly}
+                  onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </BizDialog>
+  )
+}

@@ -81,7 +81,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [baseDraft, setBaseDraft] = React.useState({label: '', description: ''})
+  const [baseDraft, setBaseDraft] = React.useState({label: '', description: '', displayField: ''})
   const [baseOpen, setBaseOpen] = React.useState(false)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [fieldDraft, setFieldDraft] = React.useState<FieldDraft | null>(null)
@@ -102,7 +102,11 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       .then((loadedForm) => {
         if (cancelled) return
         setForm(loadedForm)
-        setBaseDraft({label: loadedForm.label, description: loadedForm.description})
+        setBaseDraft({
+          label: loadedForm.label,
+          description: loadedForm.description,
+          displayField: loadedForm.displayField ?? '',
+        })
       })
       .catch((caught) => {
         if (cancelled) return
@@ -133,6 +137,8 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     )
   }
 
+  const displayFieldOptions = form.fields.filter((field) => !field.builtin)
+
   const saveBase = async () => {
     if (!baseDraft.label.trim()) return
     setIsSubmitting(true)
@@ -140,6 +146,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       const updatedForm = await updateAppForm(appId, form.name, {
         label: baseDraft.label.trim(),
         description: baseDraft.description.trim(),
+        displayField: baseDraft.displayField || null,
       })
       setForm(updatedForm)
       setBaseOpen(false)
@@ -200,11 +207,11 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     setIsSubmitting(true)
     try {
       await deleteAppFormField(appId, form.name, fieldDelete.name)
-      const isNameField = fieldDelete.name === form.nameField
+      const isNameField = fieldDelete.name === form.displayField
       setForm({
         ...form,
         fields: form.fields.filter((field) => field.name !== fieldDelete.name),
-        nameField: isNameField ? null : form.nameField,
+        displayField: isNameField ? null : form.displayField,
         searchField: isNameField ? null : form.searchField,
       })
       setFieldDelete(null)
@@ -257,7 +264,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">主显字段</div>
-                <div className="mt-1 text-sm font-medium">{form.nameField ?? '未设置'}</div>
+                <div className="mt-1 text-sm font-medium">{form.displayField ?? '未设置'}</div>
               </div>
               <div className="md:col-span-2">
                 <div className="text-xs text-muted-foreground">描述</div>
@@ -273,7 +280,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
                       <div className="flex items-center gap-2">
                         <span className="truncate font-medium">{field.label}</span>
                         {field.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
-                        {field.name === form.nameField && <Badge className="bg-primary/10 text-primary">名称</Badge>}
+                        {field.name === form.displayField && <Badge className="bg-primary/10 text-primary">名称</Badge>}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {field.name} · {fieldTypeLabels[field.type] ?? field.type}
@@ -351,6 +358,23 @@ export default function FormSettings({section}: { section: FormSettingsSection }
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground">内部标识</label>
             <Input value={form.name} disabled/>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">主显字段</label>
+            <Select
+              value={baseDraft.displayField}
+              onValueChange={(displayField) => setBaseDraft({...baseDraft, displayField})}
+              disabled={!displayFieldOptions.length}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={displayFieldOptions.length ? '请选择主显字段' : '暂无可选字段'}/>
+              </SelectTrigger>
+              <SelectContent>
+                {displayFieldOptions.map((field) => (
+                  <SelectItem key={field.name} value={field.name}>{field.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground">描述</label>

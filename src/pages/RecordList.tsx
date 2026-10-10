@@ -201,9 +201,13 @@ export default function RecordList({formName}: { formName?: string }) {
   }
 
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
-  const columns = (form.layout?.fields?.length ? form.layout.fields : form.fields.map((field) => field.name))
+  const layoutColumns = (form.layout?.fields?.length ? form.layout.fields : form.fields.map((field) => field.name))
     .map((name) => fieldMap.get(name))
     .filter((field): field is AppFormField => Boolean(field) && !field!.builtin && !isFormDividerField(field!.name))
+  const primaryField = form.displayField ? fieldMap.get(form.displayField) : undefined
+  const columns = primaryField
+    ? [primaryField, ...layoutColumns.filter((field) => field.name !== primaryField.name)]
+    : layoutColumns
   const pages = Math.max(1, Math.ceil(total / size))
 
   const toggleAll = () => setSelected(selected.length === rows.length ? [] : rows.map((row) => String(row.id)))
@@ -220,6 +224,21 @@ export default function RecordList({formName}: { formName?: string }) {
 
   const renderCell = (row: AppRecord, field: AppFormField) => {
     const value = row[field.name]
+    if (field.name === form.displayField) {
+      const displayValue = value === undefined || value === null || value === '' ? '-' : String(value)
+      return (
+        <button
+          type="button"
+          className="text-left font-medium text-primary hover:underline"
+          onClick={(event) => {
+            event.stopPropagation()
+            setDetailId(String(row.id))
+          }}
+        >
+          {displayValue}
+        </button>
+      )
+    }
     if (value === undefined || value === null || value === '') {
       return <span className="text-muted-foreground">-</span>
     }

@@ -50,7 +50,7 @@ export interface BusinessObjectMeta {
   name: string
   label: string
   icon: LucideIcon
-  nameField: string
+  displayField: string
   detail?: { name: string; label: string; icon: string }[]
   fields: BusinessObjectField[]
   description?: string
@@ -211,7 +211,7 @@ export const businessObjects: BusinessObjectMeta[] = [
     name: 'Customer',
     label: '客户',
     icon: User,
-    nameField: 'customerName',
+    displayField: 'customerName',
     description: '客户信息管理',
     badge: 'CRM',
     fields: [
@@ -236,7 +236,7 @@ export const businessObjects: BusinessObjectMeta[] = [
     name: 'Opportunity',
     label: '商机',
     icon: TrendingUp,
-    nameField: 'opportunityName',
+    displayField: 'opportunityName',
     description: '销售机会管理',
     badge: 'CRM',
     fields: [
@@ -262,7 +262,7 @@ export const businessObjects: BusinessObjectMeta[] = [
     name: 'Product',
     label: '产品',
     icon: ShoppingCart,
-    nameField: 'productName',
+    displayField: 'productName',
     description: '产品信息管理',
     badge: 'CRM',
     fields: [
@@ -287,7 +287,7 @@ const expenseBusinessObject: BusinessObjectMeta = {
   name: 'Expense',
   label: '报销单',
   icon: Banknote,
-  nameField: 'expenseName',
+  displayField: 'expenseName',
   description: '费用报销申请',
   badge: '报销',
   fields: [

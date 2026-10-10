@@ -50,7 +50,7 @@ export interface AppForm {
   name: string
   label: string
   description: string
-  nameField?: string | null
+  displayField?: string | null
   searchField?: string | null
   managed: boolean
   createdAt?: string | null
@@ -69,6 +69,7 @@ export interface AppFormInput {
 export interface AppFormUpdateInput {
   label: string
   description: string
+  displayField?: string | null
 }
 
 export interface AppFormFieldInput {

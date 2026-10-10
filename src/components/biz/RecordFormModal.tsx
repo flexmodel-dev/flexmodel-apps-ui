@@ -210,9 +210,9 @@ export function RecordFormModal({
       : [...previous, name])
   }
   const handleSubmit = () => {
-    const nameValue = String(values[meta.nameField] ?? '').trim()
+    const nameValue = String(values[meta.displayField] ?? '').trim()
     if (!nameValue) {
-      setError(`${meta.fields.find((field) => field.name === meta.nameField)?.label}不能为空`)
+      setError(`${meta.fields.find((field) => field.name === meta.displayField)?.label}不能为空`)
       return
     }
 
@@ -300,7 +300,7 @@ export function RecordFormModal({
                           <Info className="ml-1 inline-block h-3.5 w-3.5 align-[-2px] text-muted-foreground"/>
                         </span>
                       )}
-                      {field.name === meta.nameField && <span className="ml-1 text-destructive">*</span>}
+                      {field.name === meta.displayField && <span className="ml-1 text-destructive">*</span>}
                     </label>
                     <FieldControl
                       field={field}

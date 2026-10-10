@@ -5,6 +5,7 @@ import {topNavs} from '@/data/mock'
 import {AdminTopHeader} from './AdminTopHeader'
 import {AdminLeftSidebar, adminNavs} from './AdminLeftSidebar'
 import {MenuEditorDialog} from './MenuEditorDialog'
+import {getAppForm} from '@/services/appForms'
 
 export function AdminLayout({
                               children,
@@ -28,12 +29,33 @@ export function AdminLayout({
   const currentFormMatch = location.pathname.match(/^\/admin\/apps\/([^/]+)\/forms\/([^/]+)/)
   const currentAppId = currentFormMatch?.[1] ?? ''
   const currentFormName = currentFormMatch?.[2] ?? ''
+  const [currentFormLabel, setCurrentFormLabel] = React.useState(currentFormName)
+
+  React.useEffect(() => {
+    if (!currentAppId || !currentFormName) {
+      setCurrentFormLabel('')
+      return
+    }
+    let cancelled = false
+    setCurrentFormLabel(currentFormName)
+    getAppForm(currentAppId, currentFormName)
+      .then((form) => {
+        if (!cancelled) setCurrentFormLabel(form.label)
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentFormLabel(currentFormName)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [currentAppId, currentFormName])
+
   const mobileNavs = showFormSidebar && currentFormName
     ? [
       ...adminNavs,
       {
         id: 'mobile-form',
-        text: currentFormName,
+        text: currentFormLabel,
         sub: [
           {
             id: 'mobile-form-base',
@@ -100,7 +122,7 @@ export function AdminLayout({
           <div className="flex h-full flex-col">
             <div className="border-b px-4 py-4">
               <div className="text-xl font-semibold text-foreground">
-                {currentFormName}
+                {currentFormLabel}
               </div>
             </div>
             <nav className="min-h-0 flex-1 overflow-y-auto p-3">

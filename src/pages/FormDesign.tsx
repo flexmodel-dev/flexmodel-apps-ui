@@ -138,7 +138,7 @@ interface DesignForm {
   name: string
   label: string
   description: string
-  nameField?: string | null
+  displayField?: string | null
   fields: DesignFormField[]
   layout?: AppFormLayout | null
 }
@@ -148,8 +148,8 @@ function toDesignForm(form: AppForm): DesignForm {
     name: form.name,
     label: form.label,
     description: form.description,
-    nameField: form.nameField,
-    fields: form.fields.filter((field) => !field.builtin).map((field) => ({...field})),
+    displayField: form.displayField,
+    fields: form.fields.map((field) => ({...field})),
     layout: form.layout,
   }
 }
@@ -297,7 +297,7 @@ export default function FormDesign() {
           setItemProperties(serverLayout.properties ?? {})
           setAdvancedControls(serverLayout.advanced ?? {})
         } else {
-          setLayout(designForm.fields.map((field) => field.name))
+          setLayout(designForm.fields.filter((field) => !field.builtin).map((field) => field.name))
           setWidths({})
           setItemProperties({})
           setAdvancedControls({})
@@ -434,7 +434,7 @@ export default function FormDesign() {
     setLayout((previous) => previous.filter((name) => name !== fieldName))
   }
   const resetLayout = () => {
-    setLayout(allFields.map((field) => field.name))
+    setLayout(allFields.filter((field) => !field.builtin).map((field) => field.name))
     setWidths({})
     setItemProperties({})
   }
@@ -486,7 +486,7 @@ export default function FormDesign() {
       name: field.name,
       label: properties.label?.trim() || field.label,
       tip: properties.tip || '',
-      required: properties.required ?? field.name === form.nameField,
+      required: properties.required ?? field.name === form.displayField,
       readonly: properties.readonly ?? false,
       hidden: properties.hidden ?? false,
     })
@@ -682,7 +682,7 @@ export default function FormDesign() {
                           </span>
                         </div>
 
-                        {item.field.name === form.nameField && (
+                        {item.field.name === form.displayField && (
                           <Badge className="bg-primary/10 text-primary">名称</Badge>
                         )}
                         {!isFormDividerField(item.field.name) && (
@@ -772,7 +772,7 @@ export default function FormDesign() {
                           {(['hidden', 'required', 'readonly'] as const).map((key) => (
                             <td key={key}>
                               <Checkbox
-                                checked={getItemProperties(field.name)[key] ?? (key === 'required' && field.name === form.nameField)}
+                                checked={getItemProperties(field.name)[key] ?? (key === 'required' && field.name === form.displayField)}
                                 onCheckedChange={(checked) =>
                                   updateItemProperties(field.name, { [key]: checked === true })
                                 }
