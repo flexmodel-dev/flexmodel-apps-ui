@@ -41,7 +41,7 @@ export interface AppFormField {
   label: string
   type: AppFormFieldType
   required: boolean
-  system: boolean
+  builtin: boolean
   options?: AppFormFieldOption[] | null
   referenceForm?: string | null
 }

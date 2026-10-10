@@ -12,35 +12,43 @@ import {
   ListChecks,
   Plus,
   Search,
-  Share,
   Settings,
+  Share,
   Trash2,
 } from 'lucide-react'
-import { AppLayout } from '@/components/layout/AppLayout'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import {AppLayout} from '@/components/layout/AppLayout'
+import {AppLoading} from '@/components/biz/AppLoading'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
-import { Checkbox } from '@/components/ui/checkbox'
-import { UserAvatar } from '@/components/ui/avatar'
+import {Checkbox} from '@/components/ui/checkbox'
 import {Pagination} from '@/components/biz/Pagination'
 import {Empty} from '@/components/ui/empty'
-import { Drawer, DrawerContent } from '@/components/ui/drawer'
-import { RecordDetailContent } from '@/pages/RecordView'
-import {getAppMenuItem, getBusinessObject, getRecords} from '@/data/mock'
-import { cn, paginate } from '@/lib/utils'
-import {RecordFormModal} from '@/components/biz/RecordFormModal'
+import {Drawer, DrawerContent} from '@/components/ui/drawer'
+import {AppRecordDetail} from '@/components/biz/AppRecordDetail'
+import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
+import {getAppForm, type AppForm, type AppFormField} from '@/services/appForms'
+import {
+  deleteAppRecord,
+  getAppRecords,
+  type AppRecord,
+} from '@/services/appRecords'
+import {cn} from '@/lib/utils'
+import {isFormDividerField} from '@/lib/form-layout'
 
 const defaultViewTabs = ['全部']
 const compactButtonClass = 'h-8 px-2.5 text-xs'
 
-/** 记录列表页（复刻 general/record-list.html + app-datalist） */
-export default function RecordList({businessObjectId}: { businessObjectId?: string }) {
-  const { appId, menuId } = useParams<{ appId: string; menuId: string }>()
-  const menuItem = getAppMenuItem(appId, menuId)
-  const resolvedBusinessObjectId = businessObjectId ?? menuItem?.businessObjectId ?? ''
-  const meta = getBusinessObject(resolvedBusinessObjectId)
-  const [rows, setRows] = React.useState(() => getRecords(resolvedBusinessObjectId))
+export default function RecordList({formName}: { formName?: string }) {
+  const {appId = ''} = useParams<{ appId: string; menuId: string }>()
+  const resolvedFormName = formName ?? ''
+  const [form, setForm] = React.useState<AppForm | null>(null)
+  const [rows, setRows] = React.useState<AppRecord[]>([])
+  const [total, setTotal] = React.useState(0)
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [q, setQ] = React.useState('')
+  const [debouncedQ, setDebouncedQ] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [size, setSize] = React.useState(20)
   const [selected, setSelected] = React.useState<string[]>([])
@@ -56,6 +64,12 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
   const [formOpen, setFormOpen] = React.useState(false)
   const [formRecordId, setFormRecordId] = React.useState<string | null>(null)
   const [refreshTick, setRefreshTick] = React.useState(0)
+  const [isDeleting, setIsDeleting] = React.useState(false)
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
+    return () => window.clearTimeout(timer)
+  }, [q])
 
   React.useEffect(() => {
     if (!searchOpen) return
@@ -68,6 +82,71 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
     return () => document.removeEventListener('pointerdown', handlePointerDown)
   }, [searchOpen])
 
+  React.useEffect(() => {
+    if (!appId || !resolvedFormName) {
+      setForm(null)
+      setIsLoading(false)
+      setError('未知表单')
+      return
+    }
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
+    getAppForm(appId, resolvedFormName)
+      .then((loadedForm) => {
+        if (cancelled) return
+        setForm(loadedForm)
+      })
+      .catch((caught: unknown) => {
+        if (cancelled) return
+        setForm(null)
+        setError(caught instanceof Error ? caught.message : '加载表单失败')
+      })
+      .finally(() => !cancelled && setIsLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [appId, resolvedFormName])
+
+  React.useEffect(() => {
+    if (!appId || !resolvedFormName) return
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
+    getAppRecords(appId, resolvedFormName, {
+      page,
+      size,
+      search: debouncedQ,
+      sortField: sortKey || undefined,
+      sortOrder: sortKey ? (sortAsc ? 'ASC' : 'DESC') : undefined,
+    })
+      .then((result) => {
+        if (cancelled) return
+        setRows(result.list)
+        setTotal(result.total)
+      })
+      .catch((caught: unknown) => {
+        if (cancelled) return
+        setError(caught instanceof Error ? caught.message : '加载记录失败')
+      })
+      .finally(() => !cancelled && setIsLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [appId, resolvedFormName, page, size, debouncedQ, sortKey, sortAsc, refreshTick])
+
+  React.useEffect(() => {
+    setSelected([])
+    setDetailId(null)
+    setFormOpen(false)
+    setFormRecordId(null)
+    setQ('')
+    setDebouncedQ('')
+    setSortKey('')
+    setSortAsc(true)
+    setPage(1)
+  }, [appId, resolvedFormName])
+
   const openTabsConfig = () => {
     setDraftTabs(viewTabs)
     setTabsConfigOpen(true)
@@ -77,9 +156,7 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
     setDraftTabs((tabs) => tabs.map((tab, tabIndex) => (tabIndex === index ? label : tab)))
   }
 
-  const addDraftTab = () => {
-    setDraftTabs((tabs) => [...tabs, '新页签'])
-  }
+  const addDraftTab = () => setDraftTabs((tabs) => [...tabs, '新页签'])
 
   const removeDraftTab = (index: number) => {
     setDraftTabs((tabs) => (tabs.length > 1 ? tabs.filter((_, tabIndex) => tabIndex !== index) : tabs))
@@ -93,82 +170,76 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
     setTabsConfigOpen(false)
   }
 
-  // 过滤 + 排序（hooks 须在条件返回之前）
-  React.useEffect(() => {
-    if (!meta) return
-    const base = getRecords(meta.name)
-    let f = q ? base.filter((r) => Object.values(r).some((v) => String(v ?? '').toLowerCase().includes(q.toLowerCase()))) : base
-    if (sortKey) {
-      f = [...f].sort((a, b) => {
-        const av = a[sortKey] ?? ''
-        const bv = b[sortKey] ?? ''
-        const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv), 'zh')
-        return sortAsc ? cmp : -cmp
-      })
+  const refresh = () => setRefreshTick((tick) => tick + 1)
+
+  const removeSelected = async () => {
+    if (!selected.length) return
+    setIsDeleting(true)
+    setError(null)
+    try {
+      for (const recordId of selected) {
+        await deleteAppRecord(appId, resolvedFormName, recordId)
+      }
+      setSelected([])
+      setPage(1)
+      refresh()
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : '删除记录失败')
+    } finally {
+      setIsDeleting(false)
     }
-    setRows(f)
-    setPage(1)
-  }, [q, sortKey, sortAsc, meta, refreshTick])
+  }
 
-  React.useEffect(() => {
-    setSelected([])
-    setDetailId(null)
-    setFormOpen(false)
-    setFormRecordId(null)
-    setQ('')
-    setSortKey('')
-    setSortAsc(true)
-  }, [appId, menuId])
+  if (!form) {
+    return (
+      <AppLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
+        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
+          {error ?? '未知表单'}
+        </div>
+      </AppLayout>
+    )
+  }
 
-  if (!meta) return <AppLayout>未知表单</AppLayout>
+  const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
+  const columns = (form.layout?.fields?.length ? form.layout.fields : form.fields.map((field) => field.name))
+    .map((name) => fieldMap.get(name))
+    .filter((field): field is AppFormField => Boolean(field) && !field!.builtin && !isFormDividerField(field!.name))
+  const pages = Math.max(1, Math.ceil(total / size))
 
-  const columns = meta.fields.filter((f) => f.type !== 'DATETIME' || f.name.endsWith('On'))
-
-  const { rows: pageRows, pages, total } = paginate(rows, page, size)
-
-  const toggleAll = () => setSelected(selected.length === pageRows.length ? [] : pageRows.map((r) => r.id))
-  const toggleOne = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  const toggleAll = () => setSelected(selected.length === rows.length ? [] : rows.map((row) => String(row.id)))
+  const toggleOne = (id: string) => setSelected((previous) =>
+    previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id])
   const sortBy = (key: string) => {
-    if (sortKey === key) setSortAsc((a) => !a)
+    if (sortKey === key) setSortAsc((asc) => !asc)
     else {
       setSortKey(key)
       setSortAsc(true)
     }
+    setPage(1)
   }
 
-  const renderCell = (row: Record<string, unknown>, fieldName: string) => {
-    const field = meta.fields.find((f) => f.name === fieldName)!
-    const v = row[fieldName]
-    if (v === undefined || v === null || v === '') return <span className="text-[#ccc]">-</span>
-    if (field.type === 'REFERENCE' && field.refBusinessObject === 'User') {
+  const renderCell = (row: AppRecord, field: AppFormField) => {
+    const value = row[field.name]
+    if (value === undefined || value === null || value === '') {
+      return <span className="text-muted-foreground">-</span>
+    }
+    if (['PICKLIST', 'SELECT', 'CLASSIFICATION'].includes(field.type)) {
+      const option = field.options?.find((item) => item.text === value)
       return (
-        <span className="flex items-center gap-1.5">
-          <UserAvatar name={String(v)} size={20} />
-          {String(v)}
+        <span className="inline-flex items-center gap-1">
+          <i
+            className="inline-block h-2 w-2 rounded-full"
+            style={{backgroundColor: option?.color ?? '#999'}}
+          />
+          {String(value)}
         </span>
       )
     }
-    if (field.type === 'SELECT') {
-      const opt = field.options?.find((o) => o.text === v)
-      return (
-        <span
-          className="inline-flex items-center gap-1"
-        >
-          <i className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: opt?.color ?? '#999' }} />
-          {String(v)}
-        </span>
-      )
-    }
-    if (field.type === 'REFERENCE') {
-      return <span className="text-primary">{String(v)}</span>
-    }
-    if (field.type === 'DECIMAL' || field.type === 'NUMBER') {
-      return Number(v).toLocaleString()
-    }
-    if (field.type === 'EMAIL') {
-      return <span className="text-primary">{String(v)}</span>
-    }
-    return String(v)
+    if (field.type === 'BOOL') return value === true ? '是' : '否'
+    if (field.type === 'NUMBER' || field.type === 'DECIMAL') return Number(value).toLocaleString()
+    if (field.type === 'EMAIL') return <span className="text-primary">{String(value)}</span>
+    if (field.type === 'REFERENCE') return <span className="text-primary">{String(value)}</span>
+    return String(value)
   }
 
   return (
@@ -177,8 +248,7 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
         className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 p-3 pb-2">
           <div className="flex min-w-0 items-center gap-2">
-            {meta.icon ? <meta.icon className="h-5 w-5 shrink-0 text-primary"/> : null}
-            <h1 className="truncate text-lg font-semibold text-foreground">{meta.label}</h1>
+            <h1 className="truncate text-lg font-semibold">{form.label}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div ref={searchAreaRef} className="flex items-center">
@@ -195,8 +265,11 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
               {searchOpen && (
                 <Input
                   value={q}
-                  placeholder={`搜索${meta.label}`}
-                  onChange={(event) => setQ(event.target.value)}
+                  placeholder={`搜索${form.label}`}
+                  onChange={(event) => {
+                    setQ(event.target.value)
+                    setPage(1)
+                  }}
                   className="h-8 w-[160px]"
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') {
@@ -244,9 +317,8 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
           </div>
         </div>
 
-        {/* 视图切换 */}
-        <div className="flex items-end justify-between border-b-2 border-[#e3e3e3] px-3 dark:border-[#2e3340]">
-          <ul className="nav nav-tabs-classic mb-0 flex list-none items-center gap-1">
+        <div className="flex items-end justify-between border-b px-3">
+          <ul className="flex list-none items-center gap-1">
             {viewTabs.map((label) => (
               <li key={label}>
                 <button
@@ -284,9 +356,7 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
           )}
         >
           <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-          <span className="text-sm text-muted-foreground">
-            共选择 {selected.length}/{rows.length} 条数据
-          </span>
+            <span className="text-sm text-muted-foreground">共选择 {selected.length}/{total} 条数据</span>
             <div className="flex flex-wrap items-center gap-1">
               <Button
                 variant="secondary"
@@ -300,7 +370,13 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
               >
                 <Edit className="h-4 w-4"/> 编辑
               </Button>
-              <Button variant="secondary" size="sm" className={compactButtonClass}>
+              <Button
+                variant="secondary"
+                size="sm"
+                className={compactButtonClass}
+                disabled={!selected.length || isDeleting}
+                onClick={removeSelected}
+              >
                 <Trash2 className="h-4 w-4"/> 删除
               </Button>
               <Button variant="secondary" size="sm" className={compactButtonClass}>
@@ -320,47 +396,66 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col p-3">
-          {/* 表单内容 */}
+          {error && (
+            <div className="mb-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
+          )}
           <div className="data-list app-table-scroll min-h-0 flex-1 overflow-x-auto">
-            <table className="app-table w-full min-w-[900px] border-collapse bg-background">
-              <thead>
+            {isLoading ? (
+              <AppLoading center className="min-h-[240px]"/>
+            ) : (
+              <table className="app-table w-full min-w-[900px] border-collapse bg-background">
+                <thead>
                 <tr>
                   <th className="w-[36px]">
-                    <Checkbox checked={pageRows.length > 0 && selected.length === pageRows.length} onCheckedChange={toggleAll} />
+                    <Checkbox
+                      checked={rows.length > 0 && selected.length === rows.length}
+                      onCheckedChange={toggleAll}
+                    />
                   </th>
-                  {columns.map((c) => (
-                    <th key={c.name} className="cursor-pointer select-none hover:text-primary" onClick={() => sortBy(c.name)}>
-                      {c.label}
-                      {sortKey === c.name && (
-                        sortAsc ? <ArrowDown className="ml-1 h-3 w-3" /> : <ArrowUp className="ml-1 h-3 w-3" />
+                  {columns.map((column) => (
+                    <th
+                      key={column.name}
+                      className="cursor-pointer select-none hover:text-primary"
+                      onClick={() => sortBy(column.name)}
+                    >
+                      {form.layout?.properties?.[column.name]?.label?.trim() || column.label}
+                      {sortKey === column.name && (
+                        sortAsc ? <ArrowDown className="ml-1 h-3 w-3"/> : <ArrowUp className="ml-1 h-3 w-3"/>
                       )}
                     </th>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className={cn('cursor-pointer transition-colors hover:bg-muted/40', selected.includes(row.id) && 'bg-primary/10')}
-                    onClick={() => setDetailId(row.id)}
-                  >
-                    <td onClick={(event) => event.stopPropagation()}>
-                      <Checkbox checked={selected.includes(row.id)} onCheckedChange={() => toggleOne(row.id)} />
-                    </td>
-                    {columns.map((c, i) => (
-                      <td key={c.name}>
-                        {renderCell(row, c.name)}
+                </thead>
+                <tbody>
+                {rows.map((row) => {
+                  const recordId = String(row.id)
+                  return (
+                    <tr
+                      key={recordId}
+                      className={cn(
+                        'cursor-pointer transition-colors hover:bg-muted/40',
+                        selected.includes(recordId) && 'bg-primary/10',
+                      )}
+                      onClick={() => setDetailId(recordId)}
+                    >
+                      <td onClick={(event) => event.stopPropagation()}>
+                        <Checkbox
+                          checked={selected.includes(recordId)}
+                          onCheckedChange={() => toggleOne(recordId)}
+                        />
                       </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {pageRows.length === 0 && <Empty description="暂无数据"/>}
+                      {columns.map((column) => (
+                        <td key={column.name}>{renderCell(row, column)}</td>
+                      ))}
+                    </tr>
+                  )
+                })}
+                </tbody>
+              </table>
+            )}
+            {!isLoading && rows.length === 0 && <Empty description="暂无数据"/>}
           </div>
 
-          {/* 分页 */}
           <div className="mt-2 flex items-center justify-between">
             <Pagination
               page={page}
@@ -382,22 +477,31 @@ export default function RecordList({businessObjectId}: { businessObjectId?: stri
         <DrawerContent className="w-full overflow-y-auto md:w-[calc(100vw-16rem)]">
           <div className="p-4 md:p-5">
             {detailId && (
-              <RecordDetailContent
-                businessObject={meta.name}
-                id={detailId}
-                onDeleted={() => setDetailId(null)}
+              <AppRecordDetail
+                appId={appId}
+                formName={resolvedFormName}
+                recordId={detailId}
+                onDeleted={() => {
+                  setDetailId(null)
+                  setSelected((previous) => previous.filter((id) => id !== detailId))
+                  refresh()
+                }}
               />
             )}
           </div>
         </DrawerContent>
       </Drawer>
 
-      <RecordFormModal
+      <AppRecordFormModal
         open={formOpen}
         onOpenChange={setFormOpen}
-        businessObject={meta.name}
+        appId={appId}
+        form={form}
         recordId={formRecordId}
-        onSaved={() => setRefreshTick((tick) => tick + 1)}
+        onSaved={() => {
+          setSelected([])
+          refresh()
+        }}
       />
 
       <BizDialog

@@ -149,7 +149,7 @@ function toDesignForm(form: AppForm): DesignForm {
     label: form.label,
     description: form.description,
     nameField: form.nameField,
-    fields: form.fields.map((field) => ({...field})),
+    fields: form.fields.filter((field) => !field.builtin).map((field) => ({...field})),
     layout: form.layout,
   }
 }
@@ -363,7 +363,7 @@ export default function FormDesign() {
       const formField = allFields.find((field) => field.name === name)
       if (formField) return formField
       if (isFormDividerField(name)) {
-        return {name, label: '分栏', type: 'TEXT', required: false, system: false}
+        return {name, label: '分栏', type: 'TEXT', required: false, builtin: false}
       }
       return undefined
     })

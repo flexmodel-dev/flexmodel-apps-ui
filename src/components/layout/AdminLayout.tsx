@@ -41,14 +41,14 @@ export function AdminLayout({
             to: `/admin/apps/${currentAppId}/forms/${currentFormName}/base`
           },
           {
-            id: 'mobile-form-fields',
-            text: '字段管理',
-            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`
-          },
-          {
             id: 'mobile-form-design',
             text: '表单设计',
             to: `/admin/apps/${currentAppId}/forms/${currentFormName}/form-design`
+          },
+          {
+            id: 'mobile-form-fields',
+            text: '字段管理',
+            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`
           },
           {
             id: 'mobile-form-easy-action',
@@ -107,12 +107,12 @@ export function AdminLayout({
               <ul className="space-y-1">
                 {[
                   {key: 'base', label: '基本信息', to: `/admin/apps/${currentAppId}/forms/${currentFormName}/base`},
-                  {key: 'fields', label: '字段管理', to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`},
                   {
                     key: 'form-design',
                     label: '表单设计',
                     to: `/admin/apps/${currentAppId}/forms/${currentFormName}/form-design`
                   },
+                  {key: 'fields', label: '字段管理', to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`},
                   {
                     key: 'easy-action',
                     label: '自定义操作',

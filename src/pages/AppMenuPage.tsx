@@ -93,21 +93,7 @@ export default function AppMenuPage() {
     return <BuiltinPage targetId={menu.target.id}/>
   }
   if (menu.target?.type === 'FORM') {
-    return (
-      <AppLayout>
-        <div className="rounded-xl border bg-card p-6">
-          <div className="text-sm text-muted-foreground">
-            已绑定表单「{menu.target.id}」，记录功能开发中。
-          </div>
-          <Link
-            className="ml-1 text-primary hover:underline"
-            to={`/admin/apps/${appId}/forms/${encodeURIComponent(menu.target.id)}/fields`}
-          >
-            管理表单
-          </Link>
-        </div>
-      </AppLayout>
-    )
+    return <RecordList formName={menu.target.id}/>
   }
   return (
     <AppLayout>

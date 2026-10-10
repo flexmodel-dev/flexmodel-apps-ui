@@ -272,7 +272,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate font-medium">{field.label}</span>
-                        {field.system && <Badge className="bg-muted text-muted-foreground">系统</Badge>}
+                        {field.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
                         {field.name === form.nameField && <Badge className="bg-primary/10 text-primary">名称</Badge>}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
@@ -281,7 +281,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
                       </div>
                     </div>
                     <span className="text-xs text-muted-foreground">{field.required ? '必填' : '选填'}</span>
-                    {!field.system && (
+                    {!field.builtin && (
                       <div className="flex gap-2">
                         <Button
                           variant="secondary"

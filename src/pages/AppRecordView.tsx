@@ -2,7 +2,7 @@ import * as React from 'react'
 import {Link, useParams} from 'react-router-dom'
 import {AppLayout} from '@/components/layout/AppLayout'
 import {AppLoading} from '@/components/biz/AppLoading'
-import RecordView from '@/pages/RecordView'
+import {AppRecordDetail} from '@/components/biz/AppRecordDetail'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
 
 function findMenu(menus: AppMenu[], menuId?: string): AppMenu | undefined {
@@ -15,7 +15,7 @@ function findMenu(menus: AppMenu[], menuId?: string): AppMenu | undefined {
 }
 
 export default function AppRecordView() {
-  const {appId, menuId} = useParams<{ appId: string; menuId: string }>()
+  const {appId, menuId, recordId = ''} = useParams<{ appId: string; menuId: string; recordId: string }>()
   const [menus, setMenus] = React.useState<AppMenu[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -23,11 +23,13 @@ export default function AppRecordView() {
   React.useEffect(() => {
     if (!appId) return
     let cancelled = false
+    setIsLoading(true)
+    setError(null)
     getAppMenus(appId)
       .then((loadedMenus) => !cancelled && setMenus(loadedMenus))
       .catch((caught: unknown) => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : '加载应用菜单失败，请稍后重试。')
+        setError(caught instanceof Error ? caught.message : '加载应用菜单失败')
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -35,8 +37,13 @@ export default function AppRecordView() {
     }
   }, [appId])
 
-  if (isLoading) {
-    return <AppLayout><AppLoading center className="min-h-[400px]"/></AppLayout>
+  if (isLoading) return <AppLayout><AppLoading center className="min-h-[400px]"/></AppLayout>
+  if (!appId || !menuId) {
+    return (
+      <AppLayout>
+        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">页面参数缺失。</div>
+      </AppLayout>
+    )
   }
   if (error) {
     return (
@@ -57,10 +64,15 @@ export default function AppRecordView() {
       </AppLayout>
     )
   }
+
   return (
     <AppLayout>
-      <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-        已绑定表单「{menu.target.id}」，记录功能开发中。
+      <div className="mx-auto max-w-5xl">
+        <AppRecordDetail
+          appId={appId}
+          formName={menu.target.id}
+          recordId={recordId}
+        />
       </div>
     </AppLayout>
   )
