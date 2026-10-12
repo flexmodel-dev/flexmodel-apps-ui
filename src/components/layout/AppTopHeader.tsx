@@ -89,7 +89,7 @@ export function AppTopHeader({
 
   return (
     <TopHeaderShell
-      brand={brand}
+      brand={brand} brandTo={currentApp ? `/apps/${currentApp.id}` : '/admin/apps'}
       logoIcon={LogoIcon}
       mobileTitle="菜单"
       mobileNavs={mobileNavs}

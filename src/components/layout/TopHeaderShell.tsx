@@ -26,7 +26,7 @@ const notificationItems = [
 ]
 
 function TopHeaderShell({
-                          brand,
+                          brand, brandTo,
                           logoIcon,
                           mobileTitle,
                           mobileNavs,
@@ -36,6 +36,7 @@ function TopHeaderShell({
                           extraActions,
                         }: {
   brand: string
+  brandTo?: string
   mobileTitle: string
   mobileNavs: NavItem[]
   topNavs?: TopNavItem[]
@@ -88,17 +89,31 @@ function TopHeaderShell({
         >
           <Menu className="h-5 w-5"/>
         </Button>
-        <Link to="/dashboard/home" className="mr-2 flex min-w-0 items-center gap-2">
-          <span
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold shadow-sm',
-              isDark ? 'bg-primary/20 text-primary' : 'bg-white/20 text-primary-foreground',
-            )}
-          >
-            {LogoIcon ? <LogoIcon className="h-5 w-5"/> : 'N'}
-          </span>
-          <span className="max-w-[34vw] truncate text-base font-semibold sm:text-lg">{brand}</span>
-        </Link>
+        {brandTo ? (
+          <Link to={brandTo} className="mr-2 flex min-w-0 items-center gap-2">
+            <span
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold shadow-sm',
+                isDark ? 'bg-primary/20 text-primary' : 'bg-white/20 text-primary-foreground',
+              )}
+            >
+              {LogoIcon ? <LogoIcon className="h-5 w-5"/> : 'N'}
+            </span>
+            <span className="max-w-[34vw] truncate text-base font-semibold sm:text-lg">{brand}</span>
+          </Link>
+        ) : (
+          <div className="mr-2 flex min-w-0 items-center gap-2">
+            <span
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold shadow-sm',
+                isDark ? 'bg-primary/20 text-primary' : 'bg-white/20 text-primary-foreground',
+              )}
+            >
+              {LogoIcon ? <LogoIcon className="h-5 w-5"/> : 'N'}
+            </span>
+            <span className="max-w-[34vw] truncate text-base font-semibold sm:text-lg">{brand}</span>
+          </div>
+        )}
 
         {topNavs && (
           <nav className="ml-2 hidden h-16 items-stretch md:flex">
