@@ -23,6 +23,17 @@ function renderValue(field: AppFormField, value: unknown) {
   return String(value)
 }
 
+function recordTitle(value: unknown, recordId: string) {
+  if (Array.isArray(value) && value.length > 0) {
+    return recordTitle(value[0], recordId)
+  }
+  if (value && typeof value === 'object' && 'displayValue' in value) {
+    const reference = value as { displayValue?: unknown }
+    return String(reference.displayValue ?? recordId)
+  }
+  return String(value ?? recordId)
+}
+
 export function AppRecordDetail({
                                   appId,
                                   formName,
@@ -123,7 +134,9 @@ export function AppRecordDetail({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
         <div className="min-w-0">
-          <div className="truncate text-lg font-semibold">{String(record[form.displayField ?? 'id'] ?? record.id)}</div>
+          <div className="truncate text-lg font-semibold">
+            {recordTitle(record[form.displayField ?? 'id'], String(record.id))}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>

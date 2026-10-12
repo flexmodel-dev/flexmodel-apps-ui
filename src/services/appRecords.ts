@@ -2,6 +2,12 @@ import {requestJson} from '@/services/http'
 
 export type AppRecord = Record<string, unknown>
 
+export interface AppRecordReferenceValue {
+  id: string
+  displayValue: string
+  referenceForm?: string | null
+}
+
 export interface AppRecordPage {
   list: AppRecord[]
   total: number

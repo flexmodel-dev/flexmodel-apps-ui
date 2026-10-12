@@ -1,16 +1,26 @@
 import * as React from 'react'
 import {getAppForm, type AppForm} from '@/services/appForms'
-import {getAppRecord, type AppRecord} from '@/services/appRecords'
+import {getAppRecord, type AppRecord, type AppRecordReferenceValue} from '@/services/appRecords'
 import type {AppFormField} from '@/services/appForms'
 
 interface ReferenceRecordItem {
   id: string
   label: string
+  referenceForm: string
   expanded: boolean
+  rendered: boolean
 }
 
 function isRecordObject(value: unknown): value is AppRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isRenderedReference(value: unknown): value is AppRecordReferenceValue {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const reference = value as AppRecordReferenceValue
+  return typeof reference.id === 'string'
+    && reference.id.trim().length > 0
+    && typeof reference.displayValue === 'string'
 }
 
 function displayFieldCandidates(form: AppForm): string[] {
@@ -37,20 +47,41 @@ function recordLabel(record: AppRecord, candidates: string[]): string {
   return String(record.id ?? '')
 }
 
-function toReferenceItems(value: unknown, candidates: string[]): ReferenceRecordItem[] {
+function toReferenceItems(
+  value: unknown,
+  candidates: string[],
+  fieldReferenceForm: string,
+): ReferenceRecordItem[] {
   const values = Array.isArray(value) ? value : [value]
   return values.flatMap<ReferenceRecordItem>((item) => {
     if (item === undefined || item === null || item === '') return []
+    if (isRenderedReference(item)) {
+      return [{
+        id: item.id,
+        label: item.displayValue || item.id,
+        referenceForm: item.referenceForm || fieldReferenceForm,
+        expanded: true,
+        rendered: true,
+      }]
+    }
     if (isRecordObject(item)) {
       const id = String(item.id ?? '')
       if (!id) return []
       return [{
         id,
         label: recordLabel(item, candidates),
+        referenceForm: fieldReferenceForm,
         expanded: true,
+        rendered: false,
       }]
     }
-    return [{id: String(item), label: String(item), expanded: false}]
+    return [{
+      id: String(item),
+      label: String(item),
+      referenceForm: fieldReferenceForm,
+      expanded: false,
+      rendered: false,
+    }]
   })
 }
 
@@ -73,21 +104,22 @@ export function AppReferenceValue({
     [referenceForm],
   )
   const items = React.useMemo(
-    () => referenceForm ? toReferenceItems(value, displayFields) : [],
-    [referenceForm, value, displayFields],
+    () => toReferenceItems(value, displayFields, referenceFormName),
+    [value, displayFields, referenceFormName],
   )
   const pendingRecordIds = React.useMemo(
     () => items.filter((item) => !item.expanded).map((item) => item.id),
     [items],
   )
   const pendingRecordIdsKey = pendingRecordIds.join(',')
+  const needsReferenceForm = items.some((item) => !item.rendered)
   const hasReferenceValue = value !== undefined
     && value !== null
     && value !== ''
     && (!Array.isArray(value) || value.length > 0)
 
   React.useEffect(() => {
-    if (!appId || !referenceFormName) return
+    if (!appId || !referenceFormName || !needsReferenceForm) return
     let cancelled = false
     getAppForm(appId, referenceFormName)
       .then((form) => {
@@ -109,7 +141,7 @@ export function AppReferenceValue({
     return () => {
       cancelled = true
     }
-  }, [appId, referenceFormName])
+  }, [appId, referenceFormName, needsReferenceForm])
 
   React.useEffect(() => {
     if (!appId || !referenceFormName || !pendingRecordIdsKey) return
@@ -133,10 +165,11 @@ export function AppReferenceValue({
     }
   }, [appId, referenceFormName, displayFields, pendingRecordIdsKey])
 
-  if (!hasReferenceValue || (referenceForm && !items.length)) {
+  const hasLegacyItems = needsReferenceForm
+  if (!hasReferenceValue || !items.length) {
     return <span className="text-muted-foreground">-</span>
   }
-  if (!referenceForm) return <span className="text-muted-foreground">…</span>
+  if (!referenceForm && hasLegacyItems) return <span className="text-muted-foreground">…</span>
 
   return (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -145,7 +178,7 @@ export function AppReferenceValue({
           ? item.label
           : labelsById[item.id] || ''
         if (!label) return <span key={item.id} className="text-muted-foreground">…</span>
-        if (!referenceFormName || !onOpenRecord) {
+        if (!item.referenceForm || !onOpenRecord) {
           return <span key={item.id} className="text-primary">{label}</span>
         }
         return (
@@ -155,7 +188,7 @@ export function AppReferenceValue({
             className="text-left text-primary hover:underline"
             onClick={(event) => {
               event.stopPropagation()
-              onOpenRecord(referenceFormName, item.id)
+              onOpenRecord(item.referenceForm, item.id)
             }}
           >
             {label}

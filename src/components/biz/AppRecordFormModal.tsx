@@ -36,6 +36,9 @@ type ReferenceOption = { value: string; label: string }
 
 function toInputValue(field: AppFormField, value: unknown) {
   if (field.type === 'BOOL') return value === true || value === 'true'
+  if (field.type === 'REFERENCE' && value && typeof value === 'object' && 'id' in value) {
+    return String((value as { id?: unknown }).id ?? '')
+  }
   return value === undefined || value === null ? '' : String(value)
 }
 
