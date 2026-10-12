@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   Filter,
   ListChecks,
+  Pencil,
   Plus,
   Search,
   Settings,
@@ -67,6 +68,7 @@ export default function RecordList({formName}: { formName?: string }) {
   const [formRecordId, setFormRecordId] = React.useState<string | null>(null)
   const [refreshTick, setRefreshTick] = React.useState(0)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [deletingId, setDeletingId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
@@ -217,6 +219,26 @@ export default function RecordList({formName}: { formName?: string }) {
   const toggleAll = () => setSelected(selected.length === rows.length ? [] : rows.map((row) => String(row.id)))
   const toggleOne = (id: string) => setSelected((previous) =>
     previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id])
+
+  const editRecord = (recordId: string) => {
+    setFormRecordId(recordId)
+    setFormOpen(true)
+  }
+
+  const removeRecord = async (recordId: string) => {
+    setDeletingId(recordId)
+    try {
+      await deleteAppRecord(appId, resolvedFormName, recordId)
+      setSelected((previous) => previous.filter((item) => item !== recordId))
+      if (detailId === recordId) setDetailId(null)
+      if (linkedRecord?.recordId === recordId) setLinkedRecord(null)
+      refresh()
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : '删除记录失败')
+    } finally {
+      setDeletingId(null)
+    }
+  }
   const sortBy = (key: string) => {
     if (sortKey === key) setSortAsc((asc) => !asc)
     else {
@@ -449,6 +471,7 @@ export default function RecordList({formName}: { formName?: string }) {
                       )}
                     </th>
                   ))}
+                  <th className="w-[120px]">操作</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -472,6 +495,35 @@ export default function RecordList({formName}: { formName?: string }) {
                       {columns.map((column) => (
                         <td key={column.name}>{renderCell(row, column)}</td>
                       ))}
+                      <td>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="编辑"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              editRecord(recordId)
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5"/>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            title="删除"
+                            disabled={deletingId === recordId}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              void removeRecord(recordId)
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5"/>
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   )
                 })}
