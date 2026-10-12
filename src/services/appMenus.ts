@@ -2,7 +2,7 @@ import {requestJson} from '@/services/http'
 import {createAppDataCache} from '@/services/appDataCache'
 
 export type AppMenuType = 'GROUP' | 'ITEM'
-export type AppMenuTargetType = 'BUILT_IN' | 'FORM'
+export type AppMenuTargetType = 'BUILTIN' | 'FORM'
 
 export interface AppMenuTarget {
   type: AppMenuTargetType

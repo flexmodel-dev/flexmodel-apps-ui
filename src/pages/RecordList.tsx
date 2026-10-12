@@ -36,7 +36,6 @@ import {
   type AppRecord,
 } from '@/services/appRecords'
 import {cn} from '@/lib/utils'
-import {isFormDividerField} from '@/lib/form-layout'
 
 const defaultViewTabs = ['全部']
 const compactButtonClass = 'h-8 px-2.5 text-xs'
@@ -207,9 +206,14 @@ export default function RecordList({formName}: { formName?: string }) {
   }
 
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
-  const layoutColumns = (form.layout?.fields?.length ? form.layout.fields : form.fields.map((field) => field.name))
+  const layoutNames = form.layout.items.length
+    ? form.layout.items
+      .filter((item) => item.type === 'FIELD' && Boolean(item.name))
+      .map((item) => item.name!)
+    : form.fields.filter((field) => !field.builtin).map((field) => field.name)
+  const layoutColumns = layoutNames
     .map((name) => fieldMap.get(name))
-    .filter((field): field is AppFormField => Boolean(field) && !field!.builtin && !isFormDividerField(field!.name))
+    .filter((field): field is AppFormField => Boolean(field) && !field!.builtin)
   const primaryField = form.displayField ? fieldMap.get(form.displayField) : undefined
   const columns = primaryField
     ? [primaryField, ...layoutColumns.filter((field) => field.name !== primaryField.name)]
@@ -465,7 +469,7 @@ export default function RecordList({formName}: { formName?: string }) {
                       className="cursor-pointer select-none hover:text-primary"
                       onClick={() => sortBy(column.name)}
                     >
-                      {form.layout?.properties?.[column.name]?.label?.trim() || column.label}
+                      {form.layout.items.find((item) => item.type === 'FIELD' && item.name === column.name)?.label?.trim() || column.label}
                       {sortKey === column.name && (
                         sortAsc ? <ArrowDown className="ml-1 h-3 w-3"/> : <ArrowUp className="ml-1 h-3 w-3"/>
                       )}

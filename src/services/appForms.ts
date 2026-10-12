@@ -46,6 +46,28 @@ export interface AppFormField {
   referenceForm?: string | null
 }
 
+export type AppFormItemType = 'FIELD' | 'SECTION' | 'SUBFORM'
+
+export type AppFormItemWidthType =
+  | 'QUARTER'
+  | 'THIRD'
+  | 'HALF'
+  | 'TWO_THIRDS'
+  | 'THREE_QUARTERS'
+  | 'FULL'
+
+export interface AppFormItem {
+  type: AppFormItemType
+  name?: string
+  label?: string
+  tip?: string
+  width?: AppFormItemWidthType
+  hidden?: boolean
+  readonly?: boolean
+  formName?: string
+  referenceField?: string
+}
+
 export interface AppForm {
   name: string
   label: string
@@ -56,7 +78,7 @@ export interface AppForm {
   createdAt?: string | null
   updatedAt?: string | null
   fields: AppFormField[]
-  layout?: AppFormLayout | null
+  layout: AppFormLayout
 }
 
 export interface AppFormInput {
@@ -87,25 +109,8 @@ export interface AppFormFieldUpdateInput {
   referenceForm?: string
 }
 
-export interface AppFormItemProperties {
-  label?: string
-  tip?: string
-  required?: boolean
-  readonly?: boolean
-  hidden?: boolean
-}
-
-export interface AppFormSubform {
-  formName: string
-  referenceField: string
-}
-
 export interface AppFormLayout {
-  fields: string[]
-  widths: Record<string, number>
-  properties?: Record<string, AppFormItemProperties>
-  subforms?: Record<string, AppFormSubform>
-  advanced?: Record<string, unknown>
+  items: AppFormItem[]
 }
 
 const API_BASE = '/api/apps'
@@ -121,7 +126,9 @@ function normalizeForm(form: AppForm): AppForm {
     ...form,
     description: form.description ?? '',
     fields: Array.isArray(form.fields) ? form.fields : [],
-    layout: form.layout ?? null,
+    layout: {
+      items: Array.isArray(form.layout?.items) ? form.layout.items : [],
+    },
   }
 }
 

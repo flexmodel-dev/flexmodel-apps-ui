@@ -135,6 +135,7 @@ export function AppReferenceValue({
             searchField: 'id',
             managed: false,
             fields: [],
+            layout: {items: []},
           })
         }
       })

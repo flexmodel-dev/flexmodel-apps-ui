@@ -13,15 +13,13 @@ import {
 } from '@/components/ui/select'
 import {cn} from '@/lib/utils'
 import {
-  formFieldWidthClasses,
-  isFormDividerField,
-  type FormFieldWidth,
-} from '@/lib/form-layout'
+  formItemWidthTypeClasses,
+} from '@/lib/form-items'
 import {
   getAppForm,
   type AppForm,
   type AppFormField,
-  type AppFormItemProperties,
+  type AppFormItem,
 } from '@/services/appForms'
 import {
   createAppRecord,
@@ -40,10 +38,6 @@ function toInputValue(field: AppFormField, value: unknown) {
     return String((value as { id?: unknown }).id ?? '')
   }
   return value === undefined || value === null ? '' : String(value)
-}
-
-function isDivider(name: string) {
-  return isFormDividerField(name)
 }
 
 function FieldControl({
@@ -155,18 +149,16 @@ export function AppRecordFormModal({
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [referenceOptions, setReferenceOptions] = React.useState<Record<string, ReferenceOption[]>>({})
 
-  const layoutNames = form.layout?.fields?.length
-    ? form.layout.fields
-    : form.fields.map((field) => field.name)
+  const layoutItems = form.layout.items.length
+    ? form.layout.items
+    : form.fields.filter((field) => !field.builtin).map((field) => ({type: 'FIELD' as const, name: field.name}))
   const fieldsByName = new Map(form.fields.map((field) => [field.name, field]))
-  const layoutFields = layoutNames
-    .filter((name) =>
-      isDivider(name)
-      || (fieldsByName.has(name) && !(recordContext && name === recordContext.referenceField))
-    )
-    .map((name) => isDivider(name) ? name : fieldsByName.get(name)!)
-  const properties = form.layout?.properties ?? {}
-  const widths = form.layout?.widths ?? {}
+  const renderItems = layoutItems.filter((item): item is AppFormItem =>
+    item.type === 'SECTION'
+    || (item.type === 'FIELD'
+      && Boolean(item.name)
+      && fieldsByName.has(item.name!)
+      && !(recordContext && item.name === recordContext.referenceField)))
 
   React.useEffect(() => {
     if (!open) return
@@ -229,14 +221,6 @@ export function AppRecordFormModal({
     }
   }, [appId, form, open, recordContext])
 
-  const getProperties = (name: string): AppFormItemProperties => properties[name] ?? {}
-  const getWidth = (name: string): FormFieldWidth => {
-    const width = widths[name]
-    return width === 25 || width === 33 || width === 50 || width === 66 || width === 75 || width === 100
-      ? width
-      : 50
-  }
-
   const submit = async () => {
     const payload: AppRecord = {}
     for (const field of form.fields.filter((item) =>
@@ -288,34 +272,34 @@ export function AppRecordFormModal({
       <div className="space-y-5">
         {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-12">
-          {layoutFields.map((item) => {
-            if (typeof item === 'string') {
-              const label = getProperties(item).label?.trim() || '分栏'
+          {renderItems.map((item) => {
+            if (item.type === 'SECTION') {
               return (
-                <div key={item} className="md:col-span-12">
-                  <div className="border-b text-sm font-medium text-foreground">{label}</div>
+                <div key={`${item.type}-${item.label}`} className="md:col-span-12">
+                  <div className="border-b text-sm font-medium text-foreground">
+                    {item.label?.trim() || '分栏'}
+                  </div>
                 </div>
               )
             }
-            const field = item
-            const property = getProperties(field.name)
-            if (property.hidden) return null
+            const field = fieldsByName.get(item.name!)!
+            if (item.hidden) return null
             return (
               <div
                 key={field.name}
-                className={cn('space-y-1.5', formFieldWidthClasses[getWidth(field.name)])}
+                className={cn('space-y-1.5', formItemWidthTypeClasses[item.width ?? 'HALF'])}
               >
                 <label className="flex items-center gap-1 text-sm font-medium">
-                  {property.label?.trim() || field.label}
+                  {item.label?.trim() || field.label}
                   {field.required && <span className="text-destructive">*</span>}
-                  {property.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
+                  {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
                 </label>
                 <FieldControl
                   field={field}
                   value={values[field.name]}
                   options={field.options ?? []}
                   referenceOptions={referenceOptions[field.name] ?? []}
-                  disabled={property.readonly}
+                  disabled={item.readonly}
                   onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
                 />
               </div>

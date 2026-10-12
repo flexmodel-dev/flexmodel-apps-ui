@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
-import {ChevronDown, Info, Settings} from 'lucide-react'
+import {Settings} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,14 +14,7 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import {createRecord, getBusinessObject, getRecords, updateRecord, users, type BusinessObjectField} from '@/data/mock'
-import {
-  formFieldWidthClasses,
-  getStoredFormLayout,
-  type StoredCustomField,
-  isFormDividerField,
-  type FormItemProperties,
-  type FormFieldWidth,
-} from '@/lib/form-layout'
+import {formItemWidthTypeClasses} from '@/lib/form-items'
 
 type FormValues = Record<string, string | boolean>
 
@@ -149,11 +142,6 @@ export function RecordFormModal({
   )
   const [values, setValues] = React.useState<FormValues>({})
   const [error, setError] = React.useState('')
-  const [fieldWidths, setFieldWidths] = React.useState<Record<string, FormFieldWidth>>({})
-  const [layout, setLayout] = React.useState<string[]>([])
-  const [itemProperties, setItemProperties] = React.useState<Record<string, FormItemProperties>>({})
-  const [customFields, setCustomFields] = React.useState<StoredCustomField[]>([])
-  const [collapsedSections, setCollapsedSections] = React.useState<string[]>([])
 
   React.useEffect(() => {
     if (!meta || !open) return
@@ -163,52 +151,13 @@ export function RecordFormModal({
       .forEach((field) => {
         next[field.name] = toInputValue(field, editing?.[field.name])
       })
-    const storedLayout = getStoredFormLayout(meta.name)
-    const nextCustomFields = storedLayout?.customFields ?? []
-    nextCustomFields
-      .filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
-      .forEach((field) => {
-        next[field.name] = toInputValue(field, editing?.[field.name])
-      })
     setValues(next)
     setError('')
-    setCustomFields(nextCustomFields)
-    const visibleDefaultFields = meta.fields
-      .filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
-      .map((field) => field.name)
-    setLayout(storedLayout ? storedLayout.fields : visibleDefaultFields)
-    setFieldWidths(storedLayout?.widths ?? {})
-    setItemProperties(storedLayout?.properties ?? {})
   }, [editing, meta, open])
 
   if (!meta) return null
 
-  const allFields = [...meta.fields, ...customFields]
-  const fields = layout
-    .filter((name) => !isFormDividerField(name))
-    .map((name) => allFields.find((field) => field.name === name))
-    .filter((field): field is BusinessObjectField => Boolean(field))
-    .filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
-  const sections = (() => {
-    const result: { key: string | null; fields: string[] }[] = [{key: null, fields: []}]
-    layout.forEach((name) => {
-      if (isFormDividerField(name)) {
-        result.push({key: name, fields: []})
-      } else {
-        result[result.length - 1].fields.push(name)
-      }
-    })
-    return result
-  })()
-  const getDisplayLabel = (field: BusinessObjectField) =>
-    itemProperties[field.name]?.label?.trim() || field.label
-  const getItemTip = (name: string) => itemProperties[name]?.tip?.trim() || ''
-  const getSectionLabel = (name: string) => itemProperties[name]?.label?.trim() || '分栏'
-  const toggleSection = (name: string) => {
-    setCollapsedSections((previous) => previous.includes(name)
-      ? previous.filter((item) => item !== name)
-      : [...previous, name])
-  }
+  const fields = meta.fields.filter((field) => !['createdOn', 'modifiedOn'].includes(field.name))
   const handleSubmit = () => {
     const nameValue = String(values[meta.displayField] ?? '').trim()
     if (!nameValue) {
@@ -253,67 +202,19 @@ export function RecordFormModal({
       }
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-        {sections.map((section) => {
-          const collapsed = section.key ? collapsedSections.includes(section.key) : false
-          return (
-            <React.Fragment key={section.key ?? '$DEFAULT$'}>
-              {section.key && (
-                <div className="md:col-span-12">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-1.5 pb-1.5 text-left text-sm font-medium text-foreground"
-                    onClick={() => toggleSection(section.key!)}
-                  >
-                    <ChevronDown
-                      className={cn(
-                        'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-                        collapsed && '-rotate-90',
-                      )}
-                    />
-                    <span className="min-w-0 truncate">{getSectionLabel(section.key)}</span>
-                    <span className="ml-2 h-[0.5px] flex-1 bg-border"/>
-                  </button>
-                </div>
-              )}
-              {!collapsed && section.fields.map((fieldName) => {
-                const sourceField = fields.find((item) => item.name === fieldName)
-                if (!sourceField) return null
-                if (itemProperties[sourceField.name]?.hidden === true) return null
-                const field = {
-                  ...sourceField,
-                  label: getDisplayLabel(sourceField),
-                }
-
-                return (
-                  <div
-                    key={field.name}
-                    className={cn(
-                      'space-y-1.5',
-                      section.key && 'pl-6',
-                      formFieldWidthClasses[fieldWidths[field.name] ?? 50],
-                    )}
-                  >
-                    <label className="block text-sm font-medium text-foreground">
-                      {getDisplayLabel(field)}
-                      {getItemTip(field.name) && (
-                        <span title={getItemTip(field.name)}>
-                          <Info className="ml-1 inline-block h-3.5 w-3.5 align-[-2px] text-muted-foreground"/>
-                        </span>
-                      )}
-                      {field.name === meta.displayField && <span className="ml-1 text-destructive">*</span>}
-                    </label>
-                    <FieldControl
-                      field={field}
-                      disabled={itemProperties[field.name]?.readonly === true}
-                      value={values[field.name] ?? ''}
-                      onChange={(value) => setValues((prev) => ({...prev, [field.name]: value}))}
-                    />
-                  </div>
-                )
-              })}
-            </React.Fragment>
-          )
-        })}
+        {fields.map((field) => (
+          <div key={field.name} className={cn('space-y-1.5', formItemWidthTypeClasses.HALF)}>
+            <label className="block text-sm font-medium text-foreground">
+              {field.label}
+              {field.name === meta.displayField && <span className="ml-1 text-destructive">*</span>}
+            </label>
+            <FieldControl
+              field={field}
+              value={values[field.name] ?? ''}
+              onChange={(value) => setValues((prev) => ({...prev, [field.name]: value}))}
+            />
+          </div>
+        ))}
       </div>
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
     </BizDialog>

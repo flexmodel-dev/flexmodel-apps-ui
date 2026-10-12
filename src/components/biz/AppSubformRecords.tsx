@@ -4,7 +4,7 @@ import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Empty} from '@/components/ui/empty'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
-import {getAppForm, type AppForm, type AppFormSubform} from '@/services/appForms'
+import {getAppForm, type AppForm} from '@/services/appForms'
 import {
   deleteAppRecord,
   getAppRecords,
@@ -17,6 +17,11 @@ function displayText(value: unknown) {
   return String(value)
 }
 
+interface AppSubform {
+  formName: string
+  referenceField: string
+}
+
 export function AppSubformRecords({
                                     appId,
                                     mainFormName,
@@ -26,7 +31,7 @@ export function AppSubformRecords({
   appId: string
   mainFormName: string
   mainRecordId: string
-  subform: AppFormSubform
+  subform: AppSubform
 }) {
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [page, setPage] = React.useState(1)
@@ -104,13 +109,10 @@ export function AppSubformRecords({
 
   const columns = React.useMemo(() => {
     if (!form) return []
-    const names = form.layout?.fields?.length
-      ? form.layout.fields.filter((name) =>
-        !name.startsWith('$DIVIDER$-')
-        && !name.startsWith('$SUBFORM$-')
-        && name !== subform.referenceField
-        && form.fields.some((field) => field.name === name),
-      )
+    const names = form.layout.items.length
+      ? form.layout.items
+        .filter((item) => item.type === 'FIELD' && Boolean(item.name) && item.name !== subform.referenceField)
+        .map((item) => item.name!)
       : form.fields.filter((field) => !field.builtin && field.name !== subform.referenceField)
         .map((field) => field.name)
     const uniqueNames = Array.from(new Set(names))

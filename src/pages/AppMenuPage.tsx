@@ -89,7 +89,7 @@ export default function AppMenuPage() {
     )
   }
 
-  if (menu.target?.type === 'BUILT_IN') {
+  if (menu.target?.type === 'BUILTIN') {
     return <BuiltinPage targetId={menu.target.id}/>
   }
   if (menu.target?.type === 'FORM') {

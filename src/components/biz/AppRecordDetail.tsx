@@ -8,8 +8,7 @@ import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {Empty} from '@/components/ui/empty'
 import {cn} from '@/lib/utils'
-import {isFormDividerField, isFormSubformField} from '@/lib/form-layout'
-import {getAppForm, type AppForm, type AppFormField, type AppFormSubform} from '@/services/appForms'
+import {getAppForm, type AppForm, type AppFormField, type AppFormItem} from '@/services/appForms'
 import {deleteAppRecord, getAppRecord, type AppRecord} from '@/services/appRecords'
 
 function renderValue(field: AppFormField, value: unknown) {
@@ -97,38 +96,31 @@ export function AppRecordDetail({
   if (!form || !record) return <Empty description="记录不存在"/>
 
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
-  const layoutNames = form.layout?.fields?.length
-    ? form.layout.fields
-    : form.fields.filter((field) => !field.builtin).map((field) => field.name)
+  const layoutItems: AppFormItem[] = form.layout.items.length
+    ? form.layout.items
+    : form.fields.filter((field) => !field.builtin).map((field) => ({type: 'FIELD' as const, name: field.name}))
   const sections: Array<{ key: string; label: string; fields: AppFormField[] }> = [
     {key: 'default', label: form.label, fields: []},
   ]
-  layoutNames.forEach((name) => {
-    if (isFormDividerField(name)) {
+  const subformItems: Array<{ key: string; item: AppFormItem }> = []
+  layoutItems.forEach((item, index) => {
+    if (item.type === 'SECTION') {
       sections.push({
-        key: name,
-        label: form.layout?.properties?.[name]?.label?.trim() || '分栏',
+        key: `section-${index}`,
+        label: item.label?.trim() || '分栏',
         fields: [],
       })
       return
     }
-    const field = fieldMap.get(name)
-    if (field && !field.builtin && !form.layout?.properties?.[name]?.hidden) {
+    if (item.type === 'SUBFORM') {
+      subformItems.push({key: `subform-${index}`, item})
+      return
+    }
+    const field = item.name ? fieldMap.get(item.name) : undefined
+    if (field && !field.builtin && !item.hidden) {
       sections[sections.length - 1].fields.push(field)
     }
   })
-  const subformItems = layoutNames
-    .filter(isFormSubformField)
-    .map((name) => {
-      const subform = form.layout?.subforms?.[name]
-      return subform
-        ? {
-          name,
-          subform,
-        }
-        : null
-    })
-    .filter((item): item is { name: string; subform: AppFormSubform } => Boolean(item))
 
   return (
     <div className="space-y-4">
@@ -174,7 +166,8 @@ export function AppRecordDetail({
               {!collapsed && (
                 <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
                   {section.fields.map((field) => {
-                    const label = form.layout?.properties?.[field.name]?.label?.trim() || field.label
+                    const layoutItem = layoutItems.find((item) => item.type === 'FIELD' && item.name === field.name)
+                    const label = layoutItem?.label?.trim() || field.label
                     return (
                       <div key={field.name} className="min-w-0">
                         <div className="text-xs text-muted-foreground">{label}</div>
@@ -200,11 +193,14 @@ export function AppRecordDetail({
 
       {subformItems.map((item) => (
         <AppSubformRecords
-          key={item.name}
+          key={item.key}
           appId={appId}
           mainFormName={form.name}
           mainRecordId={recordId}
-          subform={item.subform}
+          subform={{
+            formName: item.item.formName!,
+            referenceField: item.item.referenceField!,
+          }}
         />
       ))}
 
