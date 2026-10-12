@@ -580,7 +580,7 @@ export default function RecordList({formName}: { formName?: string }) {
       </Drawer>
 
       <Drawer open={Boolean(linkedRecord)} onOpenChange={(open) => !open && setLinkedRecord(null)}>
-        <DrawerContent className="w-full overflow-y-auto md:w-[calc(100vw-16rem)]">
+        <DrawerContent className="w-[calc(100vw-4rem)] overflow-y-auto md:w-[calc(100vw-20rem)]">
           <div className="p-4 md:p-5">
             {linkedRecord && (
               <AppRecordDetail
