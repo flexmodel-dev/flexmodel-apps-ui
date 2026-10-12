@@ -5,6 +5,7 @@ import {Button} from '@/components/ui/button'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
+import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {Empty} from '@/components/ui/empty'
 import {cn} from '@/lib/utils'
 import {isFormDividerField, isFormSubformField} from '@/lib/form-layout'
@@ -27,11 +28,13 @@ export function AppRecordDetail({
                                   formName,
                                   recordId,
                                   onDeleted,
+                                  onOpenRecord,
                                 }: {
   appId: string
   formName: string
   recordId: string
   onDeleted?: () => void
+  onOpenRecord?: (formName: string, recordId: string) => void
 }) {
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [record, setRecord] = React.useState<AppRecord | null>(null)
@@ -163,7 +166,14 @@ export function AppRecordDetail({
                       <div key={field.name} className="min-w-0">
                         <div className="text-xs text-muted-foreground">{label}</div>
                         <div className="mt-1 truncate text-sm font-medium text-foreground">
-                          {renderValue(field, record[field.name])}
+                          {field.type === 'REFERENCE' ? (
+                            <AppReferenceValue
+                              appId={appId}
+                              field={field}
+                              value={record[field.name]}
+                              onOpenRecord={onOpenRecord}
+                            />
+                          ) : renderValue(field, record[field.name])}
                         </div>
                       </div>
                     )

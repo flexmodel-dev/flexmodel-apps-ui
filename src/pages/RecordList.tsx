@@ -27,6 +27,7 @@ import {Empty} from '@/components/ui/empty'
 import {Drawer, DrawerContent} from '@/components/ui/drawer'
 import {AppRecordDetail} from '@/components/biz/AppRecordDetail'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
+import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {getAppForm, type AppForm, type AppFormField} from '@/services/appForms'
 import {
   deleteAppRecord,
@@ -61,6 +62,7 @@ export default function RecordList({formName}: { formName?: string }) {
   const [searchOpen, setSearchOpen] = React.useState(false)
   const searchAreaRef = React.useRef<HTMLDivElement>(null)
   const [detailId, setDetailId] = React.useState<string | null>(null)
+  const [linkedRecord, setLinkedRecord] = React.useState<{ formName: string; recordId: string } | null>(null)
   const [formOpen, setFormOpen] = React.useState(false)
   const [formRecordId, setFormRecordId] = React.useState<string | null>(null)
   const [refreshTick, setRefreshTick] = React.useState(0)
@@ -138,6 +140,7 @@ export default function RecordList({formName}: { formName?: string }) {
   React.useEffect(() => {
     setSelected([])
     setDetailId(null)
+    setLinkedRecord(null)
     setFormOpen(false)
     setFormRecordId(null)
     setQ('')
@@ -171,6 +174,7 @@ export default function RecordList({formName}: { formName?: string }) {
   }
 
   const refresh = () => setRefreshTick((tick) => tick + 1)
+  const openLinkedRecord = (formName: string, recordId: string) => setLinkedRecord({formName, recordId})
 
   const removeSelected = async () => {
     if (!selected.length) return
@@ -224,6 +228,9 @@ export default function RecordList({formName}: { formName?: string }) {
 
   const renderCell = (row: AppRecord, field: AppFormField) => {
     const value = row[field.name]
+    if (field.type === 'REFERENCE') {
+      return <AppReferenceValue appId={appId} field={field} value={value} onOpenRecord={openLinkedRecord}/>
+    }
     if (field.name === form.displayField) {
       const displayValue = value === undefined || value === null || value === '' ? '-' : String(value)
       return (
@@ -257,7 +264,6 @@ export default function RecordList({formName}: { formName?: string }) {
     if (field.type === 'BOOL') return value === true ? '是' : '否'
     if (field.type === 'NUMBER' || field.type === 'DECIMAL') return Number(value).toLocaleString()
     if (field.type === 'EMAIL') return <span className="text-primary">{String(value)}</span>
-    if (field.type === 'REFERENCE') return <span className="text-primary">{String(value)}</span>
     return String(value)
   }
 
@@ -500,9 +506,30 @@ export default function RecordList({formName}: { formName?: string }) {
                 appId={appId}
                 formName={resolvedFormName}
                 recordId={detailId}
+                onOpenRecord={openLinkedRecord}
                 onDeleted={() => {
                   setDetailId(null)
+                  setLinkedRecord(null)
                   setSelected((previous) => previous.filter((id) => id !== detailId))
+                  refresh()
+                }}
+              />
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={Boolean(linkedRecord)} onOpenChange={(open) => !open && setLinkedRecord(null)}>
+        <DrawerContent className="w-full overflow-y-auto md:w-[calc(100vw-16rem)]">
+          <div className="p-4 md:p-5">
+            {linkedRecord && (
+              <AppRecordDetail
+                appId={appId}
+                formName={linkedRecord.formName}
+                recordId={linkedRecord.recordId}
+                onOpenRecord={openLinkedRecord}
+                onDeleted={() => {
+                  setLinkedRecord(null)
                   refresh()
                 }}
               />
