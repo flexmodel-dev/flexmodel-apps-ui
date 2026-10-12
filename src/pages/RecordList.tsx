@@ -68,6 +68,8 @@ export default function RecordList({formName}: { formName?: string }) {
   const [refreshTick, setRefreshTick] = React.useState(0)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [deleteIds, setDeleteIds] = React.useState<string[] | null>(null)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
@@ -177,21 +179,37 @@ export default function RecordList({formName}: { formName?: string }) {
   const refresh = () => setRefreshTick((tick) => tick + 1)
   const openLinkedRecord = (formName: string, recordId: string) => setLinkedRecord({formName, recordId})
 
-  const removeSelected = async () => {
+  const requestDeleteSelected = () => {
     if (!selected.length) return
+    setDeleteError(null)
+    setDeleteIds(selected)
+  }
+
+  const requestDeleteRecord = (recordId: string) => {
+    setDeleteError(null)
+    setDeleteIds([recordId])
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteIds?.length) return
     setIsDeleting(true)
-    setError(null)
+    setDeleteError(null)
+    setDeletingId(deleteIds.length === 1 ? deleteIds[0] : null)
     try {
-      for (const recordId of selected) {
+      for (const recordId of deleteIds) {
         await deleteAppRecord(appId, resolvedFormName, recordId)
       }
-      setSelected([])
-      setPage(1)
+      setSelected((previous) => previous.filter((recordId) => !deleteIds.includes(recordId)))
+      if (detailId && deleteIds.includes(detailId)) setDetailId(null)
+      if (linkedRecord && deleteIds.includes(linkedRecord.recordId)) setLinkedRecord(null)
+      setDeleteIds(null)
+      if (deleteIds.length > 1) setPage(1)
       refresh()
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '删除记录失败')
+      setDeleteError(caught instanceof Error ? caught.message : '删除记录失败')
     } finally {
       setIsDeleting(false)
+      setDeletingId(null)
     }
   }
 
@@ -229,20 +247,6 @@ export default function RecordList({formName}: { formName?: string }) {
     setFormOpen(true)
   }
 
-  const removeRecord = async (recordId: string) => {
-    setDeletingId(recordId)
-    try {
-      await deleteAppRecord(appId, resolvedFormName, recordId)
-      setSelected((previous) => previous.filter((item) => item !== recordId))
-      if (detailId === recordId) setDetailId(null)
-      if (linkedRecord?.recordId === recordId) setLinkedRecord(null)
-      refresh()
-    } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '删除记录失败')
-    } finally {
-      setDeletingId(null)
-    }
-  }
   const sortBy = (key: string) => {
     if (sortKey === key) setSortAsc((asc) => !asc)
     else {
@@ -426,7 +430,7 @@ export default function RecordList({formName}: { formName?: string }) {
                 size="sm"
                 className={compactButtonClass}
                 disabled={!selected.length || isDeleting}
-                onClick={removeSelected}
+                onClick={requestDeleteSelected}
               >
                 <Trash2 className="h-4 w-4"/> 删除
               </Button>
@@ -521,7 +525,7 @@ export default function RecordList({formName}: { formName?: string }) {
                             disabled={deletingId === recordId}
                             onClick={(event) => {
                               event.stopPropagation()
-                              void removeRecord(recordId)
+                              requestDeleteRecord(recordId)
                             }}
                           >
                             <Trash2 className="h-3.5 w-3.5"/>
@@ -605,6 +609,36 @@ export default function RecordList({formName}: { formName?: string }) {
           refresh()
         }}
       />
+
+      <BizDialog
+        open={Boolean(deleteIds)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteIds(null)
+            setDeleteError(null)
+          }
+        }}
+        title={deleteIds?.length === 1 ? '删除记录' : '批量删除记录'}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDeleteIds(null)} disabled={isDeleting}>
+              取消
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => void confirmDelete()} disabled={isDeleting}>
+              {isDeleting ? '删除中' : '删除'}
+            </Button>
+          </>
+        }
+      >
+        <div className="text-sm text-muted-foreground">
+          {deleteIds?.length === 1
+            ? `确认删除这条「${form.label}」记录吗？删除后不可恢复。`
+            : `确认删除选中的 ${deleteIds?.length ?? 0} 条「${form.label}」记录吗？删除后不可恢复。`}
+          {deleteError ? (
+            <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
+          ) : null}
+        </div>
+      </BizDialog>
 
       <BizDialog
         open={tabsConfigOpen}
