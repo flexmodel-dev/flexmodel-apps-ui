@@ -85,7 +85,7 @@ export interface AppFormInput {
   label: string
   name: string
   description: string
-  createNameField: boolean
+  createDisplayField: boolean
 }
 
 export interface AppFormUpdateInput {

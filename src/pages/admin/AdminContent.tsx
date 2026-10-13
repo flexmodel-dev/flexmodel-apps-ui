@@ -16,14 +16,14 @@ interface FormCreateDraft {
   label: string
   name: string
   description: string
-  createNameField: boolean
+  createDisplayField: boolean
 }
 
 const emptyFormDraft: FormCreateDraft = {
   label: '',
   name: '',
   description: '',
-  createNameField: true,
+  createDisplayField: true,
 }
 
 export function FormManagementContent({appId}: { appId?: string }) {
@@ -65,7 +65,7 @@ export function FormManagementContent({appId}: { appId?: string }) {
         label: createDraft.label.trim(),
         name: createDraft.name.trim(),
         description: createDraft.description.trim(),
-        createNameField: createDraft.createNameField,
+        createDisplayField: createDraft.createDisplayField,
       })
       setCreateOpen(false)
       setCreateDraft(emptyFormDraft)
@@ -159,10 +159,10 @@ export function FormManagementContent({appId}: { appId?: string }) {
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={createDraft.createNameField}
-              onChange={(event) => setCreateDraft({...createDraft, createNameField: event.target.checked})}
+              checked={createDraft.createDisplayField}
+              onChange={(event) => setCreateDraft({...createDraft, createDisplayField: event.target.checked})}
             />
-            创建名称字段
+            创建主显字段
           </label>
         </div>
       </BizDialog>
