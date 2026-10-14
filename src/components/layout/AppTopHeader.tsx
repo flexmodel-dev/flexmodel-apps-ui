@@ -82,7 +82,7 @@ export function AppTopHeader({
   }
 
   const currentApp = app
-  const brand = currentApp?.name ?? (isAppLoading ? '应用加载中…' : '应用')
+  const brand = currentApp?.name ?? (isAppLoading ? '…' : '应用')
   const LogoIcon = appIcons[currentApp?.iconName ?? 'Boxes'] ?? appIcons.Boxes
 
   const filteredSuggestions = searchValue.trim()
