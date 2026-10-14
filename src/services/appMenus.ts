@@ -2,7 +2,7 @@ import {requestJson} from '@/services/http'
 import {createAppDataCache} from '@/services/appDataCache'
 
 export type AppMenuType = 'GROUP' | 'ITEM'
-export type AppMenuTargetType = 'BUILTIN' | 'FORM'
+export type AppMenuTargetType = 'BUILTIN' | 'FORM' | 'LINK'
 
 export interface AppMenuTarget {
   type: AppMenuTargetType
@@ -37,6 +37,15 @@ export interface AppMenuTargets {
 export interface AppMenuOrderInput {
   root: string[]
   children: Record<string, string[]>
+}
+
+export function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value.trim())
+    return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname)
+  } catch {
+    return false
+  }
 }
 
 const API_BASE = '/api/apps'

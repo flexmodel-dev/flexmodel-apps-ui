@@ -26,6 +26,15 @@ export function findFirstItemRouteInMenu(menu: AppMenu): string | undefined {
   return findFirstPageRoute(menu)
 }
 
+function containsMenu(menu: AppMenu, menuId: string): boolean {
+  return menu.id === menuId || menu.children.some((child) => containsMenu(child, menuId))
+}
+
+export function findTopMenuIdForMenu(menus: AppMenu[], menuId?: string): string | undefined {
+  if (!menuId) return undefined
+  return menus.find((menu) => containsMenu(menu, menuId))?.id
+}
+
 export function toNavigationItem(menu: AppMenu, appId: string): NavItem {
   return {
     id: menu.id,

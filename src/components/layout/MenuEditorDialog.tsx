@@ -30,6 +30,7 @@ import {
   createAppMenu,
   deleteAppMenu,
   getAppMenus,
+  isValidHttpUrl,
   reorderAppMenus,
   updateAppMenu,
   type AppMenu,
@@ -438,9 +439,15 @@ function MenuEditorDialog({
     if (!form) return false
     if (!form.text.trim()) return false
     if (appId && form.kind === 'left' && form.type === 'menu') {
-      return Boolean(form.link)
+      const target = targetFromValue(form.link)
+      if (!target) return false
+      return target.type !== 'LINK' || isValidHttpUrl(target.id)
     }
-    if (appId && form.kind === 'sub') return Boolean(form.link)
+    if (appId && form.kind === 'sub') {
+      const target = targetFromValue(form.link)
+      if (!target) return false
+      return target.type !== 'LINK' || isValidHttpUrl(target.id)
+    }
     return true
   })()
 
@@ -562,7 +569,7 @@ function MenuEditorDialog({
           navigate(nextTop.to)
         }
         setSelectedTopId(nextTop.id)
-        setForm(null)
+        if (form?.id === target.item.id) setForm(null)
       } else if (target.kind === 'left') {
         if (!deleteLeftMenu(selectedTop.id, target.item.id)) {
           setDeleteTarget(null)
@@ -593,13 +600,16 @@ function MenuEditorDialog({
           const nextTopId = nextMenus[0]?.id ?? ''
           if (target.item.id === activeTopId) {
             onActiveTopIdChange(nextTopId)
-            navigate(`/apps/${appId}`)
           }
           setSelectedTopId(nextTopId)
-        } else if (pathMatches(location.pathname, target.item.to)) {
-          navigate(selectedTop.to || `/apps/${appId}`)
         }
-        setForm(null)
+        if (
+          form?.id === target.item.id
+          || (target.kind === 'top' && form?.kind !== 'top')
+          || (target.kind === 'left' && form?.kind === 'sub' && form.parentId === target.item.id)
+        ) {
+          setForm(null)
+        }
         setDeleteTarget(null)
         onMenusChange(nextMenus)
       } catch (caught) {

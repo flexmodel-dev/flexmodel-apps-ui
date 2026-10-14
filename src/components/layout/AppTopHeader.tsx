@@ -43,12 +43,14 @@ export function AppTopHeader({
                                mobileNavs,
                                app,
                                topNavItems = topNavs,
+                               isAppLoading = false,
                              }: {
   activeTopId: string
   onTopNavChange: (id: string) => void
   mobileNavs: NavItem[]
   app?: App
   topNavItems?: TopNavItem[]
+  isAppLoading?: boolean
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -80,7 +82,7 @@ export function AppTopHeader({
   }
 
   const currentApp = app
-  const brand = currentApp?.name ?? '销售管理'
+  const brand = currentApp?.name ?? (isAppLoading ? '应用加载中…' : '应用')
   const LogoIcon = appIcons[currentApp?.iconName ?? 'Boxes'] ?? appIcons.Boxes
 
   const filteredSuggestions = searchValue.trim()
@@ -89,7 +91,7 @@ export function AppTopHeader({
 
   return (
     <TopHeaderShell
-      brand={brand} brandTo={currentApp ? `/apps/${currentApp.id}` : '/admin/apps'}
+      brand={brand} brandTo={currentApp ? `/apps/${currentApp.id}` : undefined}
       logoIcon={LogoIcon}
       mobileTitle="菜单"
       mobileNavs={mobileNavs}

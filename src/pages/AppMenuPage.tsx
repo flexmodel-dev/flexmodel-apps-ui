@@ -64,7 +64,7 @@ export default function AppMenuPage() {
     return () => {
       cancelled = true
     }
-  }, [appId])
+  }, [appId, menuId])
 
   if (isLoading) {
     return <AppLayout><AppLoading center className="min-h-[400px]"/></AppLayout>
@@ -94,6 +94,18 @@ export default function AppMenuPage() {
   }
   if (menu.target?.type === 'FORM') {
     return <RecordList formName={menu.target.id}/>
+  }
+  if (menu.target?.type === 'LINK') {
+    return (
+      <AppLayout noPadding noOuterScroll contentClassName="-mt-4 h-[calc(100vh-4rem)] w-full md:-mt-6">
+        <iframe
+          src={menu.target.id}
+          title={menu.name}
+          className="h-full w-full border-0"
+          referrerPolicy="no-referrer"
+        />
+      </AppLayout>
+    )
   }
   return (
     <AppLayout>

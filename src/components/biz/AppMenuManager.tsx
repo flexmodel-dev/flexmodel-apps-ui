@@ -40,6 +40,7 @@ import {
   getAppMenus,
   reorderAppMenus,
   updateAppMenu,
+  isValidHttpUrl,
   type AppMenu,
   type AppMenuInput,
   type AppMenuTargetType,
@@ -70,6 +71,15 @@ const sensorsOptions = {activationConstraint: {distance: 4}}
 
 function targetValue(target?: { type: AppMenuTargetType; id: string } | null) {
   return target ? `${target.type}:${target.id}` : ''
+}
+
+function parseTargetValue(value: string) {
+  const separatorIndex = value.indexOf(':')
+  if (separatorIndex < 0) return null
+  return {
+    type: value.slice(0, separatorIndex) as AppMenuTargetType,
+    id: value.slice(separatorIndex + 1),
+  }
 }
 
 function MenuRow({
@@ -172,10 +182,14 @@ export function AppMenuManager({
 
   const allTargets = [...targets.builtIn, ...targets.forms]
   const targetLabel = (value: string) => {
-    const [type, id] = value.split(':')
-    return allTargets.find((target) => target.type === type && target.id === id)?.label
+    const target = parseTargetValue(value)
+    if (!target) return undefined
+    if (target.type === 'LINK') return target.id
+    return allTargets.find((item) => item.type === target.type && item.id === target.id)?.label
   }
   const groups = menus.filter((menu) => menu.type === 'GROUP')
+  const selectedTarget = form ? parseTargetValue(form.targetValue) : null
+  const linkUrl = selectedTarget?.type === 'LINK' ? selectedTarget.id : ''
 
   const startCreate = (type: AppMenuType) => {
     setFormError(null)
@@ -196,16 +210,21 @@ export function AppMenuManager({
 
   const save = async () => {
     if (!form?.name.trim() || (form.type === 'ITEM' && !form.targetValue)) return
-    setIsSaving(true)
     setFormError(null)
-    const [targetType, targetId] = form.targetValue.split(':')
+    const target = parseTargetValue(form.targetValue)
+    if (!target) return
+    if (target.type === 'LINK' && !isValidHttpUrl(target.id)) {
+      setFormError('请输入有效的 http 或 https 链接。')
+      return
+    }
+    setIsSaving(true)
     const input: AppMenuInput = {
       type: form.type,
       name: form.name.trim(),
       iconName: form.iconName === 'none' ? null : form.iconName,
       parentId: form.parentId === 'root' ? null : form.parentId,
       target: form.type === 'ITEM'
-        ? {type: targetType as AppMenuTargetType, id: targetId}
+        ? {type: target.type, id: target.type === 'LINK' ? target.id.trim() : target.id}
         : null,
     }
     try {
@@ -271,7 +290,13 @@ export function AppMenuManager({
     void reorder(nextMenus)
   }
 
-  const canSave = Boolean(form?.name.trim()) && (form?.type !== 'ITEM' || Boolean(form?.targetValue))
+  const canSave = Boolean(form?.name.trim())
+    && (form?.type !== 'ITEM' || (() => {
+      if (!form?.targetValue) return false
+      const target = parseTargetValue(form.targetValue)
+      if (!target) return false
+      return target.type === 'LINK' ? isValidHttpUrl(target.id) : Boolean(target.id)
+    })())
 
   return (
     <div className="space-y-4">
@@ -430,8 +455,25 @@ export function AppMenuManager({
                         </SelectItem>
                       ))}
                     </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>自定义链接</SelectLabel>
+                      <SelectItem value={`LINK:${linkUrl}`}>自定义链接</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
+                {form.targetValue.startsWith('LINK:') ? (
+                  <div className="mt-3">
+                    <label className="mb-1 block text-sm font-medium text-foreground">链接地址</label>
+                    <Input
+                      value={linkUrl}
+                      placeholder="https://example.com"
+                      onChange={(event) => setForm({...form, targetValue: `LINK:${event.target.value}`})}
+                    />
+                    {!isValidHttpUrl(linkUrl) ? (
+                      <p className="mt-1 text-xs text-destructive">请输入有效的 http 或 https 链接。</p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {form.targetValue ? (
                   <p className="mt-2 text-xs text-muted-foreground">
                     已自动绑定页面：/apps/{appId}/{form.id ?? '菜单ID'}

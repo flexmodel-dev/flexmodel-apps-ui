@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import {getTopNavIdByPath, topNavs} from '@/data/mock'
 import {getAppById, type App} from '@/services/apps'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
-import {toTopNavigationItem} from '@/services/appMenuNavigation'
+import {findTopMenuIdForMenu, toTopNavigationItem} from '@/services/appMenuNavigation'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
 import {MenuEditorDialog} from './MenuEditorDialog'
@@ -29,12 +29,15 @@ export function AppLayout({
   const location = useLocation()
   const appId = location.pathname.match(/^\/apps\/([^/]+)/)?.[1]
   const routeTopId = appId ? new URLSearchParams(location.search).get('top') : null
+  const routeMenuId = appId ? location.pathname.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1] : null
   const [collapsed, setCollapsed] = React.useState(false)
   const [activeTopId, setActiveTopId] = React.useState(() => appId ? routeTopId ?? '' : getTopNavIdByPath(location.pathname))
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
   const [menuVersion, setMenuVersion] = React.useState(0)
   const [app, setApp] = React.useState<App | null>(null)
   const [appMenus, setAppMenus] = React.useState<AppMenu[]>([])
+  const [isAppLoading, setIsAppLoading] = React.useState(Boolean(appId))
+  const [isMenusLoading, setIsMenusLoading] = React.useState(Boolean(appId))
   const effectiveMenuEditorOpen = menuEditorOpenProp ?? menuEditorOpen
   const setEffectiveMenuEditorOpen = onMenuEditorOpenChange ?? setMenuEditorOpen
 
@@ -42,8 +45,13 @@ export function AppLayout({
     if (appId) {
       if (routeTopId) {
         if (routeTopId !== activeTopId) setActiveTopId(routeTopId)
-      } else if (appMenus.length > 0 && !appMenus.some((menu) => menu.id === activeTopId)) {
-        setActiveTopId(appMenus[0].id)
+      } else {
+        const menuTopId = findTopMenuIdForMenu(appMenus, routeMenuId ?? undefined)
+        if (menuTopId) {
+          if (menuTopId !== activeTopId) setActiveTopId(menuTopId)
+        } else if (appMenus.length > 0 && !appMenus.some((menu) => menu.id === activeTopId)) {
+          setActiveTopId(appMenus[0].id)
+        }
       }
       return
     }
@@ -61,9 +69,11 @@ export function AppLayout({
   React.useEffect(() => {
     if (!appId) {
       setApp(null)
+      setIsAppLoading(false)
       return
     }
     let cancelled = false
+    setIsAppLoading(true)
     getAppById(appId)
       .then((loadedApp) => {
         if (cancelled) return
@@ -73,6 +83,9 @@ export function AppLayout({
         if (cancelled) return
         setApp(null)
       })
+      .finally(() => {
+        if (!cancelled) setIsAppLoading(false)
+      })
     return () => {
       cancelled = true
     }
@@ -81,12 +94,17 @@ export function AppLayout({
   React.useEffect(() => {
     if (!appId) {
       setAppMenus([])
+      setIsMenusLoading(false)
       return
     }
     let cancelled = false
+    setIsMenusLoading(true)
     getAppMenus(appId)
       .then((loadedMenus) => !cancelled && setAppMenus(loadedMenus))
       .catch(() => !cancelled && setAppMenus([]))
+      .finally(() => {
+        if (!cancelled) setIsMenusLoading(false)
+      })
     return () => {
       cancelled = true
     }
@@ -95,7 +113,11 @@ export function AppLayout({
   const topMenuItems = appId
     ? appMenus.map((menu) => toTopNavigationItem(menu, appId))
     : topNavs
-  const activeTop = topMenuItems.find((nav) => nav.id === activeTopId) ?? topMenuItems[0]
+  const routeMenuTopId = findTopMenuIdForMenu(appMenus, routeMenuId ?? undefined)
+  const resolvedActiveTopId = appId ? routeTopId ?? routeMenuTopId ?? activeTopId : activeTopId
+  const activeTop = appId
+    ? topMenuItems.find((nav) => nav.id === resolvedActiveTopId) ?? (isMenusLoading ? undefined : topMenuItems[0])
+    : topMenuItems.find((nav) => nav.id === activeTopId) ?? topMenuItems[0]
   const editMenus = () => setEffectiveMenuEditorOpen(true)
 
   return (
@@ -104,16 +126,17 @@ export function AppLayout({
         <AppTopHeader
           activeTopId={activeTop?.id ?? ''}
           onTopNavChange={setActiveTopId}
-          mobileNavs={appId ? (activeTop?.navs ?? []) : activeTop.navs}
+          mobileNavs={activeTop?.navs ?? []}
           app={app ?? undefined}
           topNavItems={topMenuItems}
+          isAppLoading={isAppLoading}
         />
       )}
 
       {!hideHeader && (
         <AppLeftSidebar
           collapsed={collapsed}
-          navs={appId ? (activeTop?.navs ?? []) : activeTop.navs}
+          navs={activeTop?.navs ?? []}
           sectionKey={activeTop?.id ?? ''}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
           onEditMenus={editMenus}
