@@ -73,6 +73,11 @@ type EditorForm =
   | { kind: 'left'; id?: string; text: string; link?: string; icon: NavIconName | 'none'; type: LeftMenuItemType }
   | { kind: 'sub'; id?: string; parentId: string; text: string; link?: string; icon: NavIconName | 'none' }
 
+export interface MenuEditorDraft {
+  text?: string
+  link?: string
+}
+
 type DeleteTarget =
   | { kind: 'top'; item: TopNavItem }
   | { kind: 'left'; item: NavItem }
@@ -351,6 +356,7 @@ function MenuEditorDialog({
                             onActiveTopIdChange,
                             onMenusChange,
                             appId,
+                            draft,
                           }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -358,6 +364,7 @@ function MenuEditorDialog({
   onActiveTopIdChange: (id: string) => void
   onMenusChange: (menus?: AppMenu[]) => void
   appId?: string
+  draft?: MenuEditorDraft | null
 }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -379,6 +386,17 @@ function MenuEditorDialog({
     if (open && !wasOpenRef.current) setSelectedTopId(activeTopId)
     wasOpenRef.current = open
   }, [open, activeTopId])
+
+  React.useEffect(() => {
+    if (!open || !appId || !draft) return
+    setForm({
+      kind: 'left',
+      text: draft.text ?? '',
+      link: draft.link,
+      icon: 'none',
+      type: 'menu',
+    })
+  }, [open, appId, draft])
 
   const loadMenus = React.useCallback(async (): Promise<AppMenu[]> => {
     if (!appId) return []
@@ -438,6 +456,8 @@ function MenuEditorDialog({
   const isValid = (() => {
     if (!form) return false
     if (!form.text.trim()) return false
+    if (form.kind === 'left' && !selectedTop.id) return false
+    if (form.kind === 'sub' && !form.parentId) return false
     if (appId && form.kind === 'left' && form.type === 'menu') {
       const target = targetFromValue(form.link)
       if (!target) return false

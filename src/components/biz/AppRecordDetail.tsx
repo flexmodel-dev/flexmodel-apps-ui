@@ -4,6 +4,7 @@ import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
+import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {Empty} from '@/components/ui/empty'
@@ -153,8 +154,7 @@ export function AppRecordDetail({
                     ? previous.filter((item) => item !== section.key)
                     : [...previous, section.key])}
                 >
-                  <span className="h-4 w-1 shrink-0 rounded-full bg-primary"/>
-                  <span className="min-w-0 truncate font-semibold">{section.label}</span>
+                  <AppFormSectionTitle label={section.label}/>
                   <ChevronDown
                     className={cn(
                       'h-4 w-4 shrink-0 text-muted-foreground transition-transform',

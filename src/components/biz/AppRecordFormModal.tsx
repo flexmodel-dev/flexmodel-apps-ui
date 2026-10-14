@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {cn} from '@/lib/utils'
+import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
 import {
   formItemWidthTypeClasses,
 } from '@/lib/form-items'
@@ -271,14 +272,12 @@ export function AppRecordFormModal({
     >
       <div className="space-y-5">
         {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
-        <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-12">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12">
           {renderItems.map((item) => {
             if (item.type === 'SECTION') {
               return (
                 <div key={`${item.type}-${item.label}`} className="md:col-span-12">
-                  <div className="border-b text-sm font-medium text-foreground">
-                    {item.label?.trim() || '分栏'}
-                  </div>
+                  <AppFormSectionTitle label={item.label?.trim() || '分栏'}/>
                 </div>
               )
             }
@@ -289,7 +288,7 @@ export function AppRecordFormModal({
                 key={field.name}
                 className={cn('space-y-1.5', formItemWidthTypeClasses[item.width ?? 'HALF'])}
               >
-                <label className="flex items-center gap-1 text-sm font-medium">
+                <label className="flex items-center gap-1 text-xs text-muted-foreground">
                   {item.label?.trim() || field.label}
                   {field.required && <span className="text-destructive">*</span>}
                   {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}

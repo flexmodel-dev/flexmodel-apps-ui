@@ -4,10 +4,16 @@ import { cn } from '@/lib/utils'
 import {getTopNavIdByPath, topNavs} from '@/data/mock'
 import {getAppById, type App} from '@/services/apps'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
-import {findTopMenuIdForMenu, toTopNavigationItem} from '@/services/appMenuNavigation'
+import {
+  findFormMenuTargets,
+  findMenuById,
+  findTopMenuIdForMenu,
+  toTopNavigationItem,
+} from '@/services/appMenuNavigation'
+import {AppRecordCreateDialog} from '@/components/biz/AppRecordCreateDialog'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
-import {MenuEditorDialog} from './MenuEditorDialog'
+import {MenuEditorDialog, type MenuEditorDraft} from './MenuEditorDialog'
 
 export function AppLayout({
   children,
@@ -33,13 +39,26 @@ export function AppLayout({
   const [collapsed, setCollapsed] = React.useState(false)
   const [activeTopId, setActiveTopId] = React.useState(() => appId ? routeTopId ?? '' : getTopNavIdByPath(location.pathname))
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
+  const [menuEditorDraft, setMenuEditorDraft] = React.useState<MenuEditorDraft | null>(null)
   const [menuVersion, setMenuVersion] = React.useState(0)
   const [app, setApp] = React.useState<App | null>(null)
   const [appMenus, setAppMenus] = React.useState<AppMenu[]>([])
   const [isAppLoading, setIsAppLoading] = React.useState(Boolean(appId))
   const [isMenusLoading, setIsMenusLoading] = React.useState(Boolean(appId))
+  const [recordFormName, setRecordFormName] = React.useState<string | null>(null)
+  const [recordFormOpen, setRecordFormOpen] = React.useState(false)
   const effectiveMenuEditorOpen = menuEditorOpenProp ?? menuEditorOpen
   const setEffectiveMenuEditorOpen = onMenuEditorOpenChange ?? setMenuEditorOpen
+  const handleMenuEditorOpenChange = (open: boolean) => {
+    setEffectiveMenuEditorOpen(open)
+    if (!open) setMenuEditorDraft(null)
+  }
+  const handleRecordFormOpenChange = (open: boolean) => {
+    setRecordFormOpen(open)
+    if (!open) {
+      setRecordFormName(null)
+    }
+  }
 
   React.useEffect(() => {
     if (appId) {
@@ -67,12 +86,33 @@ export function AppLayout({
   }, [app?.primaryColor])
 
   React.useEffect(() => {
+    if (appId && (isAppLoading || !app || (Boolean(routeMenuId) && isMenusLoading))) {
+      document.title = '应用加载中…'
+      return () => {
+        document.title = 'Flexmodel Apps'
+      }
+    }
+    if (appId && app) {
+      const menu = routeMenuId ? findMenuById(appMenus, routeMenuId) : undefined
+      document.title = menu ? `${menu.name} - ${app.name}` : app.name
+      return () => {
+        document.title = 'Flexmodel Apps'
+      }
+    }
+    document.title = 'Flexmodel Apps'
+    return () => {
+      document.title = 'Flexmodel Apps'
+    }
+  }, [appId, routeMenuId, appMenus, app, isAppLoading, isMenusLoading])
+
+  React.useEffect(() => {
     if (!appId) {
       setApp(null)
       setIsAppLoading(false)
       return
     }
     let cancelled = false
+    setApp(null)
     setIsAppLoading(true)
     getAppById(appId)
       .then((loadedApp) => {
@@ -92,12 +132,22 @@ export function AppLayout({
   }, [appId])
 
   React.useEffect(() => {
+    setMenuEditorDraft(null)
+  }, [appId])
+
+  React.useEffect(() => {
+    setRecordFormName(null)
+    setRecordFormOpen(false)
+  }, [appId])
+
+  React.useEffect(() => {
     if (!appId) {
       setAppMenus([])
       setIsMenusLoading(false)
       return
     }
     let cancelled = false
+    setAppMenus([])
     setIsMenusLoading(true)
     getAppMenus(appId)
       .then((loadedMenus) => !cancelled && setAppMenus(loadedMenus))
@@ -118,7 +168,15 @@ export function AppLayout({
   const activeTop = appId
     ? topMenuItems.find((nav) => nav.id === resolvedActiveTopId) ?? (isMenusLoading ? undefined : topMenuItems[0])
     : topMenuItems.find((nav) => nav.id === activeTopId) ?? topMenuItems[0]
-  const editMenus = () => setEffectiveMenuEditorOpen(true)
+  const createRecordItems = React.useMemo(() => findFormMenuTargets(appMenus), [appMenus])
+  const editMenus = (draft?: MenuEditorDraft) => {
+    setMenuEditorDraft(draft ?? null)
+    setEffectiveMenuEditorOpen(true)
+  }
+  const openRecordForm = (formName: string) => {
+    setRecordFormName(formName)
+    setRecordFormOpen(true)
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -130,6 +188,9 @@ export function AppLayout({
           app={app ?? undefined}
           topNavItems={topMenuItems}
           isAppLoading={isAppLoading}
+          isMenusLoading={isMenusLoading}
+          createRecordItems={createRecordItems}
+          onCreateRecord={openRecordForm}
         />
       )}
 
@@ -145,7 +206,7 @@ export function AppLayout({
 
       <MenuEditorDialog
         open={effectiveMenuEditorOpen}
-        onOpenChange={setEffectiveMenuEditorOpen}
+        onOpenChange={handleMenuEditorOpenChange}
         activeTopId={activeTop?.id ?? ''}
         onActiveTopIdChange={setActiveTopId}
         onMenusChange={(menus) => {
@@ -153,6 +214,14 @@ export function AppLayout({
           setMenuVersion((version) => version + 1)
         }}
         appId={appId}
+        draft={menuEditorDraft}
+      />
+
+      <AppRecordCreateDialog
+        open={recordFormOpen}
+        onOpenChange={handleRecordFormOpenChange}
+        appId={appId ?? ''}
+        formName={recordFormName}
       />
 
       <main

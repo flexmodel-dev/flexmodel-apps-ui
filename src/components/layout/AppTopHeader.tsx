@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {Link, useLocation, useNavigate} from 'react-router-dom'
+import {useLocation, useNavigate} from 'react-router-dom'
 import {Plus, Search, Settings} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -19,11 +20,6 @@ import {
 } from '@/data/mock'
 import {type App} from '@/services/apps'
 import {TopHeaderShell, headerActionClass} from './TopHeaderShell'
-
-const createItems = businessObjects.flatMap((businessObject) => {
-  const menu = getAppMenuForBusinessObject(businessObject.name)
-  return menu ? [{label: businessObject.label, to: `/apps/${menu.appId}/${menu.menuId}`}] : []
-})
 
 const searchSuggestions = [
   {label: '工作台', to: '/dashboard/home'},
@@ -44,6 +40,9 @@ export function AppTopHeader({
                                app,
                                topNavItems = topNavs,
                                isAppLoading = false,
+                               isMenusLoading = false,
+                               createRecordItems,
+                               onCreateRecord,
                              }: {
   activeTopId: string
   onTopNavChange: (id: string) => void
@@ -51,11 +50,15 @@ export function AppTopHeader({
   app?: App
   topNavItems?: TopNavItem[]
   isAppLoading?: boolean
+  isMenusLoading?: boolean
+  createRecordItems: Array<{ id: string; label: string }>
+  onCreateRecord: (formName: string) => void
 }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState('')
+  const [createOpen, setCreateOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const searchWrapperRef = React.useRef<HTMLDivElement>(null)
 
@@ -139,18 +142,25 @@ export function AppTopHeader({
             </div>
           )}
 
-          <DropdownMenu>
+          <DropdownMenu open={createOpen} onOpenChange={setCreateOpen}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" title="新建" className={headerActionClass}>
+              <Button variant="ghost" size="icon" title="新增记录" className={headerActionClass}>
                 <Plus className="h-5 w-5"/>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {createItems.map((item) => (
-                <DropdownMenuItem key={item.label} asChild>
-                  <Link to={item.to}>{item.label}</Link>
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuLabel>选择表单</DropdownMenuLabel>
+              {isAppLoading || isMenusLoading ? (
+                <DropdownMenuItem disabled>加载中…</DropdownMenuItem>
+              ) : createRecordItems.length === 0 ? (
+                <DropdownMenuItem disabled>当前应用菜单暂未绑定表单</DropdownMenuItem>
+              ) : (
+                createRecordItems.map((item) => (
+                  <DropdownMenuItem key={item.id} onClick={() => onCreateRecord(item.id)}>
+                    {item.label}
+                  </DropdownMenuItem>
+                ))
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 

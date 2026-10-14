@@ -4,7 +4,6 @@ import {HashRouter, Routes, Route, Navigate, Outlet, useLocation} from 'react-ro
 import './index.css'
 
 import Login from '@/pages/Login'
-import DashboardHome from '@/pages/DashboardHome'
 import AppManagement from '@/pages/AppManagement'
 import AppSettings from '@/pages/AppSettings'
 import AppHome from '@/pages/AppHome'
@@ -43,11 +42,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <HashRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard/home" replace />} />
+        <Route path="/" element={<Navigate to="/admin/apps" replace/>}/>
         <Route path="/login" element={<Login />} />
         <Route element={<RequireAuth/>}>
           <Route path="/settings/user" element={<UserSettings/>}/>
-          <Route path="/dashboard/home" element={<DashboardHome/>}/>
           {/* 业务对象 */}
           <Route path="/apps/:appId" element={<AppHome/>}/>
           <Route path="/apps/:appId/:menuId" element={<AppMenuPage/>}/>
@@ -88,7 +86,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/admin/robot/triggers" element={<AdminTriggers/>}/>
         </Route>
         {/* 兜底 */}
-        <Route path="*" element={<Navigate to="/dashboard/home" replace />} />
+        <Route path="*" element={<Navigate to="/admin/apps" replace/>}/>
       </Routes>
     </HashRouter>
   </React.StrictMode>

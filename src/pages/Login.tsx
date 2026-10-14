@@ -25,7 +25,8 @@ export default function Login() {
     setError('')
     try {
       await login(user.trim(), passwd, remember)
-      const from = (location.state as { from?: string } | null)?.from ?? '/dashboard/home'
+      const requestedFrom = (location.state as { from?: string } | null)?.from
+      const from = requestedFrom && requestedFrom !== '/dashboard/home' ? requestedFrom : '/admin/apps'
       navigate(from, {replace: true})
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请稍后重试')

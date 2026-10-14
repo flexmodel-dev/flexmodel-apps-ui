@@ -30,9 +30,30 @@ function containsMenu(menu: AppMenu, menuId: string): boolean {
   return menu.id === menuId || menu.children.some((child) => containsMenu(child, menuId))
 }
 
+export function findMenuById(menus: AppMenu[], menuId: string): AppMenu | undefined {
+  for (const menu of menus) {
+    if (menu.id === menuId) return menu
+    const child = findMenuById(menu.children, menuId)
+    if (child) return child
+  }
+  return undefined
+}
+
 export function findTopMenuIdForMenu(menus: AppMenu[], menuId?: string): string | undefined {
   if (!menuId) return undefined
   return menus.find((menu) => containsMenu(menu, menuId))?.id
+}
+
+export function findFormMenuTargets(menus: AppMenu[]): Array<{ id: string; label: string }> {
+  const targets = new Map<string, string>()
+  const collect = (menu: AppMenu) => {
+    if (menu.target?.type === 'FORM') {
+      targets.set(menu.target.id, menu.target.label ?? menu.target.id)
+    }
+    menu.children.forEach(collect)
+  }
+  menus.forEach(collect)
+  return [...targets].map(([id, label]) => ({id, label}))
 }
 
 export function toNavigationItem(menu: AppMenu, appId: string): NavItem {
