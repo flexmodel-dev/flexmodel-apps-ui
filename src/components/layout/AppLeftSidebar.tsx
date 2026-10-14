@@ -81,11 +81,12 @@ function CollapsedGroupMenu({
               onClick={() => setOpen(false)}
               className={
                 isActive(child)
-                  ? 'block rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
-                  : 'block rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
+                  ? 'flex items-center gap-3 rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
+                  : 'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
               }
             >
-              {child.text}
+              {child.icon ? <child.icon className="h-4 w-4 shrink-0"/> : null}
+              <span className="truncate">{child.text}</span>
             </Link>
           ))}
         </div>
@@ -180,11 +181,12 @@ export function AppLeftSidebar({
                             to={child.to!}
                             className={
                               isActive(child)
-                                ? 'block rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
-                                : 'block rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
+                                ? 'flex items-center gap-3 rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
+                                : 'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
                             }
                           >
-                            {child.text}
+                            {child.icon ? <child.icon className="h-4 w-4 shrink-0"/> : null}
+                            <span className="truncate">{child.text}</span>
                           </Link>
                         ))}
                       </div>
