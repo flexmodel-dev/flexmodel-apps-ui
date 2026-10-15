@@ -24,7 +24,6 @@ import FormSettings from '@/pages/FormSettings'
 import {
   AdminUsers,
   AdminRoles,
-  AdminTeams,
   AdminApprovals,
   AdminTriggers,
 } from '@/pages/admin'
@@ -79,9 +78,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                  element={<FormSettings section="record-alerts"/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/advanced"
                  element={<FormSettings section="advanced"/>}/>
-          <Route path="/admin/bizuser/users" element={<AdminUsers/>}/>
-          <Route path="/admin/bizuser/role-privileges" element={<AdminRoles/>}/>
-          <Route path="/admin/bizuser/teams" element={<AdminTeams/>}/>
+          <Route path="/admin/users" element={<AdminUsers/>}/>
+          <Route path="/admin/role-privileges" element={<AdminRoles/>}/>
           <Route path="/admin/robot/approvals" element={<AdminApprovals/>}/>
           <Route path="/admin/robot/triggers" element={<AdminTriggers/>}/>
         </Route>

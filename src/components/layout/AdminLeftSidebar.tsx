@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Link, useLocation} from 'react-router-dom'
-import {Briefcase, ChevronsLeft, ChevronsRight, LayoutGrid, Pencil, ShieldCheck, Users} from 'lucide-react'
+import {ChevronsLeft, ChevronsRight, LayoutGrid, Pencil, ShieldCheck, Users} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
@@ -10,9 +10,8 @@ import {AppLauncher} from './AppLauncher'
 export const adminNavs: NavItem[] = [
   {id: 'apps', text: '应用管理', to: '/admin/apps', icon: LayoutGrid},
   {id: 'divider-users', text: '用户', to: ''},
-  {id: 'users', text: '部门用户', to: '/admin/bizuser/users', icon: Users},
-  {id: 'roles', text: '角色权限', to: '/admin/bizuser/role-privileges', icon: ShieldCheck},
-  {id: 'teams', text: '团队', to: '/admin/bizuser/teams', icon: Briefcase},
+  {id: 'users', text: '部门用户', to: '/admin/users', icon: Users},
+  {id: 'roles', text: '角色权限', to: '/admin/role-privileges', icon: ShieldCheck},
 ]
 
 export function AdminLeftSidebar({

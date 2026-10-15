@@ -2,12 +2,11 @@ import * as React from 'react'
 import { Camera, Check, Copy, KeyRound, Mail, ShieldCheck, Timer, UserRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {BizDialog} from '@/components/ui/dialog'
 import { UserAvatar } from '@/components/ui/avatar'
-import { currentUser, loginLogs, teams } from '@/data/mock'
+import {currentUser, loginLogs} from '@/data/mock'
 import { cn } from '@/lib/utils'
 
 type SecurityRow = {
@@ -57,9 +56,6 @@ export default function UserSettings() {
   const [providerMessage, setProviderMessage] = React.useState('')
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
 
-  const joinedTeams = currentUser.teams?.length
-    ? currentUser.teams
-    : teams.slice(0, 2).map((team) => team.name)
   const profileLogs = loginLogs.filter((log) => log.user === currentUser.name)
 
   const securityRows: SecurityRow[] = [
@@ -183,15 +179,6 @@ export default function UserSettings() {
                     </SettingRow>
                     <SettingRow label="所属部门">
                       <span className="text-sm text-muted-foreground">{currentUser.dept}</span>
-                    </SettingRow>
-                    <SettingRow label="加入团队">
-                      <div className="flex flex-wrap justify-start gap-2 md:justify-end">
-                        {joinedTeams.map((team) => (
-                          <Badge key={team} className="bg-primary/10 text-primary">
-                            {team}
-                          </Badge>
-                        ))}
-                      </div>
                     </SettingRow>
                     <SettingRow label="姓名">
                       <Input value={fullName} onChange={(event) => setFullName(event.target.value)} />

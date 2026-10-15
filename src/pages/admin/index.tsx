@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/avatar'
 import {Empty} from '@/components/ui/empty'
 import {Pagination} from '@/components/biz/Pagination'
-import {businessObjects, users, departments, teams, type Department} from '@/data/mock'
+import {businessObjects, users, departments, type Department} from '@/data/mock'
 import {cn, paginate} from '@/lib/utils'
 import {Building2, ChevronRight, CirclePlus, Search, Users, X} from 'lucide-react'
 
@@ -308,24 +308,6 @@ export function AdminRoles() {
       ]}
       rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">配置权限</Button>}
       toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建角色</Button>}
-    />
-  )
-}
-
-/** 团队（admin/bizuser/team-list.html） */
-export function AdminTeams() {
-  return (
-    <AdminTablePage
-      title="团队"
-      desc="跨部门协作团队"
-      rows={teams.map((t) => ({ id: t.id, name: t.name, members: t.members, modifiedOn: '2026-08-25 14:00' }))}
-      columns={[
-        { key: 'name', label: '团队名称', render: (t) => <span className="font-medium text-primary">{t.name}</span> },
-        { key: 'members', label: '成员数', render: (t) => <span className="badge-primary">{t.members}</span> },
-        { key: 'modifiedOn', label: '修改时间' },
-      ]}
-      rowActions={() => <Button variant="secondary" size="sm" className="!h-8 !px-3">查看成员</Button>}
-      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建团队</Button>}
     />
   )
 }

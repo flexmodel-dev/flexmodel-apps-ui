@@ -16,7 +16,7 @@ import {
   UserPlus,
 } from 'lucide-react'
 
-/** 动态页（复刻 feeds/home.html：左侧动态流 + 右侧搜索/类型/团队折叠面板） */
+/** 动态页（复刻 feeds/home.html：左侧动态流 + 右侧搜索/类型/用户折叠面板） */
 export default function FeedsHome() {
   const [type, setType] = React.useState(0)
   const [q, setQ] = React.useState('')
@@ -153,13 +153,6 @@ export default function FeedsHome() {
                     </li>
                   ))}
                 </ul>
-              </Panel>
-              <Panel id="group" title="团队">
-                <div className="aside-tree text-[13px]">
-                  <div className="flex items-center justify-between px-2 py-1.5 text-muted-foreground">研发团队 <span className="text-xs">3</span></div>
-                  <div className="flex items-center justify-between px-2 py-1.5 text-muted-foreground">销售团队 <span className="text-xs">2</span></div>
-                  <div className="flex items-center justify-between px-2 py-1.5 text-muted-foreground">市场团队 <span className="text-xs">2</span></div>
-                </div>
               </Panel>
               <Panel id="user" title="用户">
                 <div className="aside-tree text-[13px]">

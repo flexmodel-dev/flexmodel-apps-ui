@@ -29,7 +29,6 @@ export interface User {
   role: string
   active: boolean
   workphone?: string
-  teams?: string[]
 }
 
 export interface Department {
@@ -176,7 +175,6 @@ export const currentUser: User = {
   role: '管理员',
   active: true,
   workphone: '0755-8899-0001',
-  teams: ['研发团队', '销售团队'],
 }
 
 export const users: User[] = [
@@ -196,12 +194,6 @@ export const departments = [
   { id: '002-003', name: '销售部', parent: '总部' },
   { id: '002-004', name: '财务部', parent: '总部' },
   { id: '002-005', name: '市场部', parent: '总部' },
-]
-
-export const teams = [
-  { id: '006-001', name: '研发团队', members: 3 },
-  { id: '006-002', name: '销售团队', members: 2 },
-  { id: '006-003', name: '市场团队', members: 2 },
 ]
 
 /* ---------------- 业务对象元数据 ---------------- */
