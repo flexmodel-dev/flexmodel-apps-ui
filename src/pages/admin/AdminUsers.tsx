@@ -29,12 +29,21 @@ interface UserForm {
   email: string;
   password: string;
   status: UserStatus
+  managerUserId: string | null
   roleIds: string[];
   departments: AdminUserDepartmentInput[]
 }
 
 const emptyDept: DeptForm = {name: '', parentId: null}
-const emptyUser: UserForm = {name: '', email: '', password: '', status: 'ACTIVE', roleIds: [], departments: []}
+const emptyUser: UserForm = {
+  name: '',
+  email: '',
+  password: '',
+  status: 'ACTIVE',
+  managerUserId: null,
+  roleIds: [],
+  departments: []
+}
 const statusText: Record<UserStatus, string> = {ACTIVE: '启用', DISABLED: '停用', INVITED: '待激活'}
 
 function tree(departments: AdminDepartment[], parentId: string | null): TreeNode[] {
@@ -144,12 +153,12 @@ export function AdminUsers() {
     setEditingUser(user ?? null)
     setUserForm(user ? {
       name: user.name, email: user.email, password: '', status: user.status,
+      managerUserId: user.managerUserId,
       roleIds: user.roles.map(r => r.id),
       departments: user.departments.map(d => ({
         departmentId: d.departmentId,
         isMain: d.isMain,
-        jobTitle: d.jobTitle,
-        managerUserId: d.managerUserId
+        jobTitle: d.jobTitle
       })),
     } : emptyUser)
     setUserError('');
@@ -194,8 +203,7 @@ export function AdminUsers() {
       departments: [...f.departments, {
         departmentId: next.id,
         isMain: f.departments.length === 0,
-        jobTitle: '',
-        managerUserId: null
+        jobTitle: ''
       }]
     }))
   }
@@ -204,25 +212,25 @@ export function AdminUsers() {
     <AdminLayout noPadding noOuterScroll contentClassName="h-[calc(100%-1rem)] min-h-0 md:h-[calc(100%-1.5rem)]">
       <div className="flex h-full min-h-0 flex-col lg:flex-row">
         <aside
-          className="flex max-h-56 shrink-0 flex-col border-b bg-card lg:max-h-none lg:w-[300px] lg:border-b-0 lg:border-r">
-          <div className="flex items-center justify-between border-b px-4 py-4">
+          className="flex max-h-56 shrink-0 flex-col border-b bg-card lg:max-h-none lg:w-[260px] lg:border-b-0 lg:border-r">
+          <div className="flex items-center justify-between border-b px-3 py-3">
             <div>
-              <h1 className="m-0 text-base font-semibold">部门架构</h1>
-              <p className="mb-0 mt-1 text-xs text-muted-foreground">按部门及子部门筛选</p>
+              <h1 className="m-0 text-sm font-semibold">部门架构</h1>
+              <p className="mb-0 mt-0.5 text-[11px] text-muted-foreground">按部门及子部门筛选</p>
             </div>
             <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => openDept()}><CirclePlus
               className="h-4 w-4"/></Button>
           </div>
-          <nav className="min-h-0 flex-1 overflow-y-auto p-2">
+          <nav className="min-h-0 flex-1 overflow-y-auto p-1.5">
             <button type="button" onClick={() => {
               setSelected(null);
               setPage(1)
             }}
-                    className={cn('flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm', selected === null ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-accent')}>
-              <Users className="h-4 w-4"/><span className="flex-1">全部用户</span>
-              <span className="rounded-full bg-muted px-1.5 text-xs">{users.length}</span>
+                    className={cn('flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-[13px]', selected === null ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-accent')}>
+              <Users className="h-3.5 w-3.5"/><span className="flex-1">全部用户</span>
+              <span className="rounded-full bg-muted px-1 text-[11px]">{users.length}</span>
             </button>
-            <div className="mt-1 space-y-1">
+            <div className="mt-1 space-y-0.5">
               {nodes.map(node => <DeptNode key={node.id} node={node} depth={0} selected={selected} expanded={expanded}
                                            onSelect={id => {
                                              setSelected(id);
@@ -260,6 +268,7 @@ export function AdminUsers() {
                         <th className="px-4 py-3">用户</th>
                         <th className="px-4 py-3">邮箱</th>
                         <th className="px-4 py-3">部门</th>
+                        <th className="px-4 py-3">直属上级</th>
                         <th className="px-4 py-3">角色</th>
                         <th className="px-4 py-3">状态</th>
                         <th className="px-4 py-3 text-right">操作</th>
@@ -271,7 +280,8 @@ export function AdminUsers() {
                             name={user.name} size={24}/><b>{user.name}</b></span></td>
                           <td className="px-4 py-3 text-muted-foreground">{user.email || '-'}</td>
                           <td
-                            className="px-4 py-3 text-xs">{user.departments.map(d => `${d.departmentName}${d.isMain ? '（主）' : ''}${d.jobTitle ? ` · ${d.jobTitle}` : ''}${d.managerName ? ` · 主管：${d.managerName}` : ''}`).join('；') || '-'}</td>
+                            className="px-4 py-3 text-xs">{user.departments.map(d => `${d.departmentName}${d.isMain ? '（主）' : ''}${d.jobTitle ? ` · ${d.jobTitle}` : ''}`).join('；') || '-'}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{user.managerName || '-'}</td>
                           <td
                             className="px-4 py-3 text-muted-foreground">{user.roles.map(r => r.name).join('、') || '-'}</td>
                           <td
@@ -327,6 +337,14 @@ export function AdminUsers() {
               <SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{Object.entries(statusText).map(([v, l]) =>
               <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
             </Select>
+            <Select value={userForm.managerUserId ?? 'none'}
+                    onValueChange={v => setUserForm({...userForm, managerUserId: v === 'none' ? null : v})}>
+              <SelectTrigger><SelectValue placeholder="直属上级"/></SelectTrigger>
+              <SelectContent><SelectItem value="none">无直属上级</SelectItem>
+                {users.filter(u => u.id !== editingUser?.id).map(u => <SelectItem key={u.id}
+                                                                                  value={u.id}>{u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <div className="mb-2 text-sm font-medium">角色</div>
@@ -345,7 +363,7 @@ export function AdminUsers() {
               <Button variant="secondary" size="sm" className="!h-8 !px-3" onClick={addDepartment}><CirclePlus
                 className="h-3.5 w-3.5"/>添加</Button></div>
             <div className="space-y-3">{userForm.departments.map((relation, index) => (
-              <div key={index} className="grid gap-2 rounded-lg border p-3 lg:grid-cols-[1fr_.6fr_1fr_1fr_auto]">
+              <div key={index} className="grid gap-2 rounded-lg border p-3 lg:grid-cols-[1fr_.6fr_1fr_auto]">
                 <Select value={relation.departmentId} onValueChange={v => setUserForm(f => ({
                   ...f,
                   departments: f.departments.map((d, i) => i === index ? {...d, departmentId: v} : d)
@@ -363,18 +381,6 @@ export function AdminUsers() {
                   ...f,
                   departments: f.departments.map((d, i) => i === index ? {...d, jobTitle: e.target.value} : d)
                 }))} placeholder="职位"/>
-                <Select value={relation.managerUserId ?? 'none'} onValueChange={v => setUserForm(f => ({
-                  ...f,
-                  departments: f.departments.map((d, i) => i === index ? {
-                    ...d,
-                    managerUserId: v === 'none' ? null : v
-                  } : d)
-                }))}>
-                  <SelectTrigger><SelectValue placeholder="直属主管"/></SelectTrigger>
-                  <SelectContent><SelectItem
-                    value="none">无直属主管</SelectItem>{users.filter(u => u.id !== editingUser?.id).map(u =>
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
-                </Select>
                 <Button variant="secondary" size="icon" className="h-10 w-10" onClick={() => setUserForm(f => ({
                   ...f,
                   departments: f.departments.filter((_, i) => i !== index)
@@ -405,17 +411,17 @@ function DeptNode({node, depth, selected, expanded, onSelect, onToggle, onAdd, o
   return (
     <div>
       <div
-        className={cn('flex items-center gap-1 rounded-md py-2 pr-2 text-sm', selected === node.id ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-accent')}
-        style={{paddingLeft: 12 + depth * 18}}>
+        className={cn('flex items-center gap-1 rounded-md py-1.5 pr-1.5 text-[13px]', selected === node.id ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-accent')}
+        style={{paddingLeft: 10 + depth * 14}}>
         <button type="button"
-                className={cn('h-4 w-4', node.children.length ? '' : 'opacity-0', open ? 'rotate-90' : '')}
-                onClick={() => onToggle(node.id)}><ChevronRight className="h-4 w-4"/></button>
-        <button type="button" className="flex min-w-0 flex-1 items-center justify-start gap-2 text-left"
+                className={cn('h-3.5 w-3.5', node.children.length ? '' : 'opacity-0', open ? 'rotate-90' : '')}
+                onClick={() => onToggle(node.id)}><ChevronRight className="h-3.5 w-3.5"/></button>
+        <button type="button" className="flex min-w-0 flex-1 items-center justify-start gap-1.5 text-left"
                 onClick={() => onSelect(node.id)}>
-          <Building2 className="h-4 w-4"/><span className="min-w-0 flex-1 truncate">{node.name}</span>
+          <Building2 className="h-3.5 w-3.5"/><span className="min-w-0 flex-1 truncate">{node.name}</span>
         </button>
         {node.directUserCount > 0 && (
-          <span className="rounded-full bg-muted px-1.5 text-xs">{node.directUserCount}</span>
+          <span className="rounded-full bg-muted px-1 text-[11px]">{node.directUserCount}</span>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -423,10 +429,10 @@ function DeptNode({node, depth, selected, expanded, onSelect, onToggle, onAdd, o
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground"
+              className="h-6 w-6 text-muted-foreground"
               aria-label={`${node.name}更多操作`}
             >
-              <MoreVertical className="h-4 w-4"/>
+              <MoreVertical className="h-3.5 w-3.5"/>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -443,7 +449,7 @@ function DeptNode({node, depth, selected, expanded, onSelect, onToggle, onAdd, o
         </DropdownMenu>
       </div>
       {open &&
-        <div className="space-y-1">{node.children.map(child => <DeptNode key={child.id} node={child} depth={depth + 1}
+        <div className="space-y-0.5">{node.children.map(child => <DeptNode key={child.id} node={child} depth={depth + 1}
                                                                          selected={selected} expanded={expanded}
                                                                          onSelect={onSelect} onToggle={onToggle}
                                                                          onAdd={onAdd} onEdit={onEdit}

@@ -21,15 +21,12 @@ export interface AdminUserDepartment {
   departmentName: string
   isMain: boolean
   jobTitle: string
-  managerUserId: string | null
-  managerName: string | null
 }
 
 export interface AdminUserDepartmentInput {
   departmentId: string
   isMain: boolean
   jobTitle: string
-  managerUserId: string | null
 }
 
 export interface AdminRole {
@@ -60,6 +57,8 @@ export interface AdminUser {
   name: string
   email: string
   status: UserStatus
+  managerUserId: string | null
+  managerName: string | null
   roles: Array<{ id: string; name: string }>
   departments: AdminUserDepartment[]
   createdAt: string
@@ -71,6 +70,7 @@ export interface AdminUserInput {
   email: string
   password?: string
   status: UserStatus
+  managerUserId: string | null
   roleIds: string[]
   departments: AdminUserDepartmentInput[]
 }
