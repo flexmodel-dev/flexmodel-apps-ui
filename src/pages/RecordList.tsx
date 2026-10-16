@@ -23,13 +23,28 @@ import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {Checkbox} from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {Pagination} from '@/components/biz/Pagination'
 import {Empty} from '@/components/ui/empty'
 import {Drawer, DrawerContent} from '@/components/ui/drawer'
 import {AppRecordDetail} from '@/components/biz/AppRecordDetail'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
-import {getAppForm, type AppForm, type AppFormField} from '@/services/appForms'
+import {
+  getAppForm,
+  patchAppFormViewTabs,
+  type AppForm,
+  type AppFormField,
+  type AppFormViewTab,
+  type AppViewFilterOperator,
+  type AppViewFilterValue,
+} from '@/services/appForms'
 import {
   deleteAppRecord,
   getAppRecords,
@@ -37,8 +52,125 @@ import {
 } from '@/services/appRecords'
 import {cn} from '@/lib/utils'
 
-const defaultViewTabs = ['全部']
 const compactButtonClass = 'h-8 px-2.5 text-xs'
+const ALL_VIEW_TAB = {id: 'all', label: '全部'}
+
+interface ViewTabConditionDraft {
+  fieldName: string
+  operator: AppViewFilterOperator
+  value: AppViewFilterValue
+}
+
+interface ViewTabDraft {
+  id: string
+  label: string
+  conditions: ViewTabConditionDraft[]
+}
+
+const viewTabOperatorLabels: Record<AppViewFilterOperator, string> = {
+  _eq: '等于',
+  _ne: '不等于',
+  _contains: '包含',
+  _not_contains: '不包含',
+  _starts_with: '开头是',
+  _ends_with: '结尾是',
+  _gt: '大于',
+  _gte: '大于等于',
+  _lt: '小于',
+  _lte: '小于等于',
+}
+
+function viewTabOperators(field: AppFormField): AppViewFilterOperator[] {
+  switch (field.type) {
+    case 'NUMBER':
+    case 'DECIMAL':
+    case 'DATE':
+    case 'DATETIME':
+    case 'TIME':
+      return ['_eq', '_ne', '_gt', '_gte', '_lt', '_lte']
+    case 'BOOL':
+    case 'PICKLIST':
+    case 'SELECT':
+    case 'CLASSIFICATION':
+    case 'MULTISELECT':
+    case 'REFERENCE':
+      return ['_eq', '_ne']
+    default:
+      return ['_eq', '_ne', '_contains', '_not_contains', '_starts_with', '_ends_with']
+  }
+}
+
+function viewTabInputType(field: AppFormField) {
+  if (field.type === 'NUMBER' || field.type === 'DECIMAL') return 'number'
+  if (field.type === 'DATE') return 'date'
+  if (field.type === 'DATETIME') return 'datetime-local'
+  if (field.type === 'TIME') return 'time'
+  return 'text'
+}
+
+function ConditionValueControl({
+                                 field,
+                                 value,
+                                 onChange,
+                               }: {
+  field: AppFormField
+  value: AppViewFilterValue
+  onChange: (value: AppViewFilterValue) => void
+}) {
+  if (field.type === 'BOOL') {
+    return (
+      <Select value={String(value)} onValueChange={(nextValue) => onChange(nextValue === 'true')}>
+        <SelectTrigger className="h-8 w-[180px]">
+          <SelectValue placeholder="请选择"/>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="true">是</SelectItem>
+          <SelectItem value="false">否</SelectItem>
+        </SelectContent>
+      </Select>
+    )
+  }
+  if (field.options?.length) {
+    return (
+      <Select value={String(value)} onValueChange={onChange}>
+        <SelectTrigger className="h-8 w-[180px]">
+          <SelectValue placeholder="请选择"/>
+        </SelectTrigger>
+        <SelectContent>
+          {field.options.map((option) => {
+            const optionValue = option.text ?? option.id ?? ''
+            return (
+              <SelectItem key={option.id ?? optionValue} value={optionValue}>
+                {optionValue}
+              </SelectItem>
+            )
+          })}
+        </SelectContent>
+      </Select>
+    )
+  }
+  return (
+    <Input
+      type={viewTabInputType(field)}
+      value={String(value ?? '')}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-8 w-[180px]"
+      placeholder={field.type === 'REFERENCE' ? '记录 ID' : undefined}
+    />
+  )
+}
+
+function toViewTabDraft(tab: AppFormViewTab): ViewTabDraft {
+  return {
+    id: tab.id,
+    label: tab.label,
+    conditions: tab.filter._and.map((condition) => {
+      const fieldName = Object.keys(condition)[0]
+      const operator = Object.keys(condition[fieldName])[0] as AppViewFilterOperator
+      return {fieldName, operator, value: condition[fieldName][operator]}
+    }),
+  }
+}
 
 export default function RecordList({formName}: { formName?: string }) {
   const {appId = ''} = useParams<{ appId: string; menuId: string }>()
@@ -55,10 +187,11 @@ export default function RecordList({formName}: { formName?: string }) {
   const [selected, setSelected] = React.useState<string[]>([])
   const [sortKey, setSortKey] = React.useState('')
   const [sortAsc, setSortAsc] = React.useState(true)
-  const [filterName, setFilterName] = React.useState('全部')
-  const [viewTabs, setViewTabs] = React.useState(defaultViewTabs)
+  const [activeTabId, setActiveTabId] = React.useState('all')
   const [tabsConfigOpen, setTabsConfigOpen] = React.useState(false)
-  const [draftTabs, setDraftTabs] = React.useState(defaultViewTabs)
+  const [draftTabs, setDraftTabs] = React.useState<ViewTabDraft[]>([])
+  const [isSavingTabs, setIsSavingTabs] = React.useState(false)
+  const [tabsError, setTabsError] = React.useState<string | null>(null)
   const [searchOpen, setSearchOpen] = React.useState(false)
   const searchAreaRef = React.useRef<HTMLDivElement>(null)
   const [detailId, setDetailId] = React.useState<string | null>(null)
@@ -114,6 +247,13 @@ export default function RecordList({formName}: { formName?: string }) {
   }, [appId, resolvedFormName])
 
   React.useEffect(() => {
+    if (activeTabId === 'all') return
+    if (!form?.viewTabs.some((tab) => tab.id === activeTabId)) {
+      setActiveTabId('all')
+    }
+  }, [activeTabId, form])
+
+  React.useEffect(() => {
     if (!appId || !resolvedFormName) return
     let cancelled = false
     setIsLoading(true)
@@ -124,6 +264,7 @@ export default function RecordList({formName}: { formName?: string }) {
       search: debouncedQ,
       sortField: sortKey || undefined,
       sortOrder: sortKey ? (sortAsc ? 'ASC' : 'DESC') : undefined,
+      viewTabId: activeTabId === 'all' ? undefined : activeTabId,
     })
       .then((result) => {
         if (cancelled) return
@@ -138,7 +279,7 @@ export default function RecordList({formName}: { formName?: string }) {
     return () => {
       cancelled = true
     }
-  }, [appId, resolvedFormName, page, size, debouncedQ, sortKey, sortAsc, refreshTick])
+  }, [appId, resolvedFormName, page, size, debouncedQ, sortKey, sortAsc, activeTabId, refreshTick])
 
   React.useEffect(() => {
     setSelected([])
@@ -153,27 +294,106 @@ export default function RecordList({formName}: { formName?: string }) {
     setPage(1)
   }, [appId, resolvedFormName])
 
+  const availableFilterFields = form?.fields.filter((field) => !field.builtin) ?? []
+
   const openTabsConfig = () => {
-    setDraftTabs(viewTabs)
+    setDraftTabs((form?.viewTabs ?? []).map(toViewTabDraft))
+    setTabsError(null)
     setTabsConfigOpen(true)
   }
 
   const updateDraftTab = (index: number, label: string) => {
-    setDraftTabs((tabs) => tabs.map((tab, tabIndex) => (tabIndex === index ? label : tab)))
+    setDraftTabs((tabs) => tabs.map((tab, tabIndex) => (tabIndex === index ? {...tab, label} : tab)))
   }
 
-  const addDraftTab = () => setDraftTabs((tabs) => [...tabs, '新页签'])
+  const addDraftTab = () => {
+    const firstField = availableFilterFields[0]
+    setDraftTabs((tabs) => [...tabs, {
+      id: crypto.randomUUID(),
+      label: '新页签',
+      conditions: firstField
+        ? [{fieldName: firstField.name, operator: '_eq', value: firstField.type === 'BOOL' ? false : ''}]
+        : [],
+    }])
+  }
 
   const removeDraftTab = (index: number) => {
-    setDraftTabs((tabs) => (tabs.length > 1 ? tabs.filter((_, tabIndex) => tabIndex !== index) : tabs))
+    setDraftTabs((tabs) => tabs.filter((_, tabIndex) => tabIndex !== index))
   }
 
-  const saveTabsConfig = () => {
-    const nextTabs = Array.from(new Set(draftTabs.map((tab) => tab.trim()).filter(Boolean)))
-    if (!nextTabs.length) return
-    setViewTabs(nextTabs)
-    if (!nextTabs.includes(filterName)) setFilterName(nextTabs[0])
-    setTabsConfigOpen(false)
+  const updateDraftCondition = (tabIndex: number, conditionIndex: number, condition: ViewTabConditionDraft) => {
+    setDraftTabs((tabs) => tabs.map((tab, index) => {
+      if (index !== tabIndex) return tab
+      return {
+        ...tab, conditions: tab.conditions.map((item, itemIndex) => (
+          itemIndex === conditionIndex ? condition : item
+        ))
+      }
+    }))
+  }
+
+  const addDraftCondition = (tabIndex: number) => {
+    const firstField = availableFilterFields[0]
+    if (!firstField) return
+    setDraftTabs((tabs) => tabs.map((tab, index) => {
+      if (index !== tabIndex) return tab
+      return {
+        ...tab, conditions: [...tab.conditions, {
+          fieldName: firstField.name,
+          operator: '_eq',
+          value: firstField.type === 'BOOL' ? false : '',
+        }]
+      }
+    }))
+  }
+
+  const removeDraftCondition = (tabIndex: number, conditionIndex: number) => {
+    setDraftTabs((tabs) => tabs.map((tab, index) => {
+      if (index !== tabIndex) return tab
+      return {...tab, conditions: tab.conditions.filter((_, itemIndex) => itemIndex !== conditionIndex)}
+    }))
+  }
+
+  const saveTabsConfig = async () => {
+    const fieldMap = new Map(availableFilterFields.map((field) => [field.name, field]))
+    const labels = new Set<string>()
+    const nextTabs: AppFormViewTab[] = []
+    try {
+      for (const tab of draftTabs) {
+        const label = tab.label.trim()
+        if (!label || label.length > 32) throw new Error('页签名称不能为空，且不能超过 32 个字符')
+        if (labels.has(label)) throw new Error(`页签名称重复：${label}`)
+        labels.add(label)
+        if (!tab.conditions.length) throw new Error(`页签「${label}」至少需要一个筛选条件`)
+        const conditions = tab.conditions.map((condition) => {
+          const field = fieldMap.get(condition.fieldName)
+          if (!field) throw new Error(`页签「${label}」包含无效字段`)
+          let value = condition.value
+          if (field.type === 'NUMBER' || field.type === 'DECIMAL') {
+            const numericValue = Number(value)
+            if (!Number.isFinite(numericValue)) throw new Error(`页签「${label}」的数字筛选值不合法`)
+            value = numericValue
+          } else if (field.type === 'BOOL') {
+            if (typeof value !== 'boolean') throw new Error(`页签「${label}」的布尔筛选值不合法`)
+          } else if (typeof value === 'string') {
+            value = value.trim()
+            if (!value) throw new Error(`页签「${label}」的筛选值不能为空`)
+          }
+          return {[field.name]: {[condition.operator]: value}}
+        })
+        nextTabs.push({id: tab.id, label, filter: {_and: conditions}})
+      }
+      setIsSavingTabs(true)
+      setTabsError(null)
+      const updatedForm = await patchAppFormViewTabs(appId, resolvedFormName, nextTabs)
+      setForm(updatedForm)
+      if (!updatedForm.viewTabs.some((tab) => tab.id === activeTabId)) setActiveTabId('all')
+      setTabsConfigOpen(false)
+    } catch (caught: unknown) {
+      setTabsError(caught instanceof Error ? caught.message : '保存页签失败')
+    } finally {
+      setIsSavingTabs(false)
+    }
   }
 
   const refresh = () => setRefreshTick((tick) => tick + 1)
@@ -224,6 +444,7 @@ export default function RecordList({formName}: { formName?: string }) {
   }
 
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
+  const viewTabs = [ALL_VIEW_TAB, ...form.viewTabs]
   const layoutNames = form.layout.items.length
     ? form.layout.items
       .filter((item) => item.type === 'FIELD' && Boolean(item.name))
@@ -374,17 +595,21 @@ export default function RecordList({formName}: { formName?: string }) {
 
         <div className="flex items-end justify-between border-b px-3">
           <ul className="flex list-none items-center gap-1">
-            {viewTabs.map((label) => (
-              <li key={label}>
+            {viewTabs.map((tab) => (
+              <li key={tab.id}>
                 <button
                   type="button"
-                  onClick={() => setFilterName(label)}
+                  onClick={() => {
+                    setActiveTabId(tab.id)
+                    setPage(1)
+                    setSelected([])
+                  }}
                   className={cn(
                     '-mb-0.5 inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground',
-                    filterName === label ? 'border-primary text-foreground' : 'border-transparent',
+                    activeTabId === tab.id ? 'border-primary text-foreground' : 'border-transparent',
                   )}
                 >
-                  {label}
+                  {tab.label}
                 </button>
               </li>
             ))}
@@ -646,35 +871,123 @@ export default function RecordList({formName}: { formName?: string }) {
         title="配置页签"
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setTabsConfigOpen(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setTabsConfigOpen(false)} disabled={isSavingTabs}>
               取消
             </Button>
-            <Button size="sm" onClick={saveTabsConfig} disabled={!draftTabs.some((tab) => tab.trim())}>
-              保存
+            <Button size="sm" onClick={() => void saveTabsConfig()} disabled={isSavingTabs}>
+              {isSavingTabs ? '保存中...' : '保存'}
             </Button>
           </>
         }
       >
-        <div className="space-y-2">
-          {draftTabs.map((label, index) => (
-            <div key={`${label}-${index}`} className="flex items-center gap-2">
-              <Input
-                value={label}
-                onChange={(event) => updateDraftTab(index, event.target.value)}
-                className="h-8"
-              />
+        <div className="space-y-3">
+          {tabsError ? (
+            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+              {tabsError}
+            </div>
+          ) : null}
+          {!availableFilterFields.length ? (
+            <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
+              当前表单暂无可筛选字段
+            </div>
+          ) : draftTabs.map((tab, tabIndex) => (
+            <div key={tab.id} className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={tab.label}
+                  onChange={(event) => updateDraftTab(tabIndex, event.target.value)}
+                  className="h-8 flex-1"
+                  placeholder="页签名称"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => removeDraftTab(tabIndex)}
+                  aria-label="删除页签"
+                >
+                  <Trash2 className="h-4 w-4"/>
+                </Button>
+              </div>
+              {tab.conditions.map((condition, conditionIndex) => {
+                const field = fieldMap.get(condition.fieldName)
+                if (!field) return null
+                const operators = viewTabOperators(field)
+                return (
+                  <div key={`${tab.id}-${conditionIndex}`} className="flex items-center gap-2">
+                    <Select
+                      value={condition.fieldName}
+                      onValueChange={(fieldName) => updateDraftCondition(tabIndex, conditionIndex, {
+                        fieldName,
+                        operator: '_eq',
+                        value: fieldMap.get(fieldName)?.type === 'BOOL' ? false : '',
+                      })}
+                    >
+                      <SelectTrigger className="h-8 w-[150px]">
+                        <SelectValue placeholder="字段"/>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableFilterFields.map((item) => (
+                          <SelectItem key={item.name} value={item.name}>{item.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={condition.operator}
+                      onValueChange={(operator) => updateDraftCondition(tabIndex, conditionIndex, {
+                        ...condition,
+                        operator: operator as AppViewFilterOperator,
+                      })}
+                    >
+                      <SelectTrigger className="h-8 w-[120px]">
+                        <SelectValue placeholder="条件"/>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operators.map((operator) => (
+                          <SelectItem key={operator} value={operator}>
+                            {viewTabOperatorLabels[operator]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <ConditionValueControl
+                      field={field}
+                      value={condition.value}
+                      onChange={(value) => updateDraftCondition(tabIndex, conditionIndex, {
+                        ...condition,
+                        value,
+                      })}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => removeDraftCondition(tabIndex, conditionIndex)}
+                      aria-label="删除条件"
+                    >
+                      <Trash2 className="h-4 w-4"/>
+                    </Button>
+                  </div>
+                )
+              })}
               <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                disabled={draftTabs.length <= 1}
-                onClick={() => removeDraftTab(index)}
+                variant="secondary"
+                size="sm"
+                className={compactButtonClass}
+                onClick={() => addDraftCondition(tabIndex)}
+                disabled={tab.conditions.length >= 10}
               >
-                <Trash2 className="h-4 w-4"/>
+                <Plus className="h-4 w-4"/> 添加条件
               </Button>
             </div>
           ))}
-          <Button variant="secondary" size="sm" className={compactButtonClass} onClick={addDraftTab}>
+          <Button
+            variant="secondary"
+            size="sm"
+            className={compactButtonClass}
+            onClick={addDraftTab}
+            disabled={!availableFilterFields.length || draftTabs.length >= 20}
+          >
             <Plus className="h-4 w-4"/> 新增页签
           </Button>
         </div>

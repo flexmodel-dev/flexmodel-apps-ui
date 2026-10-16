@@ -46,6 +46,31 @@ export interface AppFormField {
   referenceForm?: string | null
 }
 
+export type AppViewFilterOperator =
+  | '_eq'
+  | '_ne'
+  | '_contains'
+  | '_not_contains'
+  | '_starts_with'
+  | '_ends_with'
+  | '_gt'
+  | '_gte'
+  | '_lt'
+  | '_lte'
+
+export type AppViewFilterValue = string | number | boolean
+export type AppViewFilterCondition = Record<string, Record<string, AppViewFilterValue>>
+
+export interface AppFormViewFilter {
+  _and: AppViewFilterCondition[]
+}
+
+export interface AppFormViewTab {
+  id: string
+  label: string
+  filter: AppFormViewFilter
+}
+
 export type AppFormItemType = 'FIELD' | 'SECTION' | 'SUBFORM'
 
 export type AppFormItemWidthType =
@@ -79,6 +104,7 @@ export interface AppForm {
   updatedAt?: string | null
   fields: AppFormField[]
   layout: AppFormLayout
+  viewTabs: AppFormViewTab[]
 }
 
 export interface AppFormInput {
@@ -129,6 +155,7 @@ function normalizeForm(form: AppForm): AppForm {
     layout: {
       items: Array.isArray(form.layout?.items) ? form.layout.items : [],
     },
+    viewTabs: Array.isArray(form.viewTabs) ? form.viewTabs : [],
   }
 }
 
@@ -191,6 +218,22 @@ export async function updateAppForm(
     },
   ))
   formCache.delete(detailKey(appId, name))
+  invalidateFormCaches(appId, form.name || name)
+  return form
+}
+
+export async function patchAppFormViewTabs(
+  appId: string,
+  name: string,
+  viewTabs: AppFormViewTab[],
+): Promise<AppForm> {
+  const form = normalizeForm(await requestJson<AppForm>(
+    `${API_BASE}/${appId}/forms/${encodeURIComponent(name)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({viewTabs}),
+    },
+  ))
   invalidateFormCaches(appId, form.name || name)
   return form
 }

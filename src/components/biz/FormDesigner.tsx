@@ -143,6 +143,7 @@ interface DesignForm {
   managed: boolean
   fields: AppFormField[]
   layout: AppFormLayout
+  viewTabs: AppForm['viewTabs']
 }
 
 interface FormDesignerProps {
@@ -166,6 +167,7 @@ function toDesignForm(form: AppForm): DesignForm {
     managed: form.managed,
     fields: form.fields.map((field) => ({...field})),
     layout: form.layout,
+    viewTabs: form.viewTabs,
   }
 }
 

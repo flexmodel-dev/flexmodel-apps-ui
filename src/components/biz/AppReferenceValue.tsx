@@ -136,6 +136,7 @@ export function AppReferenceValue({
             managed: false,
             fields: [],
             layout: {items: []},
+            viewTabs: [],
           })
         }
       })
