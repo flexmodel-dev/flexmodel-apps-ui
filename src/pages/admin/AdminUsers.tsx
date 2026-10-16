@@ -9,11 +9,12 @@ import {BizDialog} from '@/components/ui/dialog'
 import {Checkbox} from '@/components/ui/checkbox'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
+import {message} from '@/components/ui/message'
 import {cn, paginate} from '@/lib/utils'
-import {Building2, ChevronRight, CirclePlus, MoreVertical, Pencil, Search, Trash2, Users} from 'lucide-react'
+import {Building2, ChevronRight, CirclePlus, MoreVertical, Pencil, Power, Search, Trash2, Users} from 'lucide-react'
 import {
   createDepartment, createUser, deleteDepartment, deleteUser, getDepartments, getRoles, getUsers,
-  updateDepartment, updateUser, type AdminDepartment, type AdminRole, type AdminUser,
+  updateDepartment, updateUser, patchUser, type AdminDepartment, type AdminRole, type AdminUser,
   type AdminUserDepartmentInput, type UserStatus,
 } from '@/services/adminUsers'
 
@@ -195,6 +196,20 @@ export function AdminUsers() {
     }
   }
 
+  const toggleUserStatus = async (user: AdminUser) => {
+    const nextStatus: UserStatus = user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE'
+    setSavingUser(true)
+    setError('')
+    try {
+      await patchUser(user.id, nextStatus)
+      await load()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '操作失败')
+    } finally {
+      setSavingUser(false)
+    }
+  }
+
   const addDepartment = () => {
     const used = new Set(userForm.departments.map(d => d.departmentId))
     const next = departments.find(d => !used.has(d.id))
@@ -288,9 +303,18 @@ export function AdminUsers() {
                             className={cn('px-4 py-3', user.status === 'ACTIVE' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>● {statusText[user.status]}</td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-1.5">
-                              <Button variant="secondary" size="sm" className="!h-8 !px-3"
+                              <Button
+                                variant="secondary"
+                                size="xs"
+                                onClick={() => toggleUserStatus(user)}
+                                disabled={savingUser}
+                              >
+                                <Power className="h-3.5 w-3.5"/>
+                                {user.status === 'ACTIVE' ? '停用' : '启用'}
+                              </Button>
+                              <Button variant="secondary" size="xs"
                                       onClick={() => openUser(user)}><Pencil className="h-3.5 w-3.5"/>编辑</Button>
-                              <Button variant="secondary" size="sm" className="!h-8 !px-3"
+                              <Button variant="secondary" size="xs"
                                       onClick={() => setDeletingUser(user)}><Trash2
                                 className="h-3.5 w-3.5"/>删除</Button>
                             </div>
@@ -333,10 +357,6 @@ export function AdminUsers() {
             <Input type="password" value={userForm.password}
                    onChange={e => setUserForm({...userForm, password: e.target.value})}
                    placeholder={editingUser ? '密码（留空不修改）' : '密码'}/>
-            <Select value={userForm.status} onValueChange={v => setUserForm({...userForm, status: v as UserStatus})}>
-              <SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{Object.entries(statusText).map(([v, l]) =>
-              <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
-            </Select>
             <Select value={userForm.managerUserId ?? 'none'}
                     onValueChange={v => setUserForm({...userForm, managerUserId: v === 'none' ? null : v})}>
               <SelectTrigger><SelectValue placeholder="直属上级"/></SelectTrigger>

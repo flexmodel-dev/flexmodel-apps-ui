@@ -27,6 +27,7 @@ import {
   AdminApprovals,
   AdminTriggers,
 } from '@/pages/admin'
+import {MessageViewport} from '@/components/ui/message'
 import {getAuthSession} from '@/services/auth'
 
 function RequireAuth() {
@@ -39,6 +40,7 @@ function RequireAuth() {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
+    <MessageViewport/>
     <HashRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/admin/apps" replace/>}/>

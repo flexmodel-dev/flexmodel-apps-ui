@@ -7,7 +7,7 @@ const Button = React.forwardRef<
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     asChild?: boolean
     variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'link' | 'danger'
-    size?: 'default' | 'sm' | 'lg' | 'icon'
+  size?: 'default' | 'sm' | 'xs' | 'lg' | 'icon'
   }
 >(({ asChild = false, className, variant = 'default', size = 'default', ...props }, ref) => {
   const base =
@@ -22,6 +22,7 @@ const Button = React.forwardRef<
   }
   const sizes: Record<string, string> = {
     default: 'h-10 px-4 py-2',
+    xs: 'h-7 rounded-md px-2 text-xs',
     sm: 'h-9 rounded-md px-3',
     lg: 'h-11 rounded-md px-8',
     icon: 'h-10 w-10',

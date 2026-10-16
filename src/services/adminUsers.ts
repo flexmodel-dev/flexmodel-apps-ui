@@ -56,6 +56,7 @@ export interface AdminUser {
   id: string
   name: string
   email: string
+  avatar: string | null
   status: UserStatus
   managerUserId: string | null
   managerName: string | null
@@ -120,6 +121,13 @@ export async function updateUser(userId: string, input: AdminUserInput): Promise
   return requestJson<AdminUser>(`${USER_API}/${userId}`, {
     method: 'PUT',
     body: JSON.stringify(input),
+  })
+}
+
+export async function patchUser(userId: string, status: UserStatus): Promise<AdminUser> {
+  return requestJson<AdminUser>(`${USER_API}/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({status}),
   })
 }
 
