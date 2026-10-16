@@ -60,10 +60,12 @@ export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; 
         sideOffset={12}
         className="w-64"
       >
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>应用启动器</span>
-          <span className="text-xs text-muted-foreground">{apps.length} 个应用</span>
-        </DropdownMenuLabel>
+        <div className="flex items-center justify-between px-2 py-1.5">
+          <DropdownMenuLabel className="p-0">应用启动器</DropdownMenuLabel>
+          <DropdownMenuItem asChild className="p-0 text-xs font-normal">
+            <Link to="/admin/apps" className="text-primary">管理</Link>
+          </DropdownMenuItem>
+        </div>
         <DropdownMenuSeparator />
         <div className="max-h-72 overflow-y-auto p-1">
           {apps.length === 0 && <Empty className="py-8" description="暂无应用"/>}
