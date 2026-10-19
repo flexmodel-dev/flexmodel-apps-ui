@@ -480,11 +480,21 @@ export function FormDesigner({
         required: false,
       })
       const designField = {...createdField}
+      const nextItems: AppFormItem[] = [
+        ...items,
+        {
+          type: 'FIELD',
+          name: createdField.name,
+          width: 'HALF',
+          tip: remark,
+        },
+      ]
       const nextForm = {
         ...form,
         fields: [...form.fields, designField],
-        layout: {items},
+        layout: {items: nextItems},
       }
+      setItems(nextItems)
       setForm(nextForm)
       onFormChange(nextForm)
       setFieldRemarks((previous) => ({...previous, [createdField.name]: remark}))
