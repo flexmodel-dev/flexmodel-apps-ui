@@ -242,9 +242,6 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     }
   }
 
-  const formPath = (childSection: FormSettingsSection) =>
-    `/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/${childSection}`
-
   return (
     <AdminLayout>
       <div className="mx-auto w-full max-w-5xl">
@@ -340,19 +337,6 @@ export default function FormSettings({section}: { section: FormSettingsSection }
           ) : (
             <Empty description={`${sections[section]}功能开发中`}/>
           )}
-        </div>
-        <div className="mt-4 flex gap-2 text-sm">
-          {(Object.keys(sections) as FormSettingsSection[]).map((childSection) => (
-            <Link
-              key={childSection}
-              to={formPath(childSection)}
-              className={childSection === section
-                ? 'font-medium text-primary'
-                : 'text-muted-foreground hover:text-primary'}
-            >
-              {sections[childSection]}
-            </Link>
-          ))}
         </div>
       </div>
 
