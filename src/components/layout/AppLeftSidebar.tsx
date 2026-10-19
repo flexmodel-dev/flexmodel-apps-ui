@@ -133,7 +133,7 @@ export function AppLeftSidebar({
 
   const isActive = (nav: NavItem) => {
     if (!nav.to) return false
-    return location.pathname === nav.to || (nav.to !== '/dashboard/home' && location.pathname.startsWith(nav.to))
+    return location.pathname === nav.to || (nav.to !== '/workbench/home' && location.pathname.startsWith(nav.to))
   }
 
   return (

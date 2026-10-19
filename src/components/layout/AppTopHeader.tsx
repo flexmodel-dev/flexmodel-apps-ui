@@ -22,7 +22,7 @@ import {type App} from '@/services/apps'
 import {TopHeaderShell, headerActionClass} from './TopHeaderShell'
 
 const searchSuggestions = [
-  {label: '工作台', to: '/dashboard/home'},
+  {label: '工作台', to: '/workbench/home'},
   ...businessObjects.flatMap((businessObject) => {
     const menu = getAppMenuForBusinessObject(businessObject.name)
     return menu ? [{label: businessObject.label, to: `/apps/${menu.appId}/${menu.menuId}`}] : []

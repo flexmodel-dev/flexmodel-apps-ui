@@ -1,33 +1,33 @@
 import * as React from 'react'
-import { GridStack } from 'gridstack'
+import {GridStack} from 'gridstack'
 import 'gridstack/dist/gridstack.min.css'
 import {Lock, LockOpen, Maximize, Minimize, Pencil, Plus, RefreshCw} from 'lucide-react'
 import {useNavigate} from 'react-router-dom'
-import { AppLayout } from '@/components/layout/AppLayout'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import {AppLayout} from '@/components/layout/AppLayout'
+import {Button} from '@/components/ui/button'
+import {cn} from '@/lib/utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {ChartCanvas} from '@/components/biz/ChartCanvas'
-import {ChartDesigner, type ChartDesignerResult} from '@/components/biz/ChartDesigner'
-import {addDashChart, dashCharts, dashboards} from '@/data/mock'
+import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
+import {ComponentDesigner, type ComponentDesignerResult} from '@/components/biz/ComponentDesigner'
+import {addWorkbenchComponent, workbenchComponents, workbenches} from '@/data/mock'
 
-type DashChart = (typeof dashCharts)['dash-0'][number]
+type WorkbenchComponent = (typeof workbenchComponents)['workbench-0'][number]
 
-function ChartCard({
-  chart,
-  refreshKey,
-  editable,
-  filter,
-                     onOpenMenu,
-                     onEdit,
-  onRefresh,
-}: {
-  chart: DashChart
+function ComponentCard({
+                         component,
+                         refreshKey,
+                         editable,
+                         filter,
+                         onOpenMenu,
+                         onEdit,
+                         onRefresh,
+                       }: {
+  component: WorkbenchComponent
   refreshKey: number
   editable: boolean
   filter: string
@@ -36,22 +36,25 @@ function ChartCard({
   onRefresh: () => void
 }) {
   return (
-    <div className="grid-stack-item" gs-id={chart.id} gs-x={chart.x} gs-y={chart.y} gs-w={chart.w} gs-h={chart.h}>
+    <div className="grid-stack-item" gs-id={component.id} gs-x={component.x} gs-y={component.y} gs-w={component.w}
+         gs-h={component.h}>
       <div className="app-card group grid-stack-item-content text-card-foreground">
         <div className="flex h-full flex-col p-5">
           <div className="flex items-center justify-between">
-            <h6 className={cn('chart-title m-0 text-sm font-semibold', editable ? 'cursor-move' : 'cursor-default')}>{chart.title}</h6>
-            <div className="flex items-center gap-1 opacity-0 transition-opacity hover:opacity-100 group-hover:opacity-100">
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="编辑图表" onClick={onEdit}>
+            <h6
+              className={cn('component-title m-0 text-sm font-semibold', editable ? 'cursor-move' : 'cursor-default')}>{component.title}</h6>
+            <div
+              className="flex items-center gap-1 opacity-0 transition-opacity hover:opacity-100 group-hover:opacity-100">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="编辑组件" onClick={onEdit}>
                 <Pencil className="h-4 w-4"/>
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" title="刷新" onClick={onRefresh}>
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className="h-4 w-4"/>
               </Button>
             </div>
           </div>
           <div className="mt-3 flex-1 overflow-auto">
-            <ChartCanvas chart={chart} refreshKey={refreshKey} filter={filter} onOpenMenu={onOpenMenu}/>
+            <ComponentCanvas component={component} refreshKey={refreshKey} filter={filter} onOpenMenu={onOpenMenu}/>
           </div>
         </div>
       </div>
@@ -59,24 +62,24 @@ function ChartCard({
   )
 }
 
-export default function DashboardHome() {
+export default function WorkbenchHome() {
   const navigate = useNavigate()
   const gridRef = React.useRef<HTMLDivElement>(null)
-  const [dash, setDash] = React.useState(dashboards[0].id)
+  const [workbenchId, setWorkbenchId] = React.useState(workbenches[0].id)
   const [editable, setEditable] = React.useState(true)
   const [refreshKey, setRefreshKey] = React.useState(0)
-  const [layout, setLayout] = React.useState(dashCharts[dash] ?? [])
+  const [layout, setLayout] = React.useState(workbenchComponents[workbenchId] ?? [])
   const [fullscreen, setFullscreen] = React.useState(Boolean(document.fullscreenElement))
   const [filter, setFilter] = React.useState('全部')
   const [refreshInterval, setRefreshInterval] = React.useState('无')
   const [designerOpen, setDesignerOpen] = React.useState(false)
   const [designerMode, setDesignerMode] = React.useState<'create' | 'edit'>('create')
-  const [designerChart, setDesignerChart] = React.useState<DashChart | null>(null)
+  const [designerComponent, setDesignerComponent] = React.useState<WorkbenchComponent | null>(null)
 
   React.useEffect(() => {
-    setLayout(dashCharts[dash] ?? [])
+    setLayout(workbenchComponents[workbenchId] ?? [])
     setRefreshKey(0)
-  }, [dash])
+  }, [workbenchId])
 
   React.useEffect(() => {
     const handleFullscreenChange = () => setFullscreen(Boolean(document.fullscreenElement))
@@ -94,25 +97,25 @@ export default function DashboardHome() {
 
   const openCreateDesigner = () => {
     setDesignerMode('create')
-    setDesignerChart(null)
+    setDesignerComponent(null)
     setDesignerOpen(true)
   }
 
-  const openEditDesigner = (chart: DashChart) => {
+  const openEditDesigner = (component: WorkbenchComponent) => {
     setDesignerMode('edit')
-    setDesignerChart(chart)
+    setDesignerComponent(component)
     setDesignerOpen(true)
   }
 
-  const handleDesignerSave = (result: ChartDesignerResult) => {
+  const handleDesignerSave = (result: ComponentDesignerResult) => {
     if (designerMode === 'create') {
-      addDashChart(dash, result.title, result.type, result.config)
-    } else if (designerChart) {
-      const charts = dashCharts[dash] ?? []
-      const index = charts.findIndex((item) => item.id === designerChart.id)
+      addWorkbenchComponent(workbenchId, result.title, result.type, result.config)
+    } else if (designerComponent) {
+      const components = workbenchComponents[workbenchId] ?? []
+      const index = components.findIndex((item) => item.id === designerComponent.id)
       if (index >= 0) {
-        charts[index] = {
-          ...charts[index],
+        components[index] = {
+          ...components[index],
           title: result.title,
           type: result.type,
           w: result.w,
@@ -122,10 +125,10 @@ export default function DashboardHome() {
       }
     }
 
-    setLayout([...(dashCharts[dash] ?? [])])
+    setLayout([...(workbenchComponents[workbenchId] ?? [])])
     setRefreshKey((key) => key + 1)
     setDesignerOpen(false)
-    setDesignerChart(null)
+    setDesignerComponent(null)
   }
 
   const openMenu = (to: string) => {
@@ -143,7 +146,7 @@ export default function DashboardHome() {
     if (!gridRef.current) return
     const gridContainer = gridRef.current
     const gridContainerParent = gridContainer.parentElement
-    const maxRow = Math.max(...layout.map((chart) => chart.y + chart.h), 1)
+    const maxRow = Math.max(...layout.map((component) => component.y + component.h), 1)
     const getDynamicCellHeight = () => {
       const availableHeight = gridContainerParent?.clientHeight ?? 0
       return Math.max(60, Math.floor(availableHeight / maxRow))
@@ -157,10 +160,10 @@ export default function DashboardHome() {
         animate: true,
         auto: true,
         float: false,
-        handle: '.chart-title',
+        handle: '.component-title',
         disableDrag: !editable,
         disableResize: !editable,
-        resizable: { handles: 'se,sw' },
+        resizable: {handles: 'se,sw'},
       },
       gridRef.current,
     )
@@ -182,7 +185,7 @@ export default function DashboardHome() {
       resizeObserver.disconnect()
       initialized.destroy(false)
     }
-  }, [dash, layout, editable])
+  }, [workbenchId, layout, editable])
 
   return (
     <AppLayout noPadding noOuterScroll contentClassName="flex h-full min-h-0 flex-col" hideHeader={fullscreen}>
@@ -191,12 +194,12 @@ export default function DashboardHome() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-10 text-xl font-medium">
-                {dashboards.find((item) => item.id === dash)?.name}
+                {workbenches.find((item) => item.id === workbenchId)?.name}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              {dashboards.map((item) => (
-                <DropdownMenuItem key={item.id} onClick={() => setDash(item.id)}>
+              {workbenches.map((item) => (
+                <DropdownMenuItem key={item.id} onClick={() => setWorkbenchId(item.id)}>
                   {item.name}
                 </DropdownMenuItem>
               ))}
@@ -206,7 +209,7 @@ export default function DashboardHome() {
           <div className="flex items-center gap-1">
             <Button size="sm" onClick={openCreateDesigner}>
               <Plus className="h-4 w-4"/>
-              添加图表
+              添加组件
             </Button>
 
             <DropdownMenu>
@@ -225,7 +228,7 @@ export default function DashboardHome() {
             </DropdownMenu>
 
             <Button variant="ghost" size="icon" title={fullscreen ? '退出全屏' : '全屏'} onClick={toggleFullscreen}>
-              {fullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+              {fullscreen ? <Minimize className="h-4 w-4"/> : <Maximize className="h-4 w-4"/>}
             </Button>
 
             <DropdownMenu>
@@ -244,41 +247,41 @@ export default function DashboardHome() {
             </DropdownMenu>
 
             <Button variant="outline" size="sm" onClick={() => setEditable((value) => !value)}>
-              {editable ? <LockOpen className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+              {editable ? <LockOpen className="h-4 w-4"/> : <Lock className="h-4 w-4"/>}
               {editable ? '编辑布局' : '锁定布局'}
             </Button>
 
             <Button variant="ghost" size="icon" title="刷新数据" onClick={() => setRefreshKey((key) => key + 1)}>
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="h-4 w-4"/>
             </Button>
           </div>
         </div>
 
         <div className="mt-4 min-h-0 flex-1 overflow-auto">
           <div className="grid-stack" ref={gridRef}>
-            {layout.map((chart) => (
-              <ChartCard
-                key={`${dash}-${chart.id}`}
-                chart={chart}
+            {layout.map((component) => (
+              <ComponentCard
+                key={`${workbenchId}-${component.id}`}
+                component={component}
                 refreshKey={refreshKey}
                 editable={editable}
                 filter={filter}
                 onOpenMenu={openMenu}
-                onEdit={() => openEditDesigner(chart)}
+                onEdit={() => openEditDesigner(component)}
                 onRefresh={() => setRefreshKey((key) => key + 1)}
               />
             ))}
           </div>
         </div>
 
-        <ChartDesigner
+        <ComponentDesigner
           open={designerOpen}
           mode={designerMode}
-          chart={designerChart ?? undefined}
+          component={designerComponent ?? undefined}
           onSave={handleDesignerSave}
           onClose={() => {
             setDesignerOpen(false)
-            setDesignerChart(null)
+            setDesignerComponent(null)
           }}
         />
       </div>

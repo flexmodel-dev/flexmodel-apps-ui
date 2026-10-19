@@ -4,7 +4,7 @@ import {AppLayout} from '@/components/layout/AppLayout'
 import {AppLoading} from '@/components/biz/AppLoading'
 import ApprovalHome from '@/pages/ApprovalHome'
 import ContactsHome from '@/pages/ContactsHome'
-import DashboardHome from '@/pages/DashboardHome'
+import WorkbenchHome from '@/pages/WorkbenchHome'
 import FeedsHome from '@/pages/FeedsHome'
 import FilesDocs from '@/pages/FilesDocs'
 import Notifications from '@/pages/Notifications'
@@ -22,8 +22,8 @@ function findMenu(menus: AppMenu[], menuId?: string): AppMenu | undefined {
 
 function BuiltinPage({targetId}: { targetId: string }) {
   switch (targetId) {
-    case 'dashboard':
-      return <DashboardHome/>
+    case 'workbench':
+      return <WorkbenchHome/>
     case 'feeds':
       return <FeedsHome/>
     case 'files':

@@ -20,20 +20,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {ChartCanvas} from '@/components/biz/ChartCanvas'
+import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
 import {
-  addableChartTypes,
-  chartDataSources,
-  defaultChartConfig,
+  addableComponentTypes,
+  businessObjects,
+  defaultComponentConfig,
   favoriteForms,
+  getBusinessObject,
+  getComponentRows,
+  getRecords,
+  isComponentMeasureField,
   kpiOptions,
   salesColumns,
-  type ChartConfig,
-  type DashChart,
+  type ComponentConfig,
+  type WorkbenchComponent,
 } from '@/data/mock'
 import {cn} from '@/lib/utils'
 
-const chartTypeIcons = {
+const componentTypeIcons = {
   index: Gauge,
   line: LineChart,
   bar: BarChart3,
@@ -43,25 +47,25 @@ const chartTypeIcons = {
   tasks: ClipboardCheck,
 }
 
-export interface ChartDesignerResult {
+export interface ComponentDesignerResult {
   title: string
-  type: DashChart['type']
+  type: WorkbenchComponent['type']
   w: number
   h: number
-  config: ChartConfig
+  config: ComponentConfig
 }
 
-interface ChartDesignerProps {
+interface ComponentDesignerProps {
   open: boolean
   mode: 'create' | 'edit'
-  chart?: DashChart
-  onSave: (result: ChartDesignerResult) => void
+  component?: WorkbenchComponent
+  onSave: (result: ComponentDesignerResult) => void
   onClose: () => void
 }
 
-function createDefaultResult(): ChartDesignerResult {
-  const type: DashChart['type'] = 'line'
-  const config = defaultChartConfig(type)
+function createDefaultResult(): ComponentDesignerResult {
+  const type: WorkbenchComponent['type'] = 'line'
+  const config = defaultComponentConfig(type)
   return {
     title: '',
     type,
@@ -71,44 +75,44 @@ function createDefaultResult(): ChartDesignerResult {
   }
 }
 
-function toResult(chart: DashChart): ChartDesignerResult {
-  const config = chart.config ?? defaultChartConfig(chart.type)
+function toResult(component: WorkbenchComponent): ComponentDesignerResult {
+  const config = component.config ?? defaultComponentConfig(component.type)
   return {
-    title: chart.title,
-    type: chart.type,
-    w: chart.w,
-    h: chart.h,
-    config: {...config, title: chart.title, type: chart.type},
+    title: component.title,
+    type: component.type,
+    w: component.w,
+    h: component.h,
+    config: {...config, title: component.title, type: component.type},
   }
 }
 
-export function ChartDesigner({open, mode, chart, onSave, onClose}: ChartDesignerProps) {
-  const [result, setResult] = React.useState<ChartDesignerResult>(() =>
-    chart ? toResult(chart) : createDefaultResult(),
+export function ComponentDesigner({open, mode, component, onSave, onClose}: ComponentDesignerProps) {
+  const [result, setResult] = React.useState<ComponentDesignerResult>(() =>
+    component ? toResult(component) : createDefaultResult(),
   )
   const [titleError, setTitleError] = React.useState('')
 
   React.useEffect(() => {
     if (!open) return
-    setResult(chart ? toResult(chart) : createDefaultResult())
+    setResult(component ? toResult(component) : createDefaultResult())
     setTitleError('')
-  }, [chart, open])
+  }, [component, open])
 
-  const updateResult = (patch: Partial<ChartDesignerResult>) => {
+  const updateResult = (patch: Partial<ComponentDesignerResult>) => {
     setResult((previous) => ({...previous, ...patch}))
   }
 
-  const updateConfig = (patch: Partial<ChartConfig>) => {
+  const updateConfig = (patch: Partial<ComponentConfig>) => {
     setResult((previous) => ({...previous, config: {...previous.config, ...patch}}))
   }
 
-  const changeType = (type: DashChart['type']) => {
-    const nextConfig = defaultChartConfig(type)
+  const changeType = (type: WorkbenchComponent['type']) => {
+    const nextConfig = defaultComponentConfig(type)
     setResult((previous) => ({
       ...previous,
       type,
-      w: addableChartTypes.find((item) => item.type === type)?.w ?? previous.w,
-      h: addableChartTypes.find((item) => item.type === type)?.h ?? previous.h,
+      w: addableComponentTypes.find((item) => item.type === type)?.w ?? previous.w,
+      h: addableComponentTypes.find((item) => item.type === type)?.h ?? previous.h,
       config: {...nextConfig, title: previous.title, type},
     }))
   }
@@ -116,7 +120,7 @@ export function ChartDesigner({open, mode, chart, onSave, onClose}: ChartDesigne
   const save = () => {
     const title = result.title.trim()
     if (!title) {
-      setTitleError('请输入图表标题')
+      setTitleError('请输入组件标题')
       return
     }
     onSave({
@@ -126,25 +130,48 @@ export function ChartDesigner({open, mode, chart, onSave, onClose}: ChartDesigne
     })
   }
 
-  const previewChart: DashChart = {
-    id: chart?.id ?? 'preview',
-    title: result.title || '未命名图表',
+  const previewComponent: WorkbenchComponent = {
+    id: component?.id ?? 'preview',
+    title: result.title || '未命名组件',
     type: result.type,
     w: result.w,
     h: result.h,
-    x: chart?.x ?? 0,
-    y: chart?.y ?? 0,
+    x: component?.x ?? 0,
+    y: component?.y ?? 0,
     config: result.config,
   }
 
-  const selectedSource =
-    chartDataSources.find((item) => item.id === result.config.dataSource) ?? chartDataSources[0]
+  const selectedForm = getBusinessObject(result.config.formName) ?? businessObjects[0]
+  const selectedDimensionField = selectedForm?.fields.find(
+    (field) => field.name === result.config.dimensionField,
+  )
+  const selectedMeasureField = selectedForm?.fields.find(
+    (field) => field.name === result.config.measureField,
+  )
+
+  const changeForm = (formName: string) => {
+    const nextForm = getBusinessObject(formName) ?? businessObjects[0]
+    if (!nextForm) return
+
+    const dimensionField =
+      nextForm.fields.find((field) => field.name === nextForm.displayField)?.name ??
+      nextForm.fields[0]?.name ??
+      ''
+    const measureField = nextForm.fields.find(isComponentMeasureField)?.name ?? ''
+
+    updateConfig({
+      formName: nextForm.name,
+      dimensionField,
+      measureField,
+      aggregation: measureField ? result.config.aggregation : 'count',
+    })
+  }
 
   return (
     <BizDialog
       open={open}
       onOpenChange={(next) => !next && onClose()}
-      title={mode === 'create' ? '新增图表' : '编辑图表'}
+      title={mode === 'create' ? '新增组件' : '编辑组件'}
       width={1080}
       height="min(80vh, 720px)"
       footer={
@@ -159,21 +186,21 @@ export function ChartDesigner({open, mode, chart, onSave, onClose}: ChartDesigne
       }
     >
       <div className="grid h-full min-h-0 gap-4 md:grid-cols-[360px_1fr]">
-        <Tabs defaultValue="chart" className="min-h-0">
+        <Tabs defaultValue="component" className="min-h-0">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="chart">图表</TabsTrigger>
+            <TabsTrigger value="component">组件</TabsTrigger>
             <TabsTrigger value="data">数据</TabsTrigger>
             <TabsTrigger value="style">样式</TabsTrigger>
             <TabsTrigger value="layout">布局</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="chart" className="mt-4 space-y-4">
+          <TabsContent value="component" className="mt-4 space-y-4">
             <div>
-              <label htmlFor="chart-designer-title" className="text-sm font-medium text-foreground">
-                图表标题
+              <label htmlFor="component-designer-title" className="text-sm font-medium text-foreground">
+                组件标题
               </label>
               <Input
-                id="chart-designer-title"
+                id="component-designer-title"
                 value={result.title}
                 placeholder="例如：本月商机转化率"
                 className="mt-2"
@@ -186,10 +213,10 @@ export function ChartDesigner({open, mode, chart, onSave, onClose}: ChartDesigne
             </div>
 
             <div>
-              <span className="text-sm font-medium text-foreground">图表类型</span>
+              <span className="text-sm font-medium text-foreground">组件类型</span>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {addableChartTypes.map((preset) => {
-                  const Icon = chartTypeIcons[preset.type]
+                {addableComponentTypes.map((preset) => {
+                  const Icon = componentTypeIcons[preset.type]
                   return (
                     <button
                       type="button"
@@ -293,17 +320,17 @@ export function ChartDesigner({open, mode, chart, onSave, onClose}: ChartDesigne
             {(result.type === 'line' || result.type === 'bar' || result.type === 'pie') && (
               <>
                 <div>
-                  <span className="text-sm font-medium text-foreground">数据源</span>
+                  <span className="text-sm font-medium text-foreground">表单</span>
                   <Select
-                    value={result.config.dataSource}
-                    onValueChange={(value) => updateConfig({dataSource: value})}
+                    value={result.config.formName}
+                    onValueChange={(value) => changeForm(value)}
                   >
                     <SelectTrigger className="mt-2">
                       <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
-                      {chartDataSources.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
+                      {businessObjects.map((item) => (
+                        <SelectItem key={item.name} value={item.name}>
                           {item.label}
                         </SelectItem>
                       ))}
@@ -311,9 +338,80 @@ export function ChartDesigner({open, mode, chart, onSave, onClose}: ChartDesigne
                   </Select>
                 </div>
 
-                <div className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
-                  <div>维度：{selectedSource.dimension}</div>
-                  <div className="mt-1">指标：{selectedSource.measure}</div>
+                <div>
+                  <span className="text-sm font-medium text-foreground">维度字段</span>
+                  <Select
+                    value={result.config.dimensionField}
+                    onValueChange={(value) => updateConfig({dimensionField: value})}
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue/>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedForm?.fields.map((field) => (
+                        <SelectItem key={field.name} value={field.name}>
+                          {field.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <span className="text-sm font-medium text-foreground">统计方式</span>
+                  <Select
+                    value={result.config.aggregation}
+                    onValueChange={(value) =>
+                      updateConfig({
+                        aggregation: value === 'count' || value === 'average' ? value : 'sum',
+                      })
+                    }
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue/>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sum">求和</SelectItem>
+                      <SelectItem value="count">计数</SelectItem>
+                      <SelectItem value="average">平均值</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {result.config.aggregation !== 'count' && (
+                  <div>
+                    <span className="text-sm font-medium text-foreground">指标字段</span>
+                    <Select
+                      value={result.config.measureField}
+                      onValueChange={(value) => updateConfig({measureField: value})}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue/>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedForm?.fields.filter(isComponentMeasureField).map((field) => (
+                          <SelectItem key={field.name} value={field.name}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="space-y-1 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+                  <div>表单：{selectedForm?.label}</div>
+                  <div>维度：{selectedDimensionField?.label ?? '未选择'}</div>
+                  <div>
+                    指标：
+                    {result.config.aggregation === 'count'
+                      ? '记录数'
+                      : `${selectedMeasureField?.label ?? '未选择'}（${
+                        result.config.aggregation === 'average' ? '平均值' : '求和'
+                      }）`}
+                  </div>
+                  <div>记录：{selectedForm ? getRecords(selectedForm.name).length : 0} 条</div>
+                  <div>聚合结果：{getComponentRows(result.config).length} 组</div>
                 </div>
               </>
             )}
@@ -405,13 +503,13 @@ export function ChartDesigner({open, mode, chart, onSave, onClose}: ChartDesigne
         <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-muted/30 p-4">
           <div className="flex h-full min-h-0 flex-col">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-foreground">{previewChart.title}</h4>
+              <h4 className="text-sm font-semibold text-foreground">{previewComponent.title}</h4>
               <span className="text-xs text-muted-foreground">
                 {result.w} × {result.h}
               </span>
             </div>
             <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background p-4">
-              <ChartCanvas chart={previewChart} refreshKey={0} filter="全部"/>
+              <ComponentCanvas component={previewComponent} refreshKey={0} filter="全部"/>
             </div>
           </div>
         </div>

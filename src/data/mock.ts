@@ -421,7 +421,7 @@ export interface MenuLinkOption {
 }
 
 export const systemMenuLinks: MenuLinkOption[] = [
-  {id: 'dashboard', label: '仪表盘', kind: 'system', to: '/dashboard/home'},
+  {id: 'workbench', label: '工作台', kind: 'system', to: '/workbench/home'},
   {id: 'feeds', label: '动态', kind: 'system', to: '/feeds/home'},
   {id: 'files', label: '文件', kind: 'system', to: '/files/home'},
   {id: 'approval', label: '审批中心', kind: 'system', to: '/approval/home'},
@@ -766,7 +766,14 @@ export const notifications: Notification[] = [
   { id: '021-04', type: 20, unread: true, fromUser: '孙丽', message: '提交的《年假申请 - 孙丽》需要你审批', time: '2 小时前' },
   { id: '021-05', type: 40, unread: false, fromUser: '周武', message: '在项目「v4.5 发布」中指派了任务给你', time: '昨天 17:42' },
   { id: '021-06', type: 30, unread: false, fromUser: '吴征', message: '发布了新的公司公告《关于国庆放假安排》', time: '昨天 14:05' },
-  { id: '021-07', type: 10, unread: false, fromUser: '超级管理员', message: '共享了仪表盘「销售数据大盘」给你', time: '前天 09:30' },
+  {
+    id: '021-07',
+    type: 10,
+    unread: false,
+    fromUser: '超级管理员',
+    message: '共享了工作台「销售数据大盘」给你',
+    time: '前天 09:30'
+  },
   { id: '021-08', type: 20, unread: false, fromUser: '系统', message: '你提交的《办公用品采购报销》已审批通过', time: '3 天前' },
 ]
 
@@ -787,10 +794,10 @@ export interface Feed {
 export const feeds: Feed[] = [
   {
     id: '044-01', type: 1, author: '赵云', time: '今天 09:24', likes: 6, scope: '公开',
-    content: 'v4.5 版本的技术方案已经完成初稿，重点包括新的流程引擎和仪表盘编辑器，欢迎大家评审。',
-    contentHtml: 'v4.5 版本的技术方案已经完成初稿，重点包括新的<b>流程引擎</b>和<b>仪表盘编辑器</b>，欢迎大家评审。',
+    content: 'v4.5 版本的技术方案已经完成初稿，重点包括新的流程引擎和工作台编辑器，欢迎大家评审。',
+    contentHtml: 'v4.5 版本的技术方案已经完成初稿，重点包括新的<b>流程引擎</b>和<b>工作台编辑器</b>，欢迎大家评审。',
     comments: [
-      { author: '周武', content: '仪表盘编辑器部分我补充了交互稿，稍后同步。', time: '今天 09:40' },
+      {author: '周武', content: '工作台编辑器部分我补充了交互稿，稍后同步。', time: '今天 09:40'},
       { author: '钱迅', content: '客户那边也在问新版本的时间点，加油！', time: '今天 10:02' },
     ],
   },
@@ -906,9 +913,9 @@ export const projectPlans: ProjectPlan[] = [
   ]},
 ]
 
-/* ---------------- 仪表盘图表配置 ---------------- */
+/* ---------------- 工作台组件配置 ---------------- */
 
-export interface DashChart {
+export interface WorkbenchComponent {
   id: string
   title: string
   type: 'bar' | 'line' | 'pie' | 'dataloader' | 'index' | 'favorites' | 'tasks'
@@ -916,13 +923,16 @@ export interface DashChart {
   h: number
   x: number
   y: number
-  config?: ChartConfig
+  config?: ComponentConfig
 }
 
-export interface ChartConfig {
+export interface ComponentConfig {
   title: string
-  type: DashChart['type']
-  dataSource: string
+  type: WorkbenchComponent['type']
+  formName: string
+  dimensionField: string
+  measureField: string
+  aggregation: 'sum' | 'count' | 'average'
   showLegend: boolean
   showLabel: boolean
   smooth: boolean
@@ -932,13 +942,13 @@ export interface ChartConfig {
   favoriteForms: string[]
 }
 
-export const dashboards = [
-  { id: 'dash-0', name: '默认仪表盘' },
-  { id: 'dash-1', name: '销售数据大盘' },
+export const workbenches = [
+  {id: 'workbench-0', name: '默认工作台'},
+  {id: 'workbench-1', name: '销售数据大盘'},
 ]
 
-export const dashCharts: Record<string, DashChart[]> = {
-  'dash-0': [
+export const workbenchComponents: Record<string, WorkbenchComponent[]> = {
+  'workbench-0': [
     { id: 'c-01', title: '本月新增客户', type: 'index', w: 2, h: 4, x: 0, y: 0 },
     { id: 'c-02', title: '本月赢单商机', type: 'index', w: 2, h: 4, x: 2, y: 0 },
     { id: 'c-03', title: '客户行业分布', type: 'pie', w: 4, h: 6, x: 4, y: 0 },
@@ -947,19 +957,19 @@ export const dashCharts: Record<string, DashChart[]> = {
     { id: 'c-06', title: '销售业绩排行', type: 'dataloader', w: 12, h: 7, x: 0, y: 10 },
     {id: 'c-07', title: '我的任务', type: 'tasks', w: 4, h: 6, x: 0, y: 17},
   ],
-  'dash-1': [
+  'workbench-1': [
     { id: 'c-11', title: '销售目标完成率', type: 'index', w: 3, h: 4, x: 0, y: 0 },
     { id: 'c-12', title: '商机阶段漏斗', type: 'pie', w: 4, h: 6, x: 3, y: 0 },
     { id: 'c-13', title: '月度回款', type: 'bar', w: 5, h: 6, x: 7, y: 0 },
   ],
 }
 
-export const addableChartTypes = [
-  {type: 'index', label: '指标卡', description: '突出展示单个核心业务指标', w: 2, h: 4},
-  {type: 'line', label: '折线图', description: '观察近 12 个月新增客户趋势', w: 6, h: 6},
-  {type: 'bar', label: '柱状图', description: '比较商机各阶段金额规模', w: 6, h: 6},
-  {type: 'pie', label: '饼图', description: '展示客户行业分布占比', w: 4, h: 6},
-  {type: 'dataloader', label: '明细表', description: '查看销售业绩排行明细', w: 12, h: 7},
+export const addableComponentTypes = [
+  {type: 'index', label: '指标组件', description: '突出展示单个核心业务指标', w: 2, h: 4},
+  {type: 'line', label: '折线组件', description: '观察表单数据的趋势变化', w: 6, h: 6},
+  {type: 'bar', label: '柱状组件', description: '比较表单数据的分组规模', w: 6, h: 6},
+  {type: 'pie', label: '饼图组件', description: '展示表单数据分组占比', w: 4, h: 6},
+  {type: 'dataloader', label: '明细组件', description: '查看表单记录明细', w: 12, h: 7},
   {type: 'favorites', label: '我的常用', description: '放置常用表单，点击直达对应菜单', w: 6, h: 4},
   {type: 'tasks', label: '我的任务', description: '按待办工作、最近处理、我发起的查看流程审批列表', w: 4, h: 6},
 ] as const
@@ -986,19 +996,19 @@ export const favoriteForms = [
   {label: '报销单', to: '/apps/app-expense/menu-expense'},
 ]
 
-export function addDashChart(
-  dashboardId: string,
+export function addWorkbenchComponent(
+  workbenchId: string,
   title: string,
-  type: DashChart['type'],
-  config: ChartConfig = defaultChartConfig(type),
+  type: WorkbenchComponent['type'],
+  config: ComponentConfig = defaultComponentConfig(type),
 ) {
-  const charts = dashCharts[dashboardId]
-  if (!charts) return null
+  const components = workbenchComponents[workbenchId]
+  if (!components) return null
 
-  const preset = addableChartTypes.find((item) => item.type === type) ?? addableChartTypes[1]
-  const bottom = charts.reduce((max, chart) => Math.max(max, chart.y + chart.h), 0)
-  const chart: DashChart = {
-    id: `c-${String(charts.length + 1).padStart(2, '0')}`,
+  const preset = addableComponentTypes.find((item) => item.type === type) ?? addableComponentTypes[1]
+  const bottom = components.reduce((max, component) => Math.max(max, component.y + component.h), 0)
+  const component: WorkbenchComponent = {
+    id: `component-${String(components.length + 1).padStart(2, '0')}`,
     title,
     type: preset.type,
     w: preset.w,
@@ -1008,13 +1018,13 @@ export function addDashChart(
     config: {...config, title, type: preset.type},
   }
 
-  charts.push(chart)
-  return chart
+  components.push(component)
+  return component
 }
 
-/* ---------------- 图表数据 ---------------- */
+/* ---------------- 组件数据 ---------------- */
 
-export const chartData = {
+export const componentData = {
   newCustomers12m: {
     months: ['10月', '11月', '12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月'],
     values: [18, 22, 26, 15, 20, 24, 28, 31, 25, 29, 34, 20],
@@ -1041,64 +1051,60 @@ export const chartData = {
   ],
 }
 
-export const chartDataSources = [
-  {
-    id: 'customers',
-    label: '近 12 个月新增客户',
-    dimension: '月份',
-    measure: '客户数',
-    rows: chartData.newCustomers12m.months.map((month, index) => ({
-      dimension: month,
-      value: chartData.newCustomers12m.values[index],
-    })),
-  },
-  {
-    id: 'industry',
-    label: '客户行业分布',
-    dimension: '行业',
-    measure: '客户数',
-    rows: chartData.industryDist.map((item) => ({
-      dimension: item.name,
-      value: item.value,
-    })),
-  },
-  {
-    id: 'stage',
-    label: '商机阶段金额',
-    dimension: '阶段',
-    measure: '金额',
-    rows: chartData.stageAmount.stages.map((stage, index) => ({
-      dimension: stage,
-      value: chartData.stageAmount.values[index],
-    })),
-  },
-  {
-    id: 'payment',
-    label: '月度回款',
-    dimension: '月份',
-    measure: '回款金额',
-    rows: chartData.monthlyPayment.months.map((month, index) => ({
-      dimension: month,
-      value: chartData.monthlyPayment.values[index],
-    })),
-  },
-  {
-    id: 'sales',
-    label: '销售业绩排行',
-    dimension: '姓名',
-    measure: '完成金额',
-    rows: chartData.salesRank.map((item) => ({
-      dimension: item.name,
-      value: item.done,
-    })),
-  },
-]
+export interface ComponentDataRow {
+  dimension: string
+  value: number
+}
 
-export function defaultChartConfig(type: DashChart['type']): ChartConfig {
+const componentMeasureFieldTypes = new Set(['DECIMAL', 'NUMBER'])
+
+export function isComponentMeasureField(field: BusinessObjectField) {
+  return componentMeasureFieldTypes.has(field.type)
+}
+
+function formatComponentDimension(value: unknown) {
+  if (value === null || value === undefined || value === '') return '未填写'
+  return String(value)
+}
+
+export function getComponentRows(config: ComponentConfig): ComponentDataRow[] {
+  const records = getRecords(config.formName)
+  const groups = new Map<string, { count: number; total: number; numericCount: number }>()
+
+  records.forEach((record) => {
+    const dimension = formatComponentDimension(record[config.dimensionField])
+    const group = groups.get(dimension) ?? {count: 0, total: 0, numericCount: 0}
+    const rawMeasure = record[config.measureField]
+    const measure = Number(rawMeasure)
+    const hasNumericMeasure = rawMeasure !== null && rawMeasure !== '' && Number.isFinite(measure)
+
+    group.count += 1
+    if (hasNumericMeasure) {
+      group.numericCount += 1
+      group.total += measure
+    }
+    groups.set(dimension, group)
+  })
+
+  return Array.from(groups.entries()).map(([dimension, group]) => ({
+    dimension,
+    value:
+      config.aggregation === 'count'
+        ? group.count
+        : config.aggregation === 'average'
+          ? group.numericCount ? group.total / group.numericCount : 0
+          : group.total,
+  }))
+}
+
+export function defaultComponentConfig(type: WorkbenchComponent['type']): ComponentConfig {
   return {
     title: '',
     type,
-    dataSource: type === 'pie' ? 'industry' : type === 'bar' ? 'stage' : 'customers',
+    formName: type === 'bar' ? 'Opportunity' : 'Customer',
+    dimensionField: type === 'bar' ? 'stage' : type === 'line' ? 'createdOn' : 'industry',
+    measureField: type === 'bar' ? 'amount' : 'annualRevenue',
+    aggregation: 'sum',
     showLegend: type === 'pie',
     showLabel: type !== 'line',
     smooth: type === 'line',
@@ -1120,7 +1126,7 @@ export interface NavItem {
 }
 
 export const userNavs: NavItem[] = [
-  { id: 'dashboard-home', icon: Home, text: '首页', to: '/dashboard/home' },
+  {id: 'workbench-home', icon: Home, text: '首页', to: '/workbench/home'},
   {id: 'nav_form-Customer', icon: User, text: '客户', to: '/apps/app-sales/menu-customer'},
   {id: 'nav_form-Opportunity', icon: TrendingUp, text: '商机', to: '/apps/app-sales/menu-opportunity'},
   {id: 'nav_form-Product', icon: ShoppingCart, text: '产品', to: '/apps/app-sales/menu-product'},
@@ -1210,8 +1216,8 @@ export const topNavs: TopNavItem[] = [
   {
     id: 'top-workbench',
     text: '工作台',
-    to: '/dashboard/home',
-    match: ['/dashboard/home'],
+    to: '/workbench/home',
+    match: ['/workbench/home'],
     navs: userNavs,
   },
   {

@@ -4,25 +4,24 @@ import {FileText} from 'lucide-react'
 import {UserAvatar} from '@/components/ui/avatar'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {
-  chartDataSources,
-  chartData,
-  defaultChartConfig,
+  componentData,
+  defaultComponentConfig,
   approvals,
   currentUser,
   favoriteForms,
+  getComponentRows,
   kpiOptions,
   salesColumns,
-  type DashChart,
+  type WorkbenchComponent,
 } from '@/data/mock'
 
-function chartConfig(chart: DashChart) {
-  return chart.config ?? defaultChartConfig(chart.type)
+function componentConfig(component: WorkbenchComponent) {
+  return component.config ?? defaultComponentConfig(component.type)
 }
 
-function buildOption(chart: DashChart, refreshKey: number, filter: string) {
-  const config = chartConfig(chart)
-  const source =
-    chartDataSources.find((item) => item.id === config.dataSource) ?? chartDataSources[0]
+function buildOption(component: WorkbenchComponent, refreshKey: number, filter: string) {
+  const config = componentConfig(component)
+  const source = getComponentRows(config)
   const primaryHsl = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
   const primary = `hsl(${primaryHsl})`
   const primaryMuted = `hsl(${primaryHsl} / 0.12)`
@@ -46,7 +45,7 @@ function buildOption(chart: DashChart, refreshKey: number, filter: string) {
           radius: ['42%', '68%'],
           center: ['50%', '44%'],
           label: {show: config.showLabel},
-          data: source.rows.map((row, index) => ({
+          data: source.map((row, index) => ({
             name: row.dimension,
             value: jitter(row.value, index),
             itemStyle: {
@@ -67,7 +66,7 @@ function buildOption(chart: DashChart, refreshKey: number, filter: string) {
     tooltip: {trigger: 'axis'},
     xAxis: {
       type: 'category',
-      data: source.rows.map((row) => row.dimension),
+      data: source.map((row) => row.dimension),
       axisLabel: {color: '#71717a'},
       axisLine: {lineStyle: {color: '#e4e4e7'}},
     },
@@ -83,7 +82,7 @@ function buildOption(chart: DashChart, refreshKey: number, filter: string) {
         symbolSize: isLine ? 6 : 0,
         barWidth: isLine ? undefined : 22,
         label: {show: config.showLabel && !isLine},
-        data: source.rows.map((row, index) => jitter(row.value, index)),
+        data: source.map((row, index) => jitter(row.value, index)),
         itemStyle: {
           borderRadius: isLine ? 0 : 4,
           color: primary,
@@ -94,18 +93,18 @@ function buildOption(chart: DashChart, refreshKey: number, filter: string) {
   }
 }
 
-export function ChartCanvas({
-                              chart,
-                              refreshKey,
-                              filter,
-                              onOpenMenu,
-                            }: {
-  chart: DashChart
+export function ComponentCanvas({
+                                  component,
+                                  refreshKey,
+                                  filter,
+                                  onOpenMenu,
+                                }: {
+  component: WorkbenchComponent
   refreshKey: number
   filter: string
   onOpenMenu?: (to: string) => void
 }) {
-  const config = chartConfig(chart)
+  const config = componentConfig(component)
 
   if (config.type === 'index') {
     const metric = kpiOptions.find((item) => item.id === config.metric) ?? kpiOptions[0]
@@ -133,7 +132,7 @@ export function ChartCanvas({
         </tr>
         </thead>
         <tbody>
-        {chartDataRows().map((row) => (
+        {componentDataRows().map((row) => (
           <tr key={row.name}>
             {visibleColumns.map((column) => (
               <td key={column.id}>{row[column.id]}</td>
@@ -232,7 +231,7 @@ export function ChartCanvas({
 
   return (
     <ReactECharts
-      option={buildOption(chart, refreshKey, filter)}
+      option={buildOption(component, refreshKey, filter)}
       style={{height: '100%'}}
       opts={{renderer: 'svg'}}
       notMerge
@@ -240,6 +239,6 @@ export function ChartCanvas({
   )
 }
 
-function chartDataRows(): Record<string, string | number>[] {
-  return chartData.salesRank
+function componentDataRows(): Record<string, string | number>[] {
+  return componentData.salesRank
 }
