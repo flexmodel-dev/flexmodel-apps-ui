@@ -51,12 +51,18 @@ export default function FormDesign() {
     )
   }
 
+  const systemBackPath = formName === 'f_role'
+    ? '/admin/role-privileges'
+    : '/admin/users'
+
   return (
     <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
       <FormDesigner
         appId={appId}
         initialForm={form}
-        onBack={() => navigate(`/admin/apps/${appId}/settings/forms`)}
+        onBack={() => navigate(appId === 'system'
+          ? systemBackPath
+          : `/admin/apps/${appId}/settings/forms`)}
         onFormChange={setForm}
       />
     </AdminLayout>
