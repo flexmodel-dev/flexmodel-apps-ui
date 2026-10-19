@@ -911,11 +911,25 @@ export const projectPlans: ProjectPlan[] = [
 export interface DashChart {
   id: string
   title: string
-  type: 'bar' | 'line' | 'pie' | 'dataloader' | 'index'
+  type: 'bar' | 'line' | 'pie' | 'dataloader' | 'index' | 'favorites' | 'tasks'
   w: number
   h: number
   x: number
   y: number
+  config?: ChartConfig
+}
+
+export interface ChartConfig {
+  title: string
+  type: DashChart['type']
+  dataSource: string
+  showLegend: boolean
+  showLabel: boolean
+  smooth: boolean
+  palette: 'primary' | 'multi'
+  metric: string
+  visibleColumns: string[]
+  favoriteForms: string[]
 }
 
 export const dashboards = [
@@ -931,12 +945,71 @@ export const dashCharts: Record<string, DashChart[]> = {
     { id: 'c-04', title: '近 12 个月新增客户趋势', type: 'line', w: 6, h: 6, x: 0, y: 4 },
     { id: 'c-05', title: '商机金额（按阶段）', type: 'bar', w: 6, h: 6, x: 6, y: 4 },
     { id: 'c-06', title: '销售业绩排行', type: 'dataloader', w: 12, h: 7, x: 0, y: 10 },
+    {id: 'c-07', title: '我的任务', type: 'tasks', w: 4, h: 6, x: 0, y: 17},
   ],
   'dash-1': [
     { id: 'c-11', title: '销售目标完成率', type: 'index', w: 3, h: 4, x: 0, y: 0 },
     { id: 'c-12', title: '商机阶段漏斗', type: 'pie', w: 4, h: 6, x: 3, y: 0 },
     { id: 'c-13', title: '月度回款', type: 'bar', w: 5, h: 6, x: 7, y: 0 },
   ],
+}
+
+export const addableChartTypes = [
+  {type: 'index', label: '指标卡', description: '突出展示单个核心业务指标', w: 2, h: 4},
+  {type: 'line', label: '折线图', description: '观察近 12 个月新增客户趋势', w: 6, h: 6},
+  {type: 'bar', label: '柱状图', description: '比较商机各阶段金额规模', w: 6, h: 6},
+  {type: 'pie', label: '饼图', description: '展示客户行业分布占比', w: 4, h: 6},
+  {type: 'dataloader', label: '明细表', description: '查看销售业绩排行明细', w: 12, h: 7},
+  {type: 'favorites', label: '我的常用', description: '放置常用表单，点击直达对应菜单', w: 6, h: 4},
+  {type: 'tasks', label: '我的任务', description: '按待办工作、最近处理、我发起的查看流程审批列表', w: 4, h: 6},
+] as const
+
+export const kpiOptions = [
+  {id: 'new-customers', label: '本月新增客户数', value: 20},
+  {id: 'won-opportunities', label: '本月赢单商机数', value: 8},
+  {id: 'target-completion', label: '销售目标完成率', value: 86},
+  {id: 'new-leads', label: '本季新增线索数', value: 42},
+]
+
+export const salesColumns = [
+  {id: 'name', label: '姓名'},
+  {id: 'dept', label: '部门'},
+  {id: 'target', label: '目标'},
+  {id: 'done', label: '完成'},
+  {id: 'rate', label: '完成率'},
+]
+
+export const favoriteForms = [
+  {label: '客户', to: '/apps/app-sales/menu-customer'},
+  {label: '商机', to: '/apps/app-sales/menu-opportunity'},
+  {label: '产品', to: '/apps/app-sales/menu-product'},
+  {label: '报销单', to: '/apps/app-expense/menu-expense'},
+]
+
+export function addDashChart(
+  dashboardId: string,
+  title: string,
+  type: DashChart['type'],
+  config: ChartConfig = defaultChartConfig(type),
+) {
+  const charts = dashCharts[dashboardId]
+  if (!charts) return null
+
+  const preset = addableChartTypes.find((item) => item.type === type) ?? addableChartTypes[1]
+  const bottom = charts.reduce((max, chart) => Math.max(max, chart.y + chart.h), 0)
+  const chart: DashChart = {
+    id: `c-${String(charts.length + 1).padStart(2, '0')}`,
+    title,
+    type: preset.type,
+    w: preset.w,
+    h: preset.h,
+    x: 0,
+    y: bottom,
+    config: {...config, title, type: preset.type},
+  }
+
+  charts.push(chart)
+  return chart
 }
 
 /* ---------------- 图表数据 ---------------- */
@@ -966,6 +1039,74 @@ export const chartData = {
     { name: '吴征', dept: '市场部', target: 300, done: 288, rate: '96.0%' },
     { name: '赵云', dept: '研发部', target: 200, done: 122, rate: '61.0%' },
   ],
+}
+
+export const chartDataSources = [
+  {
+    id: 'customers',
+    label: '近 12 个月新增客户',
+    dimension: '月份',
+    measure: '客户数',
+    rows: chartData.newCustomers12m.months.map((month, index) => ({
+      dimension: month,
+      value: chartData.newCustomers12m.values[index],
+    })),
+  },
+  {
+    id: 'industry',
+    label: '客户行业分布',
+    dimension: '行业',
+    measure: '客户数',
+    rows: chartData.industryDist.map((item) => ({
+      dimension: item.name,
+      value: item.value,
+    })),
+  },
+  {
+    id: 'stage',
+    label: '商机阶段金额',
+    dimension: '阶段',
+    measure: '金额',
+    rows: chartData.stageAmount.stages.map((stage, index) => ({
+      dimension: stage,
+      value: chartData.stageAmount.values[index],
+    })),
+  },
+  {
+    id: 'payment',
+    label: '月度回款',
+    dimension: '月份',
+    measure: '回款金额',
+    rows: chartData.monthlyPayment.months.map((month, index) => ({
+      dimension: month,
+      value: chartData.monthlyPayment.values[index],
+    })),
+  },
+  {
+    id: 'sales',
+    label: '销售业绩排行',
+    dimension: '姓名',
+    measure: '完成金额',
+    rows: chartData.salesRank.map((item) => ({
+      dimension: item.name,
+      value: item.done,
+    })),
+  },
+]
+
+export function defaultChartConfig(type: DashChart['type']): ChartConfig {
+  return {
+    title: '',
+    type,
+    dataSource: type === 'pie' ? 'industry' : type === 'bar' ? 'stage' : 'customers',
+    showLegend: type === 'pie',
+    showLabel: type !== 'line',
+    smooth: type === 'line',
+    palette: type === 'pie' ? 'multi' : 'primary',
+    metric: 'new-customers',
+    visibleColumns: salesColumns.map((column) => column.id),
+    favoriteForms: favoriteForms.map((item) => item.to),
+  }
 }
 
 /* ---------------- 导航配置（NavBuilder 默认 + 业务对象） ---------------- */

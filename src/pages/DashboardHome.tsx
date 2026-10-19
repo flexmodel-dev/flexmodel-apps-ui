@@ -1,189 +1,40 @@
 import * as React from 'react'
-import ReactECharts from 'echarts-for-react'
 import { GridStack } from 'gridstack'
 import 'gridstack/dist/gridstack.min.css'
-import { Lock, LockOpen, Maximize, Minimize, RefreshCw } from 'lucide-react'
+import {Lock, LockOpen, Maximize, Minimize, Pencil, Plus, RefreshCw} from 'lucide-react'
+import {useNavigate} from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
-import { UserAvatar } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { chartData, dashCharts, dashboards } from '@/data/mock'
+import {ChartCanvas} from '@/components/biz/ChartCanvas'
+import {ChartDesigner, type ChartDesignerResult} from '@/components/biz/ChartDesigner'
+import {addDashChart, dashCharts, dashboards} from '@/data/mock'
 
 type DashChart = (typeof dashCharts)['dash-0'][number]
-
-function buildOption(type: string, refreshKey = 0, filter = '全部') {
-  const filterWeight = filter.length
-  const jitter = (value: number, offset: number) => value + ((refreshKey * 3 + offset + filterWeight) % 7) - 3
-  const primaryHsl = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
-  const primary = `hsl(${primaryHsl})`
-  const primaryMuted = `hsl(${primaryHsl} / 0.12)`
-
-  if (type === 'line') {
-    return {
-      grid: { top: 30, left: 40, right: 20, bottom: 30 },
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: chartData.newCustomers12m.months, axisLine: { lineStyle: { color: '#e4e4e7' } }, axisLabel: { color: '#71717a' } },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f4f4f5' } }, axisLabel: { color: '#71717a' } },
-      series: [
-        {
-          type: 'line',
-          smooth: true,
-          symbolSize: 6,
-          data: chartData.newCustomers12m.values.map(jitter),
-          itemStyle: { color: primary },
-          areaStyle: { color: primaryMuted },
-        },
-      ],
-    }
-  }
-
-  if (type === 'pie') {
-    return {
-      tooltip: { trigger: 'item' },
-      legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: '#71717a', fontSize: 11 } },
-      series: [
-        {
-          type: 'pie',
-          radius: ['42%', '68%'],
-          center: ['50%', '44%'],
-          label: { show: false },
-          data: chartData.industryDist.map((item, index) => ({
-            ...item,
-            value: jitter(item.value, index),
-            itemStyle: {
-              color: `hsl(${primaryHsl} / ${[1, 0.72, 0.48, 0.28][index] ?? 0.2})`,
-              borderColor: '#fff',
-              borderWidth: 2,
-            },
-          })),
-        },
-      ],
-    }
-  }
-
-  if (type === 'payment-bar') {
-    return {
-      grid: { top: 30, left: 50, right: 20, bottom: 30 },
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: chartData.monthlyPayment.months, axisLabel: { color: '#71717a' }, axisLine: { lineStyle: { color: '#e4e4e7' } } },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f4f4f5' } }, axisLabel: { color: '#71717a' } },
-      series: [
-        {
-          type: 'bar',
-          barWidth: 22,
-          data: chartData.monthlyPayment.values.map(jitter),
-          itemStyle: {
-            borderRadius: 4,
-            color: primary,
-          },
-        },
-      ],
-    }
-  }
-
-  return {
-    grid: { top: 30, left: 50, right: 20, bottom: 30 },
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: chartData.stageAmount.stages, axisLabel: { color: '#71717a' }, axisLine: { lineStyle: { color: '#e4e4e7' } } },
-    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f4f4f5' } }, axisLabel: { color: '#71717a' } },
-    series: [
-      {
-        type: 'bar',
-        barWidth: 22,
-        data: chartData.stageAmount.values.map(jitter),
-        itemStyle: {
-          borderRadius: 4,
-            color: primary,
-        },
-      },
-    ],
-  }
-}
 
 function ChartCard({
   chart,
   refreshKey,
   editable,
   filter,
+                     onOpenMenu,
+                     onEdit,
   onRefresh,
 }: {
   chart: DashChart
   refreshKey: number
   editable: boolean
   filter: string
+  onOpenMenu: (to: string) => void
+  onEdit: () => void
   onRefresh: () => void
 }) {
-  const chartRef = React.useRef<ReactECharts>(null)
-  let body: React.ReactNode
-
-  if (chart.type === 'index') {
-    const values: Record<string, number> = { 'c-01': 20, 'c-02': 8, 'c-11': 86, 'c-12': 42 }
-    const labels: Record<string, string> = {
-      'c-01': '本月新增客户数',
-      'c-02': '本月赢单商机数',
-      'c-11': '销售目标完成率',
-      'c-12': '本季新增线索数',
-    }
-    body = (
-      <div className="flex h-full flex-col items-center justify-center">
-        <div className="text-4xl font-light text-primary">
-          {(values[chart.id] ?? 0) + (refreshKey % 5) + filter.length}
-        </div>
-        <div className="mt-2 text-sm text-muted-foreground">{labels[chart.id] ?? '指标'}</div>
-      </div>
-    )
-  } else if (chart.type === 'dataloader') {
-    body = (
-      <table className="app-table w-full">
-        <thead>
-          <tr>
-            <th>姓名</th>
-            <th>部门</th>
-            <th>目标 (万元)</th>
-            <th>完成 (万元)</th>
-            <th>完成率</th>
-          </tr>
-        </thead>
-        <tbody>
-          {chartData.salesRank.map((item) => (
-            <tr key={item.name}>
-              <td>
-                <div className="flex items-center gap-2">
-                  <UserAvatar name={item.name} size={22} />
-                  {item.name}
-                </div>
-              </td>
-              <td>{item.dept}</td>
-              <td>{item.target}</td>
-              <td>{item.done + (refreshKey % 4) * 2}</td>
-              <td>
-                <span className="badge-secondary">{item.rate}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    )
-  } else {
-    body = <ReactECharts ref={chartRef} option={buildOption(chart.type, refreshKey, filter)} style={{ height: '100%' }} opts={{ renderer: 'svg' }} notMerge />
-  }
-
-  React.useEffect(() => {
-    const instance = chartRef.current?.getEchartsInstance()
-    if (!instance) return
-    const observer = new ResizeObserver(() => instance.resize())
-    observer.observe(instance.getDom())
-    return () => observer.disconnect()
-  }, [])
-
   return (
     <div className="grid-stack-item" gs-id={chart.id} gs-x={chart.x} gs-y={chart.y} gs-w={chart.w} gs-h={chart.h}>
       <div className="app-card group grid-stack-item-content text-card-foreground">
@@ -191,12 +42,17 @@ function ChartCard({
           <div className="flex items-center justify-between">
             <h6 className={cn('chart-title m-0 text-sm font-semibold', editable ? 'cursor-move' : 'cursor-default')}>{chart.title}</h6>
             <div className="flex items-center gap-1 opacity-0 transition-opacity hover:opacity-100 group-hover:opacity-100">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="编辑图表" onClick={onEdit}>
+                <Pencil className="h-4 w-4"/>
+              </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" title="刷新" onClick={onRefresh}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
           </div>
-          <div className="mt-3 flex-1 overflow-auto">{body}</div>
+          <div className="mt-3 flex-1 overflow-auto">
+            <ChartCanvas chart={chart} refreshKey={refreshKey} filter={filter} onOpenMenu={onOpenMenu}/>
+          </div>
         </div>
       </div>
     </div>
@@ -204,6 +60,7 @@ function ChartCard({
 }
 
 export default function DashboardHome() {
+  const navigate = useNavigate()
   const gridRef = React.useRef<HTMLDivElement>(null)
   const [dash, setDash] = React.useState(dashboards[0].id)
   const [editable, setEditable] = React.useState(true)
@@ -212,6 +69,9 @@ export default function DashboardHome() {
   const [fullscreen, setFullscreen] = React.useState(Boolean(document.fullscreenElement))
   const [filter, setFilter] = React.useState('全部')
   const [refreshInterval, setRefreshInterval] = React.useState('无')
+  const [designerOpen, setDesignerOpen] = React.useState(false)
+  const [designerMode, setDesignerMode] = React.useState<'create' | 'edit'>('create')
+  const [designerChart, setDesignerChart] = React.useState<DashChart | null>(null)
 
   React.useEffect(() => {
     setLayout(dashCharts[dash] ?? [])
@@ -230,6 +90,46 @@ export default function DashboardHome() {
       return
     }
     await document.documentElement.requestFullscreen?.()
+  }
+
+  const openCreateDesigner = () => {
+    setDesignerMode('create')
+    setDesignerChart(null)
+    setDesignerOpen(true)
+  }
+
+  const openEditDesigner = (chart: DashChart) => {
+    setDesignerMode('edit')
+    setDesignerChart(chart)
+    setDesignerOpen(true)
+  }
+
+  const handleDesignerSave = (result: ChartDesignerResult) => {
+    if (designerMode === 'create') {
+      addDashChart(dash, result.title, result.type, result.config)
+    } else if (designerChart) {
+      const charts = dashCharts[dash] ?? []
+      const index = charts.findIndex((item) => item.id === designerChart.id)
+      if (index >= 0) {
+        charts[index] = {
+          ...charts[index],
+          title: result.title,
+          type: result.type,
+          w: result.w,
+          h: result.h,
+          config: result.config,
+        }
+      }
+    }
+
+    setLayout([...(dashCharts[dash] ?? [])])
+    setRefreshKey((key) => key + 1)
+    setDesignerOpen(false)
+    setDesignerChart(null)
+  }
+
+  const openMenu = (to: string) => {
+    navigate(to)
   }
 
   React.useEffect(() => {
@@ -304,6 +204,11 @@ export default function DashboardHome() {
           </DropdownMenu>
 
           <div className="flex items-center gap-1">
+            <Button size="sm" onClick={openCreateDesigner}>
+              <Plus className="h-4 w-4"/>
+              添加图表
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -358,11 +263,24 @@ export default function DashboardHome() {
                 refreshKey={refreshKey}
                 editable={editable}
                 filter={filter}
+                onOpenMenu={openMenu}
+                onEdit={() => openEditDesigner(chart)}
                 onRefresh={() => setRefreshKey((key) => key + 1)}
               />
             ))}
           </div>
         </div>
+
+        <ChartDesigner
+          open={designerOpen}
+          mode={designerMode}
+          chart={designerChart ?? undefined}
+          onSave={handleDesignerSave}
+          onClose={() => {
+            setDesignerOpen(false)
+            setDesignerChart(null)
+          }}
+        />
       </div>
     </AppLayout>
   )
