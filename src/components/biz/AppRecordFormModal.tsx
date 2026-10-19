@@ -1,5 +1,6 @@
 import * as React from 'react'
-import {Info} from 'lucide-react'
+import {useNavigate} from 'react-router-dom'
+import {Info, Settings} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -145,14 +146,13 @@ export function AppRecordFormModal({
   recordContext?: AppRecordContext
   onSaved?: (id: string) => void
 }) {
+  const navigate = useNavigate()
   const [values, setValues] = React.useState<AppRecord>({})
   const [error, setError] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [referenceOptions, setReferenceOptions] = React.useState<Record<string, ReferenceOption[]>>({})
 
-  const layoutItems = form.layout.items.length
-    ? form.layout.items
-    : form.fields.filter((field) => !field.builtin).map((field) => ({type: 'FIELD' as const, name: field.name}))
+  const layoutItems = form.layout.items
   const fieldsByName = new Map(form.fields.map((field) => [field.name, field]))
   const renderItems = layoutItems.filter((item): item is AppFormItem =>
     item.type === 'SECTION'
@@ -160,6 +160,9 @@ export function AppRecordFormModal({
       && Boolean(item.name)
       && fieldsByName.has(item.name!)
       && !(recordContext && item.name === recordContext.referenceField)))
+  const renderableFieldNames = new Set(renderItems
+    .filter((item): item is AppFormItem => item.type === 'FIELD' && Boolean(item.name))
+    .map((item) => item.name!))
 
   React.useEffect(() => {
     if (!open) return
@@ -167,7 +170,7 @@ export function AppRecordFormModal({
     setError('')
     if (!recordId) {
       const initial: AppRecord = {}
-      form.fields.filter((field) => !field.builtin).forEach((field) => {
+      form.fields.filter((field) => !(recordContext && field.name === recordContext.referenceField)).forEach((field) => {
         initial[field.name] = field.type === 'BOOL' ? false : ''
       })
       if (!cancelled) setValues(initial)
@@ -179,7 +182,7 @@ export function AppRecordFormModal({
       .then((record) => {
         if (cancelled) return
         const initial: AppRecord = {}
-        form.fields.filter((field) => !field.builtin && !(
+        form.fields.filter((field) => !(
           recordContext && field.name === recordContext.referenceField
         )).forEach((field) => {
           initial[field.name] = toInputValue(field, record[field.name])
@@ -225,7 +228,9 @@ export function AppRecordFormModal({
   const submit = async () => {
     const payload: AppRecord = {}
     for (const field of form.fields.filter((item) =>
-      !item.builtin && !(recordContext && item.name === recordContext.referenceField)
+      renderableFieldNames.has(item.name)
+      && !item.builtin
+      && !(recordContext && item.name === recordContext.referenceField)
     )) {
       const value = values[field.name]
       if (field.required && (value === undefined || value === null || value === '')) {
@@ -261,6 +266,21 @@ export function AppRecordFormModal({
       onOpenChange={onOpenChange}
       width={960}
       title={recordId ? `编辑${form.label}` : `新建${form.label}`}
+      headerExtra={
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-primary"
+          title="表单设计"
+          aria-label="表单设计"
+          onClick={() => {
+            onOpenChange(false)
+            navigate(`/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/form-design`)
+          }}
+        >
+          <Settings className="h-4 w-4"/>
+        </Button>
+      }
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
@@ -298,7 +318,7 @@ export function AppRecordFormModal({
                   value={values[field.name]}
                   options={field.options ?? []}
                   referenceOptions={referenceOptions[field.name] ?? []}
-                  disabled={item.readonly}
+                  disabled={item.readonly || field.builtin}
                   onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
                 />
               </div>

@@ -452,7 +452,7 @@ export default function RecordList({formName}: { formName?: string }) {
     : form.fields.filter((field) => !field.builtin).map((field) => field.name)
   const layoutColumns = layoutNames
     .map((name) => fieldMap.get(name))
-    .filter((field): field is AppFormField => Boolean(field) && !field!.builtin)
+    .filter((field): field is AppFormField => Boolean(field))
   const primaryField = form.displayField ? fieldMap.get(form.displayField) : undefined
   const columns = primaryField
     ? [primaryField, ...layoutColumns.filter((field) => field.name !== primaryField.name)]

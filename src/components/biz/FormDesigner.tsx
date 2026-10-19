@@ -280,6 +280,7 @@ export function FormDesigner({
   const [form, setForm] = React.useState<DesignForm>(() => toDesignForm(initialForm))
   const [items, setItems] = React.useState<AppFormItem[]>([])
   const [draggingIndex, setDraggingIndex] = React.useState<number | null>(null)
+  const [fieldRemarks, setFieldRemarks] = React.useState<Record<string, string>>({})
   const [dropIndex, setDropIndex] = React.useState<number | null>(null)
   const dragCompletedRef = React.useRef(false)
   const draggingIndexRef = React.useRef<number | null>(null)
@@ -399,8 +400,10 @@ export function FormDesigner({
       return field ? {index, kind: 'FIELD', field, item} : undefined
     })
     .filter((item): item is DesignLayoutItem => Boolean(item))
-  const availableFields = allFields.filter((field) => !field.builtin
-    && !items.some((item) => item.type === 'FIELD' && item.name === field.name))
+  const laidOutFieldNames = new Set(items
+    .filter((item) => item.type === 'FIELD' && Boolean(item.name))
+    .map((item) => item.name!))
+  const availableFields = allFields.filter((field) => !laidOutFieldNames.has(field.name))
 
   const rowWidthTotals = (() => {
     const totals = new Map<number, number>()
@@ -427,7 +430,12 @@ export function FormDesigner({
   const addField = (fieldName: string) => {
     setItems((previous) => previous.some((item) => item.type === 'FIELD' && item.name === fieldName)
       ? previous
-      : [...previous, {type: 'FIELD', name: fieldName, width: 'HALF'}])
+      : [...previous, {
+        type: 'FIELD',
+        name: fieldName,
+        width: 'HALF',
+        tip: fieldRemarks[fieldName],
+      }])
   }
   const openFieldCreate = (fieldType: string, defaultLabel: string) => {
     setCreatingField({
@@ -449,21 +457,14 @@ export function FormDesigner({
         required: false,
       })
       const designField = {...createdField}
-      const layoutItem: AppFormItem = {
-        type: 'FIELD',
-        name: createdField.name,
-        width: 'HALF',
-        tip: remark || undefined,
-      }
-      const nextItems = [...items, layoutItem]
       const nextForm = {
         ...form,
         fields: [...form.fields, designField],
-        layout: {items: nextItems},
+        layout: {items},
       }
       setForm(nextForm)
       onFormChange(nextForm)
-      setItems(nextItems)
+      setFieldRemarks((previous) => ({...previous, [createdField.name]: remark}))
       setCreatingField(null)
     } catch (caught) {
       setFieldError(caught instanceof Error ? caught.message : '保存字段失败')
@@ -1027,16 +1028,17 @@ export function FormDesigner({
                       <span className="min-w-0">
                         <span className="block truncate text-sm">{field.label}</span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {typeLabels[field.type] ?? field.type}
+                          {field.builtin ? '内置字段' : typeLabels[field.type] ?? field.type}
                         </span>
                       </span>
-                    <Plus
-                      className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:text-primary group-hover:opacity-100"/>
+                    <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                      <Plus className="h-3.5 w-3.5"/>
+                    </span>
                   </button>
                 ))}
                 {availableFields.length === 0 && (
                   <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-                    全部字段已布局
+                    暂无可布局字段
                   </div>
                 )}
               </TabsContent>

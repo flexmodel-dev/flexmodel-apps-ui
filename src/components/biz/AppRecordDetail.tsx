@@ -9,6 +9,7 @@ import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {Empty} from '@/components/ui/empty'
 import {cn} from '@/lib/utils'
+import {formItemWidthTypeClasses} from '@/lib/form-items'
 import {getAppForm, type AppForm, type AppFormField, type AppFormItem} from '@/services/appForms'
 import {deleteAppRecord, getAppRecord, type AppRecord} from '@/services/appRecords'
 
@@ -100,7 +101,11 @@ export function AppRecordDetail({
   const layoutItems: AppFormItem[] = form.layout.items.length
     ? form.layout.items
     : form.fields.filter((field) => !field.builtin).map((field) => ({type: 'FIELD' as const, name: field.name}))
-  const sections: Array<{ key: string; label: string; fields: AppFormField[] }> = [
+  const sections: Array<{
+    key: string
+    label: string
+    fields: Array<{ field: AppFormField; item?: AppFormItem }>
+  }> = [
     {key: 'default', label: form.label, fields: []},
   ]
   const subformItems: Array<{ key: string; item: AppFormItem }> = []
@@ -118,8 +123,8 @@ export function AppRecordDetail({
       return
     }
     const field = item.name ? fieldMap.get(item.name) : undefined
-    if (field && !field.builtin && !item.hidden) {
-      sections[sections.length - 1].fields.push(field)
+    if (field && !item.hidden) {
+      sections[sections.length - 1].fields.push({field, item})
     }
   })
 
@@ -164,12 +169,13 @@ export function AppRecordDetail({
                 </button>
               )}
               {!collapsed && (
-                <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
-                  {section.fields.map((field) => {
-                    const layoutItem = layoutItems.find((item) => item.type === 'FIELD' && item.name === field.name)
+                <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12">
+                  {section.fields.map(({field, item}) => {
+                    const layoutItem = layoutItems.find((layoutEntry) => layoutEntry.type === 'FIELD' && layoutEntry.name === field.name)
+                    const width = item?.width ?? layoutItem?.width ?? 'HALF'
                     const label = layoutItem?.label?.trim() || field.label
                     return (
-                      <div key={field.name} className="min-w-0">
+                      <div key={field.name} className={cn('min-w-0', formItemWidthTypeClasses[width])}>
                         <div className="text-xs text-muted-foreground">{label}</div>
                         <div className="mt-1 truncate text-sm font-medium text-foreground">
                           {field.type === 'REFERENCE' ? (
