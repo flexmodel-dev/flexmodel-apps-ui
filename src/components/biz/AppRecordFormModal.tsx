@@ -4,6 +4,7 @@ import {Info, Settings} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {Textarea} from '@/components/ui/textarea'
 import {Checkbox} from '@/components/ui/checkbox'
 import {
   Select,
@@ -127,6 +128,16 @@ function FieldControl({
         />
         {value === true ? '是' : '否'}
       </label>
+    )
+  }
+
+  if (field.type === 'NTEXT') {
+    return (
+      <Textarea
+        value={String(value)}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      />
     )
   }
 
