@@ -84,6 +84,7 @@ const typeLabels: Record<string, string> = {
   NUMBER: '整数',
   DECIMAL: '小数',
   REFERENCE: '引用',
+  MULTIREFERENCE: '多选引用',
   PICKLIST: '下拉列表',
   SELECT: '列表',
   MULTISELECT: '多选',
@@ -135,12 +136,30 @@ const fieldTypePalette: {
   {type: 'STATE', label: '状态', icon: Activity},
 ]
 
+const builtinFieldTypeNames = new Set([
+  'TEXT',
+  'NTEXT',
+  'PHONE',
+  'EMAIL',
+  'URL',
+  'TAG',
+  'SELECT',
+  'NUMBER',
+  'DECIMAL',
+  'DATE',
+  'DATETIME',
+  'TIME',
+  'BOOL',
+  'MULTISELECT',
+])
+
 interface DesignForm {
   name: string
   label: string
   description: string
   displayField?: string | null
   managed: boolean
+  builtin: boolean
   fields: AppFormField[]
   layout: AppFormLayout
   viewTabs: AppForm['viewTabs']
@@ -165,6 +184,7 @@ function toDesignForm(form: AppForm): DesignForm {
     description: form.description,
     displayField: form.displayField,
     managed: form.managed,
+    builtin: form.builtin,
     fields: form.fields.map((field) => ({...field})),
     layout: form.layout,
     viewTabs: form.viewTabs,
@@ -404,6 +424,9 @@ export function FormDesigner({
     .filter((item) => item.type === 'FIELD' && Boolean(item.name))
     .map((item) => item.name!))
   const availableFields = allFields.filter((field) => !laidOutFieldNames.has(field.name))
+  const availableFieldTypes = form.builtin
+    ? fieldTypePalette.filter((fieldType) => builtinFieldTypeNames.has(fieldType.type))
+    : fieldTypePalette
 
   const rowWidthTotals = (() => {
     const totals = new Map<number, number>()
@@ -761,7 +784,7 @@ export function FormDesigner({
                 <Check className="h-4 w-4"/> 已保存
               </span>
           )}
-          <Button variant="secondary" onClick={resetLayout}>
+          <Button variant="secondary" onClick={resetLayout} disabled={form.builtin}>
             <RotateCcw className="h-4 w-4"/> 重置布局
           </Button>
           <DropdownMenu>
@@ -774,9 +797,11 @@ export function FormDesigner({
               <DropdownMenuItem onClick={addDivider}>
                 <Columns3 className="h-4 w-4"/> 分栏
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={openSubformCreate}>
-                <Table2 className="h-4 w-4"/> 子表单
-              </DropdownMenuItem>
+              {!form.builtin && (
+                <DropdownMenuItem onClick={openSubformCreate}>
+                  <Table2 className="h-4 w-4"/> 子表单
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button onClick={saveLayout} disabled={isSavingLayout}>
@@ -930,27 +955,31 @@ export function FormDesigner({
                                 onChange={(width) => updateLayoutWidth(entry.index, width)}
                               />
                             )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              title="修改"
-                              onClick={() => entry.kind === 'SECTION'
-                                ? openSectionEdit(entry.index)
-                                : entry.kind === 'SUBFORM'
-                                  ? openSubformEdit(entry.index)
-                                  : openFieldEdit(entry.index)}
-                            >
-                              <Pencil className="h-4 w-4"/>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                              onClick={() => removeItem(entry.index)}
-                            >
-                              <X className="h-4 w-4"/>
-                            </Button>
+                            {!(form.builtin && entry.kind === 'SUBFORM') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                title="修改"
+                                onClick={() => entry.kind === 'SECTION'
+                                  ? openSectionEdit(entry.index)
+                                  : entry.kind === 'SUBFORM'
+                                    ? openSubformEdit(entry.index)
+                                    : openFieldEdit(entry.index)}
+                              >
+                                <Pencil className="h-4 w-4"/>
+                              </Button>
+                            )}
+                            {!(form.builtin && entry.kind === 'SUBFORM') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => removeItem(entry.index)}
+                              >
+                                <X className="h-4 w-4"/>
+                              </Button>
+                            )}
                           </div>
                         </div>
                       )
@@ -1028,7 +1057,13 @@ export function FormDesigner({
                       <span className="min-w-0">
                         <span className="block truncate text-sm">{field.label}</span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {field.builtin ? '内置字段' : typeLabels[field.type] ?? field.type}
+                          {field.extension
+                            ? '扩展'
+                            : field.builtin
+                              ? '内置字段'
+                              : form.builtin && field.locked
+                                ? '核心字段'
+                                : typeLabels[field.type] ?? field.type}
                         </span>
                       </span>
                     <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -1044,7 +1079,7 @@ export function FormDesigner({
               </TabsContent>
               <TabsContent value="field-new" className="mt-0 min-h-0 flex-1 overflow-y-auto p-2">
                 <div className="grid gap-1">
-                  {fieldTypePalette.map((fieldType) => {
+                  {availableFieldTypes.map((fieldType) => {
                     const Icon = fieldType.icon
                     return (
                       <button

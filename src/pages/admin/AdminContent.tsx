@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Link } from 'react-router-dom'
 import { CirclePlus } from 'lucide-react'
 import {Button} from '@/components/ui/button'
+import {Badge} from '@/components/ui/badge'
 import {BizDialog} from '@/components/ui/dialog'
 import {Input} from '@/components/ui/input'
 import {AppLoading} from '@/components/biz/AppLoading'
@@ -90,11 +91,14 @@ export function FormManagementContent({appId}: { appId?: string }) {
             {forms.map((form) => (
               <Link
                 key={form.name}
-                to={`/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/base`}
+                to={`/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/${form.builtin ? 'form-design' : 'base'}`}
                 className="block rounded-md border bg-card transition-colors hover:bg-accent"
               >
                 <div className="card-body p-3">
-                  <span className="block truncate text-sm font-medium">{form.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium">{form.label}</span>
+                    {form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
+                  </div>
                   <p className="mb-0 mt-0.5 truncate text-xs text-muted-foreground">
                     {form.description || form.name}
                   </p>

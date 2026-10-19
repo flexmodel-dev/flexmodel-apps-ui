@@ -32,10 +32,13 @@ import {
   type AppRecordContext,
 } from '@/services/appRecords'
 
-type ReferenceOption = { value: string; label: string }
+export type ReferenceOption = { value: string; label: string }
 
 function toInputValue(field: AppFormField, value: unknown) {
   if (field.type === 'BOOL') return value === true || value === 'true'
+  if (field.type === 'MULTIREFERENCE') {
+    return Array.isArray(value) ? value.map(item => String(item)) : []
+  }
   if (field.type === 'REFERENCE' && value && typeof value === 'object' && 'id' in value) {
     return String((value as { id?: unknown }).id ?? '')
   }
@@ -65,12 +68,37 @@ function FieldControl({
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option.id ?? option.text} value={option.text ?? ''}>
+            <SelectItem key={option.id ?? option.text} value={option.id ?? option.text ?? ''}>
               {option.text ?? option.id}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
+    )
+  }
+
+  if (field.type === 'MULTIREFERENCE') {
+    return (
+      <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-2">
+        {referenceOptions.map((option) => {
+          const selected = Array.isArray(value) && value.map(String).includes(option.value)
+          return (
+            <label key={option.value} className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={selected}
+                disabled={disabled}
+                onCheckedChange={(checked) => {
+                  const current = Array.isArray(value) ? value.map(String) : []
+                  onChange(checked === true
+                    ? Array.from(new Set([...current, option.value]))
+                    : current.filter((item) => item !== option.value))
+                }}
+              />
+              <span className="min-w-0 flex-1 truncate">{option.label}</span>
+            </label>
+          )
+        })}
+      </div>
     )
   }
 
@@ -136,6 +164,11 @@ export function AppRecordFormModal({
                                      form,
                                      recordId,
                                      recordContext,
+                                     loadRecord,
+                                     saveRecord,
+                                     referenceOptions,
+                                     renderSubform,
+                                     designPath,
                                      onSaved,
                                    }: {
   open: boolean
@@ -144,18 +177,24 @@ export function AppRecordFormModal({
   form: AppForm
   recordId?: string | null
   recordContext?: AppRecordContext
+  loadRecord?: (recordId: string) => Promise<AppRecord>
+  saveRecord?: (values: AppRecord, recordId?: string | null) => Promise<AppRecord>
+  referenceOptions?: Record<string, ReferenceOption[]>
+  renderSubform?: (item: AppFormItem) => React.ReactNode
+  designPath?: string
   onSaved?: (id: string) => void
 }) {
   const navigate = useNavigate()
   const [values, setValues] = React.useState<AppRecord>({})
   const [error, setError] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [referenceOptions, setReferenceOptions] = React.useState<Record<string, ReferenceOption[]>>({})
+  const [loadedReferenceOptions, setLoadedReferenceOptions] = React.useState<Record<string, ReferenceOption[]>>({})
 
   const layoutItems = form.layout.items
   const fieldsByName = new Map(form.fields.map((field) => [field.name, field]))
   const renderItems = layoutItems.filter((item): item is AppFormItem =>
     item.type === 'SECTION'
+    || item.type === 'SUBFORM'
     || (item.type === 'FIELD'
       && Boolean(item.name)
       && fieldsByName.has(item.name!)
@@ -171,14 +210,22 @@ export function AppRecordFormModal({
     if (!recordId) {
       const initial: AppRecord = {}
       form.fields.filter((field) => !(recordContext && field.name === recordContext.referenceField)).forEach((field) => {
-        initial[field.name] = field.type === 'BOOL' ? false : ''
+        const defaultOption = field.options?.find(option => option.defaultSelected)
+        initial[field.name] = field.type === 'BOOL'
+          ? false
+          : field.type === 'MULTIREFERENCE'
+            ? []
+            : defaultOption?.id ?? defaultOption?.text ?? ''
       })
       if (!cancelled) setValues(initial)
       return () => {
         cancelled = true
       }
     }
-    getAppRecord(appId, form.name, recordId, recordContext)
+    const recordPromise = loadRecord
+      ? loadRecord(recordId)
+      : getAppRecord(appId, form.name, recordId, recordContext)
+    recordPromise
       .then((record) => {
         if (cancelled) return
         const initial: AppRecord = {}
@@ -195,14 +242,15 @@ export function AppRecordFormModal({
     return () => {
       cancelled = true
     }
-  }, [appId, form, open, recordContext, recordId])
+  }, [appId, form, open, recordContext, recordId, loadRecord])
 
   React.useEffect(() => {
     if (!open) return
     let cancelled = false
     const referenceFields = form.fields.filter((field) =>
-      field.type === 'REFERENCE'
+      (field.type === 'REFERENCE' || field.type === 'MULTIREFERENCE')
       && field.referenceForm
+      && !referenceOptions?.[field.name]
       && !(recordContext && field.name === recordContext.referenceField)
     )
     Promise.all(referenceFields.map(async (field) => {
@@ -215,15 +263,15 @@ export function AppRecordFormModal({
     }))
       .then((entries) => {
         if (cancelled) return
-        setReferenceOptions(Object.fromEntries(entries))
+        setLoadedReferenceOptions(Object.fromEntries(entries))
       })
       .catch(() => {
-        if (!cancelled) setReferenceOptions({})
+        if (!cancelled) setLoadedReferenceOptions({})
       })
     return () => {
       cancelled = true
     }
-  }, [appId, form, open, recordContext])
+  }, [appId, form, open, recordContext, referenceOptions])
 
   const submit = async () => {
     const payload: AppRecord = {}
@@ -241,6 +289,8 @@ export function AppRecordFormModal({
         payload[field.name] = value === '' ? null : Number(value)
       } else if (field.type === 'BOOL') {
         payload[field.name] = value === true
+      } else if (field.type === 'MULTIREFERENCE') {
+        payload[field.name] = Array.isArray(value) ? value : []
       } else {
         payload[field.name] = value === '' ? null : value
       }
@@ -248,9 +298,11 @@ export function AppRecordFormModal({
     setIsSubmitting(true)
     setError('')
     try {
-      const saved = recordId
-        ? await updateAppRecord(appId, form.name, recordId, payload, recordContext)
-        : await createAppRecord(appId, form.name, payload, recordContext)
+      const saved = saveRecord
+        ? await saveRecord(payload, recordId)
+        : recordId
+          ? await updateAppRecord(appId, form.name, recordId, payload, recordContext)
+          : await createAppRecord(appId, form.name, payload, recordContext)
       onOpenChange(false)
       onSaved?.(String(saved.id ?? ''))
     } catch (caught: unknown) {
@@ -275,7 +327,7 @@ export function AppRecordFormModal({
           aria-label="表单设计"
           onClick={() => {
             onOpenChange(false)
-            navigate(`/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/form-design`)
+            navigate(designPath ?? `/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/form-design`)
           }}
         >
           <Settings className="h-4 w-4"/>
@@ -303,6 +355,13 @@ export function AppRecordFormModal({
             }
             const field = fieldsByName.get(item.name!)!
             if (item.hidden) return null
+            if (item.type === 'SUBFORM') {
+              return (
+                <div key={`${item.formName ?? 'subform'}-${item.referenceField ?? ''}`} className="md:col-span-12">
+                  {renderSubform?.(item) ?? null}
+                </div>
+              )
+            }
             return (
               <div
                 key={field.name}
@@ -317,7 +376,7 @@ export function AppRecordFormModal({
                   field={field}
                   value={values[field.name]}
                   options={field.options ?? []}
-                  referenceOptions={referenceOptions[field.name] ?? []}
+                  referenceOptions={{...referenceOptions, ...loadedReferenceOptions}[field.name] ?? []}
                   disabled={item.readonly || field.builtin}
                   onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
                 />

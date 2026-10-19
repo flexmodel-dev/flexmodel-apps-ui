@@ -250,7 +250,10 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       <div className="mx-auto w-full max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="m-0 text-xl font-semibold text-foreground">{form.label}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="m-0 text-xl font-semibold text-foreground">{form.label}</h1>
+              {form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">{sections[section]}</p>
           </div>
           <div className="flex gap-2">

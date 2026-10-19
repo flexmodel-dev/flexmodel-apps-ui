@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Link, useLocation} from 'react-router-dom'
-import {ChevronsLeft, ChevronsRight, LayoutGrid, Pencil, ShieldCheck, Users} from 'lucide-react'
+import {ChevronsLeft, ChevronsRight, LayoutGrid, ShieldCheck, Users} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'

@@ -134,6 +134,7 @@ export function AppReferenceValue({
             displayField: 'id',
             searchField: 'id',
             managed: false,
+            builtin: false,
             fields: [],
             layout: {items: []},
             viewTabs: [],

@@ -20,6 +20,7 @@ export type AppFormFieldType =
   | 'MULTISELECT'
   | 'TAG'
   | 'REFERENCE'
+  | 'MULTIREFERENCE'
   | 'FILE'
   | 'IMAGE'
   | 'AVATAR'
@@ -44,6 +45,8 @@ export interface AppFormField {
   builtin: boolean
   options?: AppFormFieldOption[] | null
   referenceForm?: string | null
+  locked?: boolean
+  extension?: boolean
 }
 
 export type AppViewFilterOperator =
@@ -100,6 +103,7 @@ export interface AppForm {
   displayField?: string | null
   searchField?: string | null
   managed: boolean
+  builtin: boolean
   createdAt?: string | null
   updatedAt?: string | null
   fields: AppFormField[]
@@ -151,6 +155,7 @@ function normalizeForm(form: AppForm): AppForm {
   return {
     ...form,
     description: form.description ?? '',
+    builtin: form.builtin ?? false,
     fields: Array.isArray(form.fields) ? form.fields : [],
     layout: {
       items: Array.isArray(form.layout?.items) ? form.layout.items : [],
