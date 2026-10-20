@@ -2,13 +2,14 @@ import * as React from 'react'
 import ReactECharts from 'echarts-for-react'
 import {FileText, type LucideIcon} from 'lucide-react'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import type {WorkbenchComponent} from '@/services/workbenches'
+import type {
+  WorkbenchComponent,
+  WorkbenchComponentData,
+  WorkbenchDataPoint,
+} from '@/services/workbenches'
 import {
   approvals,
   currentUser,
-  getComponentRows,
-  getRecords,
-  kpiOptions,
 } from '@/data/mock'
 import {cn} from '@/lib/utils'
 
@@ -24,32 +25,14 @@ export interface ComponentCanvasShortcut {
   icon?: LucideIcon
 }
 
-function buildOption(component: WorkbenchComponent, refreshKey: number, filter: string) {
+function buildOption(component: WorkbenchComponent, source: WorkbenchDataPoint[]) {
   const config = component.config
   if (config.type !== 'chart') {
     throw new Error('图表组件配置不合法')
   }
-  const source = getComponentRows({
-    title: component.title,
-    type: config.chartType,
-    formName: config.formName,
-    dimensionField: config.dimensionField,
-    measureField: config.measureField ?? '',
-    aggregation: config.aggregation === 'avg' ? 'average' : config.aggregation,
-    showLegend: config.showLegend,
-    showLabel: config.showLabel,
-    smooth: config.smooth,
-    palette: config.palette,
-    metric: '',
-    visibleColumns: [],
-    shortcuts: [],
-  })
   const primaryHsl = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
   const primary = `hsl(${primaryHsl})`
   const primaryMuted = `hsl(${primaryHsl} / 0.12)`
-  const filterWeight = filter.length
-  const jitter = (value: number, offset: number) =>
-    value + ((refreshKey * 3 + offset + filterWeight) % 7) - 3
 
   if (config.chartType === 'pie') {
     return {
@@ -69,7 +52,7 @@ function buildOption(component: WorkbenchComponent, refreshKey: number, filter: 
           label: {show: config.showLabel},
           data: source.map((row, index) => ({
             name: row.dimension,
-            value: jitter(row.value, index),
+            value: row.value,
             itemStyle: {
               color:
                 config.palette === 'multi'
@@ -104,7 +87,7 @@ function buildOption(component: WorkbenchComponent, refreshKey: number, filter: 
         symbolSize: isLine ? 6 : 0,
         barWidth: isLine ? undefined : 22,
         label: {show: config.showLabel && !isLine},
-        data: source.map((row, index) => jitter(row.value, index)),
+        data: source.map((row) => row.value),
         itemStyle: {
           borderRadius: isLine ? 0 : 4,
           color: primary,
@@ -117,38 +100,49 @@ function buildOption(component: WorkbenchComponent, refreshKey: number, filter: 
 
 export function ComponentCanvas({
                                   component,
-                                  refreshKey,
-                                  filter,
+                                  data,
+                                  isLoadingData = false,
+                                  dataError = null,
                                   onOpenMenu,
                                   columns = [],
                                   shortcutTargets = [],
                                 }: {
   component: WorkbenchComponent
-  refreshKey: number
-  filter: string
+  data?: WorkbenchComponentData | null
+  isLoadingData?: boolean
+  dataError?: string | null
   onOpenMenu?: (to: string) => void
   columns?: ComponentCanvasColumn[]
   shortcutTargets?: ComponentCanvasShortcut[]
 }) {
   const config = component.config
+  const dataMessage = dataError
+    ? '数据加载失败'
+    : isLoadingData
+      ? '数据加载中...'
+      : null
+  const dataMessageNode = dataMessage ? (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      {dataMessage}
+    </div>
+  ) : null
 
   if (config.type === 'metric') {
-    const metric = kpiOptions.find((item) => item.id === config.metric) ?? kpiOptions[0]
+    if (dataMessageNode) return dataMessageNode
+    const metricData = data?.type === 'metric' ? data : null
     return (
       <div className="flex h-full flex-col items-center justify-center">
-        <div className="text-4xl font-light text-primary">
-          {metric.value + (refreshKey % 5) + filter.length}
-        </div>
-        <div className="mt-2 text-sm text-muted-foreground">{metric.label}</div>
+        <div className="text-4xl font-light text-primary">{metricData?.value ?? '--'}</div>
       </div>
     )
   }
 
   if (config.type === 'dataloader') {
+    if (dataMessageNode) return dataMessageNode
     const visibleColumns = columns.filter((column) =>
       config.visibleColumns.includes(column.name),
     )
-    const rows = getRecords(config.formName)
+    const rows = data?.type === 'dataloader' ? data.list : []
     return (
       <table className="app-table w-full">
         <thead>
@@ -285,9 +279,14 @@ export function ComponentCanvas({
     )
   }
 
+  if (config.type !== 'chart') {
+    throw new Error('工作台组件类型不合法')
+  }
+  if (dataMessageNode) return dataMessageNode
+
   return (
     <ReactECharts
-      option={buildOption(component, refreshKey, filter)}
+      option={buildOption(component, data?.type === 'chart' ? data.rows : [])}
       className="h-full w-full"
       style={{height: '100%', width: '100%'}}
       opts={{renderer: 'svg'}}

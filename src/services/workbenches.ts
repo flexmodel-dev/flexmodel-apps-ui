@@ -21,7 +21,8 @@ export interface WorkbenchPlacement {
 export interface WorkbenchMetricConfig {
   type: 'metric'
   formName: string
-  metric: string
+  aggregation: WorkbenchAggregationType
+  field?: string | null
 }
 
 export interface WorkbenchChartConfig {
@@ -33,7 +34,7 @@ export interface WorkbenchChartConfig {
   aggregation: WorkbenchAggregationType
   showLegend: boolean
   showLabel: boolean
-  smooth: boolean
+  smooth?: boolean | null
   palette: WorkbenchPaletteType
 }
 
@@ -123,12 +124,14 @@ export interface WorkbenchFormOption {
 
 export interface WorkbenchComponentSpec {
   type: WorkbenchComponentType
+  chartType?: WorkbenchChartType | null
   label: string
   description: string
   defaultWidth: number
   defaultHeight: number
   requiredFields: string[]
   defaultConfig: Record<string, unknown>
+  dataEndpoint?: string | null
 }
 
 export interface WorkbenchCapability {
@@ -138,6 +141,27 @@ export interface WorkbenchCapability {
   shortcutMenus: Array<{ id: string; name: string }>
   availableValues: Record<string, string[]>
   exampleLayout: WorkbenchLayout
+}
+
+export interface WorkbenchDataPoint {
+  dimension: string
+  value: number
+}
+
+export type WorkbenchComponentData =
+  | { type: 'metric'; value: number }
+  | { type: 'chart'; rows: WorkbenchDataPoint[] }
+  | { type: 'dataloader'; list: Array<Record<string, unknown>>; total: number }
+
+export interface WorkbenchComponentDataResponse {
+  componentId: string
+  data: WorkbenchComponentData
+}
+
+export interface WorkbenchComponentDataQuery {
+  page?: number
+  size?: number
+  search?: string
 }
 
 const API_BASE = '/api/apps'
@@ -242,4 +266,21 @@ export async function deleteWorkbench(appId: string, workbenchId: string): Promi
     method: 'DELETE',
   })
   invalidateWorkbenchCaches(appId, workbenchId)
+}
+
+export async function getWorkbenchComponentData(
+  appId: string,
+  workbenchId: string,
+  componentId: string,
+  query: WorkbenchComponentDataQuery = {},
+): Promise<WorkbenchComponentDataResponse> {
+  const params = new URLSearchParams()
+  if (query.page !== undefined) params.set('page', String(query.page))
+  if (query.size !== undefined) params.set('size', String(query.size))
+  if (query.search?.trim()) params.set('search', query.search.trim())
+  const queryText = params.size ? `?${params}` : ''
+  return requestJson<WorkbenchComponentDataResponse>(
+    `${API_BASE}/${appId}/workbenches/${encodeURIComponent(workbenchId)}` +
+    `/components/${encodeURIComponent(componentId)}/data${queryText}`,
+  )
 }

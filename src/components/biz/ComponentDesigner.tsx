@@ -31,12 +31,12 @@ import {
   WORKBENCH_MAX_GRID_HEIGHT,
   type WorkbenchComponent,
   type WorkbenchComponentConfig,
+  type WorkbenchComponentData,
   type WorkbenchComponentType,
   type WorkbenchAggregationType,
   type WorkbenchChartType,
   type WorkbenchPaletteType,
 } from '@/services/workbenches'
-import {kpiOptions} from '@/data/mock'
 import {cn} from '@/lib/utils'
 
 const componentTypeIcons: Record<string, LucideIcon> = {
@@ -89,7 +89,7 @@ interface DesignerConfig {
   showLabel: boolean
   smooth: boolean
   palette: WorkbenchPaletteType
-  metric: string
+  metricField: string | null
   visibleColumns: string[]
   shortcuts: string[]
   columnsPerRow: number
@@ -133,7 +133,7 @@ function baseConfig(form: AppForm | undefined): DesignerConfig {
     showLabel: true,
     smooth: true,
     palette: 'primary',
-    metric: kpiOptions[0]?.id ?? '',
+    metricField: null,
     visibleColumns: form?.fields.slice(0, 6).map((field) => field.name) ?? [],
     shortcuts: [],
     columnsPerRow: 2,
@@ -148,7 +148,15 @@ function toDesignerConfig(
   if (!config) return base
   switch (config.type) {
     case 'metric':
-      return {...base, type: 'metric', formName: config.formName, metric: config.metric}
+      return {
+        ...base,
+        type: 'metric',
+        formName: config.formName,
+        aggregation: config.aggregation ?? 'count',
+        metricField: config.aggregation === 'count' || !config.aggregation
+          ? null
+          : (config.field ?? null),
+      }
     case 'chart':
       return {
         ...base,
@@ -160,7 +168,7 @@ function toDesignerConfig(
         aggregation: config.aggregation,
         showLegend: config.showLegend,
         showLabel: config.showLabel,
-        smooth: config.smooth,
+        ...(config.chartType === 'line' ? {smooth: config.smooth} : {}),
         palette: config.palette,
       }
     case 'dataloader':
@@ -199,18 +207,23 @@ function toWorkbenchConfig(result: ComponentDesignerResult): WorkbenchComponentC
   const config = result.config
   switch (result.type) {
     case 'metric':
-      return {type: 'metric', formName: config.formName, metric: config.metric}
+      return {
+        type: 'metric',
+        formName: config.formName,
+        aggregation: config.aggregation,
+        field: config.aggregation === 'count' ? null : config.metricField,
+      }
     case 'chart':
       return {
         type: 'chart',
         chartType: config.chartType,
         formName: config.formName,
         dimensionField: config.dimensionField,
-        measureField: config.measureField,
+        measureField: config.aggregation === 'count' ? null : config.measureField,
         aggregation: config.aggregation,
         showLegend: config.showLegend,
         showLabel: config.showLabel,
-        smooth: config.smooth,
+        ...(config.chartType === 'line' ? {smooth: config.smooth} : {}),
         palette: config.palette,
       }
     case 'dataloader':
@@ -324,6 +337,8 @@ export function ComponentDesigner({
         ...nextBase,
         type: preset.type,
         chartType: preset.chartType ?? nextBase.chartType,
+        aggregation: preset.type === 'metric' ? 'count' : nextBase.aggregation,
+        metricField: null,
         showLegend: preset.chartType === 'pie',
         palette: preset.chartType === 'pie' ? 'multi' : 'primary',
       },
@@ -337,6 +352,9 @@ export function ComponentDesigner({
       dimensionField: nextConfig.dimensionField,
       measureField: nextConfig.measureField,
       aggregation: nextConfig.aggregation,
+      metricField: result.type === 'metric' && result.config.aggregation !== 'count'
+        ? nextConfig.measureField || null
+        : null,
       visibleColumns: nextConfig.visibleColumns,
     })
   }
@@ -369,6 +387,20 @@ export function ComponentDesigner({
     placement: {x: 0, y: 0, w: result.w, h: result.h},
     config: toWorkbenchConfig(result),
   }
+  const previewData: WorkbenchComponentData | null = result.type === 'metric'
+    ? {type: 'metric', value: 128}
+    : result.type === 'chart'
+      ? {
+        type: 'chart',
+        rows: [
+          {dimension: '示例一', value: 32},
+          {dimension: '示例二', value: 56},
+          {dimension: '示例三', value: 24},
+        ],
+      }
+      : result.type === 'dataloader'
+        ? {type: 'dataloader', list: [], total: 0}
+        : null
   const previewColumns = (selectedForm?.fields ?? []).map((field) => ({
     name: field.name,
     label: field.label,
@@ -530,19 +562,40 @@ export function ComponentDesigner({
                   </div>
                   ) : null}
                   {result.type === 'metric' ? (
-                    <div>
-                      <span className="text-sm font-medium text-foreground">指标模板</span>
-                      <Select
-                        value={result.config.metric}
-                        onValueChange={(value) => updateConfig({metric: value})}
-                      >
-                        <SelectTrigger className="mt-2"><SelectValue/></SelectTrigger>
-                        <SelectContent>
-                          {kpiOptions.map((metric) => (
-                            <SelectItem key={metric.id} value={metric.id}>{metric.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <span className="text-sm font-medium text-foreground">聚合方式</span>
+                        <Select
+                          value={result.config.aggregation || 'count'}
+                          onValueChange={(value) => updateConfig({
+                            aggregation: value as WorkbenchAggregationType,
+                            metricField: value === 'count' ? null : (result.config.metricField ?? ''),
+                          })}
+                        >
+                          <SelectTrigger className="mt-2"><SelectValue/></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="count">记录数</SelectItem>
+                            <SelectItem value="sum">求和</SelectItem>
+                            <SelectItem value="avg">平均值</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {result.config.aggregation !== 'count' ? (
+                        <div>
+                          <span className="text-sm font-medium text-foreground">指标字段</span>
+                          <Select
+                            value={result.config.metricField || undefined}
+                            onValueChange={(value) => updateConfig({metricField: value})}
+                          >
+                            <SelectTrigger className="mt-2"><SelectValue placeholder="请选择字段"/></SelectTrigger>
+                            <SelectContent>
+                              {(selectedForm?.fields ?? []).filter(isMeasureField).map((field) => (
+                                <SelectItem key={field.name} value={field.name}>{field.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                   {result.type === 'dataloader' ? (
@@ -642,13 +695,15 @@ export function ComponentDesigner({
                     />
                     显示数值标签
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-foreground">
-                    <Checkbox
-                      checked={result.config.smooth ?? false}
-                      onCheckedChange={(checked) => updateConfig({smooth: Boolean(checked)})}
-                    />
-                    平滑曲线
-                  </label>
+                  {result.config.chartType === 'line' ? (
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                      <Checkbox
+                        checked={result.config.smooth ?? false}
+                        onCheckedChange={(checked) => updateConfig({smooth: Boolean(checked)})}
+                      />
+                      平滑曲线
+                    </label>
+                  ) : null}
                   <div>
                     <span className="text-sm font-medium text-foreground">配色</span>
                     <Select
@@ -727,8 +782,7 @@ export function ComponentDesigner({
               >
                 <ComponentCanvas
                   component={previewComponent}
-                  refreshKey={0}
-                  filter="全部"
+                  data={previewData}
                   columns={previewColumns}
                   shortcutTargets={shortcutTargets}
                 />

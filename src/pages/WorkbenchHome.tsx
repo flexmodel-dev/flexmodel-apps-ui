@@ -24,6 +24,7 @@ import {menuIcon} from '@/services/appMenuNavigation'
 import {
   createWorkbench,
   deleteWorkbench,
+  getWorkbenchComponentData,
   getWorkbench,
   getWorkbenches,
   patchWorkbench,
@@ -32,6 +33,7 @@ import {
   WORKBENCH_SCHEMA_VERSION,
   type Workbench,
   type WorkbenchComponent,
+  type WorkbenchComponentData,
   type WorkbenchLayout,
   type WorkbenchSummary,
 } from '@/services/workbenches'
@@ -56,9 +58,10 @@ function setGridItemAttributes(element: HTMLDivElement | null, component: Workbe
 
 function ComponentCard({
                          component,
-                         refreshKey,
+                         data,
+                         isLoadingData,
+                         dataError,
                          editable,
-                         filter,
                          columns,
                          shortcutTargets,
                          onOpenMenu,
@@ -67,9 +70,10 @@ function ComponentCard({
                          onRefresh,
                        }: {
   component: WorkbenchComponent
-  refreshKey: number
+  data?: WorkbenchComponentData | null
+  isLoadingData?: boolean
+  dataError?: string | null
   editable: boolean
-  filter: string
   columns: Array<{ name: string; label: string }>
   shortcutTargets: Array<{ id: string; label: string; to: string; icon?: LucideIcon }>
   onOpenMenu: (to: string) => void
@@ -107,8 +111,9 @@ function ComponentCard({
           <div className="mt-3 min-h-0 flex-1 overflow-auto">
             <ComponentCanvas
               component={component}
-              refreshKey={refreshKey}
-              filter={filter}
+              data={data}
+              isLoadingData={isLoadingData}
+              dataError={dataError}
               columns={columns}
               shortcutTargets={shortcutTargets}
               onOpenMenu={onOpenMenu}
@@ -117,6 +122,61 @@ function ComponentCard({
         </div>
       </div>
     </div>
+  )
+}
+
+function WorkbenchComponentCard({
+                                  appId,
+                                  workbenchId,
+                                  component,
+                                  refreshKey,
+                                  ...cardProps
+                                }: {
+  appId: string
+  workbenchId: string
+  component: WorkbenchComponent
+  refreshKey: number
+} & Omit<
+  React.ComponentProps<typeof ComponentCard>,
+  'component' | 'data' | 'isLoadingData' | 'dataError'
+>) {
+  const supportsRealData = component.config.type === 'metric'
+    || component.config.type === 'chart'
+    || component.config.type === 'dataloader'
+  const [data, setData] = React.useState<WorkbenchComponentData | null>(null)
+  const [isLoadingData, setIsLoadingData] = React.useState(false)
+  const [dataError, setDataError] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!supportsRealData) return
+    let cancelled = false
+    setIsLoadingData(true)
+    setDataError(null)
+    getWorkbenchComponentData(appId, workbenchId, component.id, {page: 1, size: 20})
+      .then((response) => {
+        if (!cancelled) setData(response.data)
+      })
+      .catch((caught: unknown) => {
+        if (cancelled) return
+        setData(null)
+        setDataError(caught instanceof Error ? caught.message : '加载组件数据失败')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingData(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [appId, workbenchId, component.id, component.config, refreshKey, supportsRealData])
+
+  return (
+    <ComponentCard
+      component={component}
+      data={data}
+      isLoadingData={isLoadingData}
+      dataError={dataError}
+      {...cardProps}
+    />
   )
 }
 
@@ -575,12 +635,13 @@ export default function WorkbenchHome() {
                   : undefined
                 const selectedForm = forms.find((form) => form.name === componentFormName)
                 return (
-                  <ComponentCard
+                  <WorkbenchComponentCard
                     key={`${workbench.id}-${component.id}`}
+                    appId={appId}
+                    workbenchId={workbench.id}
                     component={component}
                     refreshKey={refreshKey}
                     editable={editable}
-                    filter={filter}
                     columns={(selectedForm?.fields ?? []).map((field) => ({
                       name: field.name,
                       label: field.label,
