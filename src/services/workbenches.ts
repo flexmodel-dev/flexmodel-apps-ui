@@ -2,53 +2,74 @@ import {requestJson} from '@/services/http'
 import {createAppDataCache} from '@/services/appDataCache'
 import {invalidateAppMenuTargets} from '@/services/appMenus'
 
-export type WorkbenchComponentType =
-  | 'index'
-  | 'line'
-  | 'bar'
-  | 'pie'
-  | 'dataloader'
-  | 'shortcuts'
-  | 'tasks'
-
-export type WorkbenchAggregationType = 'count' | 'sum' | 'avg'
-
+export const WORKBENCH_SCHEMA_VERSION = 1
 export const WORKBENCH_GRID_COLUMNS = 12
 export const WORKBENCH_MAX_GRID_HEIGHT = 24
 
-export interface WorkbenchComponentConfig {
-  formName?: string
-  dimensionField?: string
-  measureField?: string
-  aggregation?: WorkbenchAggregationType
-  showLegend?: boolean
-  showLabel?: boolean
-  smooth?: boolean
-  palette?: 'primary' | 'multi'
-  metric?: string
-  visibleColumns?: string[]
-  shortcuts?: string[]
-  columnsPerRow?: number
-}
+export type WorkbenchComponentType = 'metric' | 'chart' | 'dataloader' | 'shortcuts' | 'tasks'
+export type WorkbenchChartType = 'line' | 'bar' | 'pie'
+export type WorkbenchAggregationType = 'count' | 'sum' | 'avg'
+export type WorkbenchPaletteType = 'primary' | 'multi'
 
-export interface WorkbenchComponent {
-  id: string
-  title: string
-  type: WorkbenchComponentType
-  config?: WorkbenchComponentConfig
-}
-
-export interface WorkbenchLayoutItem {
-  componentId: string
+export interface WorkbenchPlacement {
   x: number
   y: number
   w: number
   h: number
 }
 
+export interface WorkbenchMetricConfig {
+  type: 'metric'
+  formName: string
+  metric: string
+}
+
+export interface WorkbenchChartConfig {
+  type: 'chart'
+  chartType: WorkbenchChartType
+  formName: string
+  dimensionField: string
+  measureField?: string
+  aggregation: WorkbenchAggregationType
+  showLegend: boolean
+  showLabel: boolean
+  smooth: boolean
+  palette: WorkbenchPaletteType
+}
+
+export interface WorkbenchDataLoaderConfig {
+  type: 'dataloader'
+  formName: string
+  visibleColumns: string[]
+}
+
+export interface WorkbenchShortcutsConfig {
+  type: 'shortcuts'
+  shortcuts: string[]
+  columnsPerRow: number
+}
+
+export interface WorkbenchTasksConfig {
+  type: 'tasks'
+}
+
+export type WorkbenchComponentConfig =
+  | WorkbenchMetricConfig
+  | WorkbenchChartConfig
+  | WorkbenchDataLoaderConfig
+  | WorkbenchShortcutsConfig
+  | WorkbenchTasksConfig
+
+export interface WorkbenchComponent {
+  id: string
+  title: string
+  placement: WorkbenchPlacement
+  config: WorkbenchComponentConfig
+}
+
 export interface WorkbenchLayout {
+  schemaVersion: number
   components: WorkbenchComponent[]
-  items: WorkbenchLayoutItem[]
 }
 
 export interface Workbench {
@@ -86,37 +107,65 @@ export interface WorkbenchPatchInput {
   layout?: WorkbenchLayout
 }
 
+export interface WorkbenchFieldOption {
+  name: string
+  label: string
+  type: string
+  measure: boolean
+}
+
+export interface WorkbenchFormOption {
+  name: string
+  label: string
+  displayField: string
+  fields: WorkbenchFieldOption[]
+}
+
+export interface WorkbenchComponentSpec {
+  type: WorkbenchComponentType
+  label: string
+  description: string
+  defaultWidth: number
+  defaultHeight: number
+  requiredFields: string[]
+  defaultConfig: Record<string, unknown>
+}
+
+export interface WorkbenchCapability {
+  schemaVersion: number
+  components: WorkbenchComponentSpec[]
+  forms: WorkbenchFormOption[]
+  shortcutMenus: Array<{ id: string; name: string }>
+  availableValues: Record<string, string[]>
+  exampleLayout: WorkbenchLayout
+}
+
 const API_BASE = '/api/apps'
 const listCache = createAppDataCache<WorkbenchSummary[]>()
 const detailCache = createAppDataCache<Workbench>()
+const capabilityCache = createAppDataCache<WorkbenchCapability>()
 
 function detailKey(appId: string, workbenchId: string) {
   return `${appId}:${workbenchId}`
 }
 
-function normalizeComponent(component: WorkbenchComponent): WorkbenchComponent {
-  return {
-    ...component,
-    config: component.config ?? {},
-  }
-}
-
 function normalizeWorkbench(workbench: Workbench): Workbench {
-  const components = Array.isArray(workbench.layout?.components)
-    ? workbench.layout.components.map(normalizeComponent)
-    : []
+  if (!workbench.layout) {
+    throw new Error('工作台布局缺失')
+  }
   return {
     ...workbench,
     description: workbench.description ?? '',
     layout: {
-      components,
-      items: Array.isArray(workbench.layout?.items) ? workbench.layout.items : [],
+      schemaVersion: workbench.layout.schemaVersion,
+      components: Array.isArray(workbench.layout.components) ? workbench.layout.components : [],
     },
   }
 }
 
 function invalidateWorkbenchCaches(appId: string, workbenchId?: string) {
   listCache.delete(appId)
+  capabilityCache.delete(appId)
   if (workbenchId) detailCache.delete(detailKey(appId, workbenchId))
   invalidateAppMenuTargets(appId)
 }
@@ -130,6 +179,19 @@ export async function getWorkbenches(appId: string): Promise<WorkbenchSummary[]>
         throw caught
       })
     listCache.set(appId, request)
+  }
+  return request
+}
+
+export async function getWorkbenchCapabilities(appId: string): Promise<WorkbenchCapability> {
+  let request = capabilityCache.get(appId)
+  if (!request) {
+    request = requestJson<WorkbenchCapability>(`${API_BASE}/${appId}/workbenches/capabilities`)
+      .catch((caught: unknown) => {
+        capabilityCache.delete(appId)
+        throw caught
+      })
+    capabilityCache.set(appId, request)
   }
   return request
 }

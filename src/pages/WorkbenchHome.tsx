@@ -17,7 +17,7 @@ import {
 import {GridStack, type GridItemHTMLElement} from 'gridstack'
 import 'gridstack/dist/gridstack.min.css'
 import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
-import {ComponentDesigner, type ComponentDesignerResult} from '@/components/biz/ComponentDesigner'
+import {ComponentDesigner, type SavedComponentDesignerResult} from '@/components/biz/ComponentDesigner'
 import {getAppForms, type AppForm} from '@/services/appForms'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
 import {menuIcon} from '@/services/appMenuNavigation'
@@ -29,10 +29,10 @@ import {
   patchWorkbench,
   WORKBENCH_GRID_COLUMNS,
   WORKBENCH_MAX_GRID_HEIGHT,
+  WORKBENCH_SCHEMA_VERSION,
   type Workbench,
   type WorkbenchComponent,
   type WorkbenchLayout,
-  type WorkbenchLayoutItem,
   type WorkbenchSummary,
 } from '@/services/workbenches'
 import {cn} from '@/lib/utils'
@@ -45,18 +45,17 @@ function componentId() {
   return `component_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 }
 
-function setGridItemAttributes(element: HTMLDivElement | null, item: WorkbenchLayoutItem) {
+function setGridItemAttributes(element: HTMLDivElement | null, component: WorkbenchComponent) {
   if (!element) return
-  element.setAttribute('gs-id', item.componentId)
-  element.setAttribute('gs-x', String(item.x))
-  element.setAttribute('gs-y', String(item.y))
-  element.setAttribute('gs-w', String(item.w))
-  element.setAttribute('gs-h', String(item.h))
+  element.setAttribute('gs-id', component.id)
+  element.setAttribute('gs-x', String(component.placement.x))
+  element.setAttribute('gs-y', String(component.placement.y))
+  element.setAttribute('gs-w', String(component.placement.w))
+  element.setAttribute('gs-h', String(component.placement.h))
 }
 
 function ComponentCard({
                          component,
-                         item,
                          refreshKey,
                          editable,
                          filter,
@@ -68,7 +67,6 @@ function ComponentCard({
                          onRefresh,
                        }: {
   component: WorkbenchComponent
-  item: WorkbenchLayoutItem
   refreshKey: number
   editable: boolean
   filter: string
@@ -81,7 +79,7 @@ function ComponentCard({
 }) {
   return (
     <div
-      ref={(element) => setGridItemAttributes(element, item)}
+      ref={(element) => setGridItemAttributes(element, component)}
       className="grid-stack-item"
     >
       <div className="grid-stack-item-content min-h-0">
@@ -143,7 +141,6 @@ export default function WorkbenchHome() {
   const [designerOpen, setDesignerOpen] = React.useState(false)
   const [designerMode, setDesignerMode] = React.useState<'create' | 'edit'>('create')
   const [designerComponent, setDesignerComponent] = React.useState<WorkbenchComponent | null>(null)
-  const [designerItem, setDesignerItem] = React.useState<WorkbenchLayoutItem | null>(null)
   const gridRef = React.useRef<HTMLDivElement | null>(null)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [newWorkbenchName, setNewWorkbenchName] = React.useState('')
@@ -206,7 +203,7 @@ export default function WorkbenchHome() {
     const gridElement = gridRef.current
     if (!gridElement || !workbench || (editable && !draftLayout)) return
     const layout = editable && draftLayout ? draftLayout : workbench.layout
-    if (layout.items.length === 0) return
+    if (layout.components.length === 0) return
     const grid = GridStack.init({
       column: WORKBENCH_GRID_COLUMNS,
       maxRow: WORKBENCH_MAX_GRID_HEIGHT,
@@ -218,27 +215,34 @@ export default function WorkbenchHome() {
       disableResize: !editable,
     }, gridElement)
     if (!grid) return
-    layout.items.forEach((item) => {
-      const element = gridElement.querySelector<HTMLElement>(`[gs-id="${item.componentId}"]`)
+    layout.components.forEach((component) => {
+      const element = gridElement.querySelector<HTMLElement>(`[gs-id="${component.id}"]`)
       if (!element) return
-      grid.update(element, {x: item.x, y: item.y, w: item.w, h: item.h})
+      grid.update(element, {
+        x: component.placement.x,
+        y: component.placement.y,
+        w: component.placement.w,
+        h: component.placement.h,
+      })
     })
     const commitLayoutChange = (_event: Event, changedElement: GridItemHTMLElement) => {
       const changedItem = changedElement.gridstackNode
       if (!changedItem?.id) return
       setDraftLayout(() => {
-        const items = layout.items.map((item) =>
-        item.componentId === changedItem.id
+        const components = layout.components.map((component) =>
+          component.id === changedItem.id
           ? {
-            ...item,
-            x: changedItem.x ?? item.x,
-            y: changedItem.y ?? item.y,
-            w: changedItem.w ?? item.w,
-            h: changedItem.h ?? item.h,
+              ...component,
+              placement: {
+                x: changedItem.x ?? component.placement.x,
+                y: changedItem.y ?? component.placement.y,
+                w: changedItem.w ?? component.placement.w,
+                h: changedItem.h ?? component.placement.h,
+              },
           }
-          : item,
+            : component,
         )
-        return {components: layout.components, items}
+        return {schemaVersion: layout.schemaVersion, components}
       })
     }
     grid.on('dragstop', commitLayoutChange)
@@ -297,63 +301,64 @@ export default function WorkbenchHome() {
     }
     setDesignerMode('create')
     setDesignerComponent(null)
-    setDesignerItem(null)
     setDesignerOpen(true)
   }
 
-  const openEditDesigner = (component: WorkbenchComponent, item: WorkbenchLayoutItem) => {
+  const openEditDesigner = (component: WorkbenchComponent) => {
     setDesignerMode('edit')
     setDesignerComponent(component)
-    setDesignerItem(item)
     setDesignerOpen(true)
   }
 
-  const handleDesignerSave = (result: ComponentDesignerResult) => {
+  const handleDesignerSave = (result: SavedComponentDesignerResult) => {
     if (!workbench) return
     const layout = draftLayout ?? workbench.layout
     if (designerMode === 'create') {
       const component: WorkbenchComponent = {
         id: componentId(),
         title: result.title,
-        type: result.type,
+        placement: {
+          x: 0,
+          y: layout.components.reduce(
+            (max, item) => Math.max(max, item.placement.y + item.placement.h),
+            0,
+          ),
+          w: result.w,
+          h: result.h,
+        },
         config: result.config,
       }
-      const bottomY = layout.items.reduce((max, item) => Math.max(max, item.y + item.h), 0)
-      const item: WorkbenchLayoutItem = {
-        componentId: component.id,
-        x: 0,
-        y: bottomY,
-        w: result.w,
-        h: result.h,
-      }
       setDraftLayout({
+        schemaVersion: layout.schemaVersion,
         components: [...layout.components, component],
-        items: [...layout.items, item],
       })
-    } else if (designerComponent && designerItem) {
+    } else if (designerComponent) {
       const components = layout.components.map((component) =>
         component.id === designerComponent.id
-          ? {...component, title: result.title, type: result.type, config: result.config}
+          ? {
+            ...component,
+            title: result.title,
+            placement: {
+              ...designerComponent.placement,
+              w: result.w,
+              h: result.h,
+            },
+            config: result.config,
+          }
           : component,
       )
-      const items = layout.items.map((item) =>
-        item.componentId === designerComponent.id
-          ? {...designerItem, w: result.w, h: result.h}
-          : item,
-      )
-      setDraftLayout({components, items})
+      setDraftLayout({schemaVersion: layout.schemaVersion, components})
     }
     setDesignerOpen(false)
     setDesignerComponent(null)
-    setDesignerItem(null)
   }
 
   const deleteComponent = (componentIdToDelete: string) => {
     if (!workbench) return
     const layout = draftLayout ?? workbench.layout
     setDraftLayout({
+      schemaVersion: layout.schemaVersion,
       components: layout.components.filter((component) => component.id !== componentIdToDelete),
-      items: layout.items.filter((item) => item.componentId !== componentIdToDelete),
     })
   }
 
@@ -363,7 +368,12 @@ export default function WorkbenchHome() {
     setIsSaving(true)
     setActionError(null)
     try {
-      const created = await createWorkbench(appId, {name, layout: {components: [], items: []}})
+      const created = await createWorkbench(appId, {
+        name, layout: {
+          schemaVersion: WORKBENCH_SCHEMA_VERSION,
+          components: [],
+        }
+      })
       setWorkbenches((previous) => [...previous, {
         id: created.id,
         name: created.name,
@@ -432,10 +442,6 @@ export default function WorkbenchHome() {
   }
 
   const displayLayout = editable && draftLayout ? draftLayout : workbench?.layout
-  const componentsById = new Map(displayLayout?.components.map((component) => [
-    component.id,
-    component,
-  ]) ?? [])
   const formMenus = flattenMenus(menus).filter(
     (menu) => menu.type === 'ITEM' && menu.target?.type === 'FORM',
   )
@@ -559,17 +565,19 @@ export default function WorkbenchHome() {
         <div className="mt-4 min-h-0 flex-1 overflow-auto">
           {isLoading ? (
             <AppLoading className="min-h-[320px]"/>
-          ) : workbench && displayLayout && displayLayout.items.length > 0 ? (
+          ) : workbench && displayLayout && displayLayout.components.length > 0 ? (
             <div ref={gridRef} className="grid-stack">
-              {displayLayout.items.map((item) => {
-                const component = componentsById.get(item.componentId)
-                if (!component) return null
-                const selectedForm = forms.find((form) => form.name === component.config?.formName)
+              {displayLayout.components.map((component) => {
+                const componentFormName = component.config.type === 'metric'
+                || component.config.type === 'chart'
+                || component.config.type === 'dataloader'
+                  ? component.config.formName
+                  : undefined
+                const selectedForm = forms.find((form) => form.name === componentFormName)
                 return (
                   <ComponentCard
                     key={`${workbench.id}-${component.id}`}
                     component={component}
-                    item={item}
                     refreshKey={refreshKey}
                     editable={editable}
                     filter={filter}
@@ -579,7 +587,7 @@ export default function WorkbenchHome() {
                     }))}
                     shortcutTargets={shortcutTargets}
                     onOpenMenu={navigate}
-                    onEdit={() => openEditDesigner(component, item)}
+                    onEdit={() => openEditDesigner(component)}
                     onDelete={() => deleteComponent(component.id)}
                     onRefresh={() => setRefreshKey((key) => key + 1)}
                   />
@@ -601,12 +609,10 @@ export default function WorkbenchHome() {
           open={designerOpen}
           mode={designerMode}
           component={designerComponent ?? undefined}
-          item={designerItem ?? undefined}
           onSave={handleDesignerSave}
           onClose={() => {
             setDesignerOpen(false)
             setDesignerComponent(null)
-            setDesignerItem(null)
           }}
         />
 

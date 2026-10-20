@@ -2,7 +2,7 @@ import * as React from 'react'
 import ReactECharts from 'echarts-for-react'
 import {FileText, type LucideIcon} from 'lucide-react'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import type {WorkbenchComponent, WorkbenchComponentConfig} from '@/services/workbenches'
+import type {WorkbenchComponent} from '@/services/workbenches'
 import {
   approvals,
   currentUser,
@@ -24,26 +24,25 @@ export interface ComponentCanvasShortcut {
   icon?: LucideIcon
 }
 
-function componentConfig(component: WorkbenchComponent): WorkbenchComponentConfig {
-  return component.config ?? {}
-}
-
 function buildOption(component: WorkbenchComponent, refreshKey: number, filter: string) {
-  const config = componentConfig(component)
+  const config = component.config
+  if (config.type !== 'chart') {
+    throw new Error('图表组件配置不合法')
+  }
   const source = getComponentRows({
     title: component.title,
-    type: component.type,
-    formName: config.formName ?? '',
-    dimensionField: config.dimensionField ?? '',
+    type: config.chartType,
+    formName: config.formName,
+    dimensionField: config.dimensionField,
     measureField: config.measureField ?? '',
-    aggregation: config.aggregation === 'avg' ? 'average' : (config.aggregation ?? 'count'),
-    showLegend: config.showLegend ?? false,
-    showLabel: config.showLabel ?? false,
-    smooth: config.smooth ?? false,
-    palette: config.palette ?? 'primary',
-    metric: config.metric ?? '',
-    visibleColumns: config.visibleColumns ?? [],
-    shortcuts: config.shortcuts ?? [],
+    aggregation: config.aggregation === 'avg' ? 'average' : config.aggregation,
+    showLegend: config.showLegend,
+    showLabel: config.showLabel,
+    smooth: config.smooth,
+    palette: config.palette,
+    metric: '',
+    visibleColumns: [],
+    shortcuts: [],
   })
   const primaryHsl = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
   const primary = `hsl(${primaryHsl})`
@@ -52,7 +51,7 @@ function buildOption(component: WorkbenchComponent, refreshKey: number, filter: 
   const jitter = (value: number, offset: number) =>
     value + ((refreshKey * 3 + offset + filterWeight) % 7) - 3
 
-  if (component.type === 'pie') {
+  if (config.chartType === 'pie') {
     return {
       tooltip: {trigger: 'item'},
       legend: {
@@ -83,7 +82,7 @@ function buildOption(component: WorkbenchComponent, refreshKey: number, filter: 
     }
   }
 
-  const isLine = component.type === 'line'
+  const isLine = config.chartType === 'line'
   return {
     grid: {top: 30, left: 50, right: 20, bottom: 30},
     tooltip: {trigger: 'axis'},
@@ -131,9 +130,9 @@ export function ComponentCanvas({
   columns?: ComponentCanvasColumn[]
   shortcutTargets?: ComponentCanvasShortcut[]
 }) {
-  const config = componentConfig(component)
+  const config = component.config
 
-  if (component.type === 'index') {
+  if (config.type === 'metric') {
     const metric = kpiOptions.find((item) => item.id === config.metric) ?? kpiOptions[0]
     return (
       <div className="flex h-full flex-col items-center justify-center">
@@ -145,11 +144,11 @@ export function ComponentCanvas({
     )
   }
 
-  if (component.type === 'dataloader') {
+  if (config.type === 'dataloader') {
     const visibleColumns = columns.filter((column) =>
-      (config.visibleColumns ?? []).includes(column.name),
+      config.visibleColumns.includes(column.name),
     )
-    const rows = getRecords(config.formName ?? '')
+    const rows = getRecords(config.formName)
     return (
       <table className="app-table w-full">
         <thead>
@@ -172,9 +171,9 @@ export function ComponentCanvas({
     )
   }
 
-  if (component.type === 'shortcuts') {
-    const menus = shortcutTargets.filter((item) => (config.shortcuts ?? []).includes(item.id))
-    const columnsPerRow = config.columnsPerRow ?? 2
+  if (config.type === 'shortcuts') {
+    const menus = shortcutTargets.filter((item) => config.shortcuts.includes(item.id))
+    const columnsPerRow = config.columnsPerRow
     const iconContainerSize =
       columnsPerRow === 1 ? 'h-20 w-20' :
         columnsPerRow === 2 ? 'h-16 w-16' :
@@ -220,7 +219,7 @@ export function ComponentCanvas({
     )
   }
 
-  if (component.type === 'tasks') {
+  if (config.type === 'tasks') {
     const pendingTasks = approvals.filter((item) => item.status === '待审批')
     const recentTasks = approvals.filter((item) => item.status !== '待审批')
     const initiatedTasks = approvals.filter((item) => item.applicant === currentUser.fullName)

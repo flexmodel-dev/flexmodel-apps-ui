@@ -7,6 +7,7 @@ import {
   PieChart,
   Star,
   Table2,
+  type LucideIcon,
 } from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
@@ -31,16 +32,18 @@ import {
   type WorkbenchComponent,
   type WorkbenchComponentConfig,
   type WorkbenchComponentType,
-  type WorkbenchLayoutItem,
+  type WorkbenchAggregationType,
+  type WorkbenchChartType,
+  type WorkbenchPaletteType,
 } from '@/services/workbenches'
 import {kpiOptions} from '@/data/mock'
 import {cn} from '@/lib/utils'
 
-const componentTypeIcons = {
-  index: Gauge,
-  line: LineChart,
-  bar: BarChart3,
-  pie: PieChart,
+const componentTypeIcons: Record<string, LucideIcon> = {
+  metric: Gauge,
+  'chart-line': LineChart,
+  'chart-bar': BarChart3,
+  'chart-pie': PieChart,
   dataloader: Table2,
   shortcuts: Star,
   tasks: ClipboardCheck,
@@ -48,15 +51,16 @@ const componentTypeIcons = {
 
 const componentTypes: Array<{
   type: WorkbenchComponentType
+  chartType?: WorkbenchChartType
   label: string
   description: string
   w: number
   h: number
 }> = [
-  {type: 'index', label: '指标', description: '突出展示核心指标', w: 3, h: 3},
-  {type: 'line', label: '折线图', description: '观察数据趋势', w: 6, h: 4},
-  {type: 'bar', label: '柱状图', description: '比较分组数据', w: 6, h: 4},
-  {type: 'pie', label: '饼图', description: '展示分组占比', w: 4, h: 4},
+  {type: 'metric', label: '指标', description: '突出展示核心指标', w: 3, h: 3},
+  {type: 'chart', chartType: 'line', label: '折线图', description: '观察数据趋势', w: 6, h: 4},
+  {type: 'chart', chartType: 'bar', label: '柱状图', description: '比较分组数据', w: 6, h: 4},
+  {type: 'chart', chartType: 'pie', label: '饼图', description: '展示分组占比', w: 4, h: 4},
   {type: 'dataloader', label: '明细', description: '查看表单记录', w: 12, h: 5},
   {type: 'shortcuts', label: '快捷入口', description: '直达表单菜单', w: 6, h: 3},
   {type: 'tasks', label: '我的任务', description: '查看流程待办', w: 4, h: 4},
@@ -67,24 +71,44 @@ export interface ComponentDesignerResult {
   type: WorkbenchComponentType
   w: number
   h: number
+  config: DesignerConfig
+}
+
+export type SavedComponentDesignerResult = Omit<ComponentDesignerResult, 'config'> & {
   config: WorkbenchComponentConfig
 }
+
+interface DesignerConfig {
+  type: WorkbenchComponentType
+  chartType: WorkbenchChartType
+  formName: string
+  dimensionField: string
+  measureField: string
+  aggregation: WorkbenchAggregationType
+  showLegend: boolean
+  showLabel: boolean
+  smooth: boolean
+  palette: WorkbenchPaletteType
+  metric: string
+  visibleColumns: string[]
+  shortcuts: string[]
+  columnsPerRow: number
+}
+
+type ComponentTypeOption = (typeof componentTypes)[number]
 
 interface ComponentDesignerProps {
   appId: string
   open: boolean
   mode: 'create' | 'edit'
   component?: WorkbenchComponent
-  item?: WorkbenchLayoutItem
-  onSave: (result: ComponentDesignerResult) => void
+  onSave: (result: SavedComponentDesignerResult) => void
   onClose: () => void
 }
 
 const dataComponentTypes = new Set<WorkbenchComponentType>([
-  'index',
-  'line',
-  'bar',
-  'pie',
+  'metric',
+  'chart',
   'dataloader',
 ])
 
@@ -96,40 +120,127 @@ function flattenMenus(menus: AppMenu[]): AppMenu[] {
   return menus.flatMap((menu) => [menu, ...flattenMenus(menu.children ?? [])])
 }
 
-function firstFormConfig(form: AppForm | undefined): WorkbenchComponentConfig {
-  if (!form) return {}
-  const measureField = form.fields.find(isMeasureField)?.name
+function baseConfig(form: AppForm | undefined): DesignerConfig {
+  const measureField = form?.fields.find(isMeasureField)?.name
   return {
-    formName: form.name,
-    dimensionField: form.displayField || form.fields[0]?.name || '',
-    measureField: measureField ?? '',
-    aggregation: measureField ? 'sum' as const : 'count' as const,
-    visibleColumns: form.fields.slice(0, 6).map((field) => field.name),
+    type: 'chart',
+    chartType: 'line',
+    formName: form?.name ?? '',
+    dimensionField: form?.displayField || form?.fields[0]?.name || '',
+    measureField: measureField || '',
+    aggregation: measureField ? 'sum' : 'count',
+    showLegend: false,
+    showLabel: true,
+    smooth: true,
+    palette: 'primary',
+    metric: kpiOptions[0]?.id ?? '',
+    visibleColumns: form?.fields.slice(0, 6).map((field) => field.name) ?? [],
+    shortcuts: [],
+    columnsPerRow: 2,
+  }
+}
+
+function toDesignerConfig(
+  config: WorkbenchComponentConfig | undefined,
+  fallbackForm: AppForm | undefined,
+): DesignerConfig {
+  const base = baseConfig(fallbackForm)
+  if (!config) return base
+  switch (config.type) {
+    case 'metric':
+      return {...base, type: 'metric', formName: config.formName, metric: config.metric}
+    case 'chart':
+      return {
+        ...base,
+        type: 'chart',
+        chartType: config.chartType,
+        formName: config.formName,
+        dimensionField: config.dimensionField,
+        measureField: config.measureField ?? base.measureField,
+        aggregation: config.aggregation,
+        showLegend: config.showLegend,
+        showLabel: config.showLabel,
+        smooth: config.smooth,
+        palette: config.palette,
+      }
+    case 'dataloader':
+      return {
+        ...base,
+        type: 'dataloader',
+        formName: config.formName,
+        visibleColumns: config.visibleColumns,
+      }
+    case 'shortcuts':
+      return {
+        ...base,
+        type: 'shortcuts',
+        shortcuts: config.shortcuts,
+        columnsPerRow: config.columnsPerRow,
+      }
+    case 'tasks':
+      return {...base, type: 'tasks'}
+  }
+}
+
+function optionKey(option: ComponentTypeOption) {
+  return option.chartType ? `chart-${option.chartType}` : option.type
+}
+
+function resultOptionKey(result: ComponentDesignerResult) {
+  return result.type === 'chart' ? `chart-${result.config.chartType}` : result.type
+}
+
+function selectedOption(config: DesignerConfig): ComponentTypeOption {
+  const key = config.type === 'chart' ? `chart-${config.chartType}` : config.type
+  return componentTypes.find((item) => optionKey(item) === key) ?? componentTypes[1]
+}
+
+function toWorkbenchConfig(result: ComponentDesignerResult): WorkbenchComponentConfig {
+  const config = result.config
+  switch (result.type) {
+    case 'metric':
+      return {type: 'metric', formName: config.formName, metric: config.metric}
+    case 'chart':
+      return {
+        type: 'chart',
+        chartType: config.chartType,
+        formName: config.formName,
+        dimensionField: config.dimensionField,
+        measureField: config.measureField,
+        aggregation: config.aggregation,
+        showLegend: config.showLegend,
+        showLabel: config.showLabel,
+        smooth: config.smooth,
+        palette: config.palette,
+      }
+    case 'dataloader':
+      return {
+        type: 'dataloader',
+        formName: config.formName,
+        visibleColumns: config.visibleColumns,
+      }
+    case 'shortcuts':
+      return {
+        type: 'shortcuts',
+        shortcuts: config.shortcuts,
+        columnsPerRow: config.columnsPerRow,
+      }
+    case 'tasks':
+      return {type: 'tasks'}
   }
 }
 
 function toResult(
   component: WorkbenchComponent | undefined,
-  item: WorkbenchLayoutItem | undefined,
   fallbackForm?: AppForm,
 ): ComponentDesignerResult {
-  const type = component?.type ?? 'line'
-  const preset = componentTypes.find((item) => item.type === type) ?? componentTypes[1]
-  const config = component?.config ?? {
-    ...firstFormConfig(fallbackForm),
-    showLegend: type === 'pie',
-    showLabel: type !== 'line',
-    smooth: type === 'line',
-    palette: type === 'pie' ? 'multi' : 'primary',
-    metric: kpiOptions[0]?.id,
-    shortcuts: [],
-    columnsPerRow: 2,
-  }
+  const config = toDesignerConfig(component?.config, fallbackForm)
+  const preset = selectedOption(config)
   return {
     title: component?.title ?? preset.label,
-    type,
-    w: item?.w ?? preset.w,
-    h: item?.h ?? preset.h,
+    type: preset.type,
+    w: component?.placement.w ?? preset.w,
+    h: component?.placement.h ?? preset.h,
     config,
   }
 }
@@ -139,7 +250,6 @@ export function ComponentDesigner({
                                     open,
                                     mode,
                                     component,
-                                    item,
                                     onSave,
                                     onClose,
                                   }: ComponentDesignerProps) {
@@ -148,7 +258,7 @@ export function ComponentDesigner({
   const [isLoading, setIsLoading] = React.useState(false)
   const [loadError, setLoadError] = React.useState<string | null>(null)
   const [result, setResult] = React.useState<ComponentDesignerResult>(() =>
-    toResult(component, item),
+    toResult(component),
   )
   const [titleError, setTitleError] = React.useState('')
   const previewStageRef = React.useRef<HTMLDivElement | null>(null)
@@ -177,7 +287,7 @@ export function ComponentDesigner({
         if (cancelled) return
         setForms(loadedForms)
         setMenus(loadedMenus)
-        setResult(toResult(component, item, loadedForms[0]))
+        setResult(toResult(component, loadedForms[0]))
       })
       .catch((caught: unknown) => {
         if (cancelled) return
@@ -187,45 +297,48 @@ export function ComponentDesigner({
     return () => {
       cancelled = true
     }
-  }, [appId, component, item, open])
+  }, [appId, component, open])
 
   const updateResult = (patch: Partial<ComponentDesignerResult>) => {
     setResult((previous) => ({...previous, ...patch}))
   }
 
-  const updateConfig = (patch: WorkbenchComponentConfig) => {
+  const updateConfig = (patch: Partial<DesignerConfig>) => {
     setResult((previous) => ({...previous, config: {...previous.config, ...patch}}))
   }
 
-  const changeType = (type: WorkbenchComponentType) => {
-    const preset = componentTypes.find((item) => item.type === type)
-    if (!preset) return
+  const changeType = (preset: ComponentTypeOption) => {
     const selectedForm = forms.find((form) => form.name === result.config.formName) ?? forms[0]
+    const nextBase = baseConfig(selectedForm)
     setResult((previous) => ({
       ...previous,
-      type,
+      type: preset.type,
       title:
         !previous.title.trim() ||
-        previous.title.trim() === componentTypes.find((item) => item.type === previous.type)?.label
+        previous.title.trim() === selectedOption(previous.config).label
           ? preset.label
           : previous.title,
       w: preset.w,
       h: preset.h,
       config: {
-        ...firstFormConfig(selectedForm),
-        showLegend: type === 'pie',
-        showLabel: type !== 'line',
-        smooth: type === 'line',
-        palette: type === 'pie' ? 'multi' : 'primary',
-        metric: previous.config.metric ?? kpiOptions[0]?.id,
-        shortcuts: [],
-        columnsPerRow: 2,
+        ...nextBase,
+        type: preset.type,
+        chartType: preset.chartType ?? nextBase.chartType,
+        showLegend: preset.chartType === 'pie',
+        palette: preset.chartType === 'pie' ? 'multi' : 'primary',
       },
     }))
   }
 
   const changeForm = (formName: string) => {
-    updateConfig(firstFormConfig(forms.find((form) => form.name === formName)))
+    const nextConfig = baseConfig(forms.find((form) => form.name === formName))
+    updateConfig({
+      formName: nextConfig.formName,
+      dimensionField: nextConfig.dimensionField,
+      measureField: nextConfig.measureField,
+      aggregation: nextConfig.aggregation,
+      visibleColumns: nextConfig.visibleColumns,
+    })
   }
 
   const save = () => {
@@ -237,26 +350,7 @@ export function ComponentDesigner({
     if (result.w < 1 || result.w > WORKBENCH_GRID_COLUMNS || result.h < 1 || result.h > WORKBENCH_MAX_GRID_HEIGHT) {
       return
     }
-    const config: WorkbenchComponentConfig = {}
-    if (dataComponentTypes.has(result.type)) {
-      config.formName = result.config.formName
-      config.dimensionField = result.config.dimensionField
-      config.measureField = result.config.measureField
-      config.aggregation = result.config.aggregation
-      if (result.type === 'index') config.metric = result.config.metric
-      if (result.type === 'dataloader') config.visibleColumns = result.config.visibleColumns ?? []
-    }
-    if (result.type === 'line' || result.type === 'bar' || result.type === 'pie') {
-      config.showLegend = result.config.showLegend ?? false
-      config.showLabel = result.config.showLabel ?? false
-      config.smooth = result.config.smooth ?? false
-      config.palette = result.config.palette ?? 'primary'
-    }
-    if (result.type === 'shortcuts') {
-      config.shortcuts = result.config.shortcuts ?? []
-      config.columnsPerRow = result.config.columnsPerRow ?? 2
-    }
-    onSave({...result, title, config})
+    onSave({...result, title, config: toWorkbenchConfig(result)})
   }
 
   const selectedForm = forms.find((form) => form.name === result.config.formName)
@@ -272,14 +366,16 @@ export function ComponentDesigner({
   const previewComponent: WorkbenchComponent = {
     id: component?.id ?? 'preview',
     title: result.title || '未命名组件',
-    type: result.type,
-    config: result.config,
+    placement: {x: 0, y: 0, w: result.w, h: result.h},
+    config: toWorkbenchConfig(result),
   }
   const previewColumns = (selectedForm?.fields ?? []).map((field) => ({
     name: field.name,
     label: field.label,
   }))
-  const selectedComponentType = componentTypes.find((item) => item.type === result.type) ?? componentTypes[1]
+  const selectedComponentType = componentTypes.find(
+    (item) => optionKey(item) === resultOptionKey(result),
+  ) ?? componentTypes[1]
   const previewRowHeight = 80
   const previewWidthUnits = Math.min(Math.max(result.w || 1, 1), WORKBENCH_GRID_COLUMNS)
   const previewHeightUnits = Math.min(Math.max(result.h || 1, 1), WORKBENCH_MAX_GRID_HEIGHT)
@@ -322,14 +418,15 @@ export function ComponentDesigner({
                 <span className="text-xs font-medium text-muted-foreground">组件类型</span>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {componentTypes.map((item) => {
-                    const Icon = componentTypeIcons[item.type]
-                    const selected = result.type === item.type
+                    const key = optionKey(item)
+                    const Icon = componentTypeIcons[key]
+                    const selected = resultOptionKey(result) === key
                     return (
                       <button
-                        key={item.type}
+                        key={key}
                         type="button"
                         aria-pressed={selected}
-                        onClick={() => changeType(item.type)}
+                        onClick={() => changeType(item)}
                         className={cn(
                           'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition-colors hover:border-primary/50',
                           selected ? 'border-primary bg-primary/5 text-primary' : 'border-border text-foreground',
@@ -380,6 +477,7 @@ export function ComponentDesigner({
                       </SelectContent>
                     </Select>
                   </div>
+                  {result.type === 'chart' ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <span className="text-sm font-medium text-foreground">分组字段</span>
@@ -395,7 +493,6 @@ export function ComponentDesigner({
                         </SelectContent>
                       </Select>
                     </div>
-                    {result.type !== 'dataloader' ? (
                       <>
                         <div>
                           <span className="text-sm font-medium text-foreground">聚合方式</span>
@@ -430,9 +527,9 @@ export function ComponentDesigner({
                           </div>
                         ) : null}
                       </>
-                    ) : null}
                   </div>
-                  {result.type === 'index' ? (
+                  ) : null}
+                  {result.type === 'metric' ? (
                     <div>
                       <span className="text-sm font-medium text-foreground">指标模板</span>
                       <Select
@@ -529,7 +626,7 @@ export function ComponentDesigner({
             </TabsContent>
 
             <TabsContent value="style" className="mt-4 space-y-3">
-              {result.type === 'line' || result.type === 'bar' || result.type === 'pie' ? (
+              {result.type === 'chart' ? (
                 <>
                   <label className="flex items-center gap-2 text-sm text-foreground">
                     <Checkbox
@@ -611,7 +708,7 @@ export function ComponentDesigner({
               <div className="flex min-w-0 items-center gap-3">
                 <span
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  {React.createElement(componentTypeIcons[result.type], {className: 'h-4 w-4'})}
+                  {React.createElement(componentTypeIcons[resultOptionKey(result)], {className: 'h-4 w-4'})}
                 </span>
                 <h4 className="truncate text-sm font-semibold text-foreground">{previewComponent.title}</h4>
               </div>
