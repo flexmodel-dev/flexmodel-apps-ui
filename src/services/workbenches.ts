@@ -30,7 +30,7 @@ export interface WorkbenchChartConfig {
   chartType: WorkbenchChartType
   formName: string
   dimensionField: string
-  measureField?: string
+  measureField?: string | null
   aggregation: WorkbenchAggregationType
   showLegend: boolean
   showLabel: boolean
@@ -173,6 +173,29 @@ function detailKey(appId: string, workbenchId: string) {
   return `${appId}:${workbenchId}`
 }
 
+function normalizeComponentConfig(config: WorkbenchComponentConfig): WorkbenchComponentConfig {
+  if (config.type === 'metric') {
+    const aggregation = config.aggregation ?? 'count'
+    return {
+      ...config,
+      aggregation,
+      field: aggregation === 'count' ? null : (config.field ?? null),
+    }
+  }
+  if (config.type === 'chart') {
+    const aggregation = config.aggregation ?? 'count'
+    return {
+      ...config,
+      aggregation,
+      measureField: aggregation === 'count' ? null : (config.measureField ?? null),
+      showLegend: config.showLegend ?? (config.chartType === 'pie'),
+      showLabel: config.showLabel ?? true,
+      smooth: config.chartType === 'line' ? (config.smooth ?? true) : undefined,
+      palette: config.palette ?? (config.chartType === 'pie' ? 'multi' : 'primary'),
+    }
+  }
+  return config
+}
 function normalizeWorkbench(workbench: Workbench): Workbench {
   if (!workbench.layout) {
     throw new Error('工作台布局缺失')
@@ -182,7 +205,12 @@ function normalizeWorkbench(workbench: Workbench): Workbench {
     description: workbench.description ?? '',
     layout: {
       schemaVersion: workbench.layout.schemaVersion,
-      components: Array.isArray(workbench.layout.components) ? workbench.layout.components : [],
+      components: Array.isArray(workbench.layout.components)
+        ? workbench.layout.components.map((component) => ({
+          ...component,
+          config: normalizeComponentConfig(component.config),
+        }))
+        : [],
     },
   }
 }

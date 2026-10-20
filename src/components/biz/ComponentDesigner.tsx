@@ -163,13 +163,13 @@ function toDesignerConfig(
         type: 'chart',
         chartType: config.chartType,
         formName: config.formName,
-        dimensionField: config.dimensionField,
+        dimensionField: config.dimensionField ?? base.dimensionField,
         measureField: config.measureField ?? base.measureField,
-        aggregation: config.aggregation,
-        showLegend: config.showLegend,
-        showLabel: config.showLabel,
-        ...(config.chartType === 'line' ? {smooth: config.smooth} : {}),
-        palette: config.palette,
+        aggregation: config.aggregation ?? 'count',
+        showLegend: config.showLegend ?? (config.chartType === 'pie'),
+        showLabel: config.showLabel ?? true,
+        smooth: config.chartType === 'line' ? (config.smooth ?? false) : false,
+        palette: config.palette ?? (config.chartType === 'pie' ? 'multi' : 'primary'),
       }
     case 'dataloader':
       return {
