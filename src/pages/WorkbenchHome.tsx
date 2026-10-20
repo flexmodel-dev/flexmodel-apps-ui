@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {Maximize, Minimize, Pencil, Plus, RefreshCw, Trash2} from 'lucide-react'
+import {Maximize, Minimize, MoreVertical, Pencil, Plus, RefreshCw, Trash2, type LucideIcon} from 'lucide-react'
 import {useNavigate, useParams} from 'react-router-dom'
 import {AppLayout} from '@/components/layout/AppLayout'
 import {AppLoading} from '@/components/biz/AppLoading'
@@ -14,12 +14,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {GridStack, type GridStackNode} from 'gridstack'
+import {GridStack, type GridItemHTMLElement} from 'gridstack'
 import 'gridstack/dist/gridstack.min.css'
 import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
 import {ComponentDesigner, type ComponentDesignerResult} from '@/components/biz/ComponentDesigner'
 import {getAppForms, type AppForm} from '@/services/appForms'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
+import {menuIcon} from '@/services/appMenuNavigation'
 import {
   createWorkbench,
   deleteWorkbench,
@@ -72,7 +73,7 @@ function ComponentCard({
   editable: boolean
   filter: string
   columns: Array<{ name: string; label: string }>
-  shortcutTargets: Array<{ id: string; label: string; to: string }>
+  shortcutTargets: Array<{ id: string; label: string; to: string; icon?: LucideIcon }>
   onOpenMenu: (to: string) => void
   onEdit: () => void
   onDelete: () => void
@@ -83,7 +84,7 @@ function ComponentCard({
       ref={(element) => setGridItemAttributes(element, item)}
       className="grid-stack-item"
     >
-      <div className="grid-stack-item-content h-full min-h-0">
+      <div className="grid-stack-item-content min-h-0">
         <div className="app-card group flex h-full min-h-0 flex-col rounded-xl p-5 text-card-foreground">
           <div className="flex items-center justify-between">
             <h6 className={cn('m-0 text-sm font-semibold', editable && 'cursor-grab active:cursor-grabbing')}>
@@ -135,6 +136,7 @@ export default function WorkbenchHome() {
   const [error, setError] = React.useState<string | null>(null)
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [editable, setEditable] = React.useState(false)
+  const [draftLayout, setDraftLayout] = React.useState<WorkbenchLayout | null>(null)
   const [refreshKey, setRefreshKey] = React.useState(0)
   const [fullscreen, setFullscreen] = React.useState(Boolean(document.fullscreenElement))
   const [filter, setFilter] = React.useState('全部')
@@ -196,22 +198,31 @@ export default function WorkbenchHome() {
   }, [])
 
   React.useEffect(() => {
+    setEditable(false)
+    setDraftLayout(null)
+  }, [selectedWorkbenchId])
+
+  React.useEffect(() => {
     const gridElement = gridRef.current
-    if (!gridElement || !workbench || workbench.layout.items.length === 0) return
+    if (!gridElement || !workbench || (editable && !draftLayout)) return
+    const layout = editable && draftLayout ? draftLayout : workbench.layout
+    if (layout.items.length === 0) return
     const grid = GridStack.init({
       column: WORKBENCH_GRID_COLUMNS,
       maxRow: WORKBENCH_MAX_GRID_HEIGHT,
       cellHeight: 80,
-      margin: 16,
+      margin: '0 16px 16px 0',
       float: false,
       staticGrid: !editable,
       disableDrag: !editable,
       disableResize: !editable,
     }, gridElement)
     if (!grid) return
-    const commitLayoutChange = (_event: Event, changedItem: GridStackNode) => {
-      if (!changedItem.id) return
-      const items = workbench.layout.items.map((item) =>
+    const commitLayoutChange = (_event: Event, changedElement: GridItemHTMLElement) => {
+      const changedItem = changedElement.gridstackNode
+      if (!changedItem?.id) return
+      setDraftLayout(() => {
+        const items = layout.items.map((item) =>
         item.componentId === changedItem.id
           ? {
             ...item,
@@ -221,8 +232,9 @@ export default function WorkbenchHome() {
             h: changedItem.h ?? item.h,
           }
           : item,
-      )
-      void saveLayout({components: workbench.layout.components, items})
+        )
+        return {components: layout.components, items}
+      })
     }
     grid.on('dragstop', commitLayoutChange)
     grid.on('resizestop', commitLayoutChange)
@@ -231,7 +243,7 @@ export default function WorkbenchHome() {
       grid.off('resizestop')
       grid.destroy(false)
     }
-  }, [editable, workbench])
+  }, [editable, workbench, draftLayout])
 
   const toggleFullscreen = async () => {
     if (document.fullscreenElement) {
@@ -248,14 +260,36 @@ export default function WorkbenchHome() {
     try {
       const updated = await patchWorkbench(appId, workbench.id, {layout: nextLayout})
       setWorkbench(updated)
+      return true
     } catch (caught) {
       setActionError(caught instanceof Error ? caught.message : '保存工作台布局失败。')
+      return false
     } finally {
       setIsSaving(false)
     }
   }
 
+  const enterEditMode = () => {
+    if (!workbench) return
+    setDraftLayout(workbench.layout)
+    setEditable(true)
+  }
+
+  const saveConfiguration = async () => {
+    if (!workbench) return
+    const nextLayout = draftLayout ?? workbench.layout
+    const saved = await saveLayout(nextLayout)
+    if (saved) {
+      setEditable(false)
+      setDraftLayout(null)
+    }
+  }
+
   const openCreateDesigner = () => {
+    if (!editable && workbench) {
+      setDraftLayout(workbench.layout)
+      setEditable(true)
+    }
     setDesignerMode('create')
     setDesignerComponent(null)
     setDesignerItem(null)
@@ -271,6 +305,7 @@ export default function WorkbenchHome() {
 
   const handleDesignerSave = (result: ComponentDesignerResult) => {
     if (!workbench) return
+    const layout = draftLayout ?? workbench.layout
     if (designerMode === 'create') {
       const component: WorkbenchComponent = {
         id: componentId(),
@@ -278,7 +313,7 @@ export default function WorkbenchHome() {
         type: result.type,
         config: result.config,
       }
-      const bottomY = workbench.layout.items.reduce((max, item) => Math.max(max, item.y + item.h), 0)
+      const bottomY = layout.items.reduce((max, item) => Math.max(max, item.y + item.h), 0)
       const item: WorkbenchLayoutItem = {
         componentId: component.id,
         x: 0,
@@ -286,22 +321,22 @@ export default function WorkbenchHome() {
         w: result.w,
         h: result.h,
       }
-      void saveLayout({
-        components: [...workbench.layout.components, component],
-        items: [...workbench.layout.items, item],
+      setDraftLayout({
+        components: [...layout.components, component],
+        items: [...layout.items, item],
       })
     } else if (designerComponent && designerItem) {
-      const components = workbench.layout.components.map((component) =>
+      const components = layout.components.map((component) =>
         component.id === designerComponent.id
           ? {...component, title: result.title, type: result.type, config: result.config}
           : component,
       )
-      const items = workbench.layout.items.map((item) =>
+      const items = layout.items.map((item) =>
         item.componentId === designerComponent.id
           ? {...designerItem, w: result.w, h: result.h}
           : item,
       )
-      void saveLayout({components, items})
+      setDraftLayout({components, items})
     }
     setDesignerOpen(false)
     setDesignerComponent(null)
@@ -310,9 +345,10 @@ export default function WorkbenchHome() {
 
   const deleteComponent = (componentIdToDelete: string) => {
     if (!workbench) return
-    void saveLayout({
-      components: workbench.layout.components.filter((component) => component.id !== componentIdToDelete),
-      items: workbench.layout.items.filter((item) => item.componentId !== componentIdToDelete),
+    const layout = draftLayout ?? workbench.layout
+    setDraftLayout({
+      components: layout.components.filter((component) => component.id !== componentIdToDelete),
+      items: layout.items.filter((item) => item.componentId !== componentIdToDelete),
     })
   }
 
@@ -390,7 +426,8 @@ export default function WorkbenchHome() {
     }
   }
 
-  const componentsById = new Map(workbench?.layout.components.map((component) => [
+  const displayLayout = editable && draftLayout ? draftLayout : workbench?.layout
+  const componentsById = new Map(displayLayout?.components.map((component) => [
     component.id,
     component,
   ]) ?? [])
@@ -401,6 +438,7 @@ export default function WorkbenchHome() {
     id: menu.id,
     label: menu.name,
     to: menu.pageRoute ?? `/apps/${appId}/${menu.id}`,
+    icon: menuIcon(menu.iconName),
   }))
   const currentWorkbenchName = workbenches.find((item) => item.id === selectedWorkbenchId)?.name
     ?? workbench?.name
@@ -408,7 +446,7 @@ export default function WorkbenchHome() {
   return (
     <AppLayout noPadding noOuterScroll contentClassName="flex h-full min-h-0 flex-col" hideHeader={fullscreen}>
       <div className="flex h-full min-h-0 flex-col px-4 pb-4 md:px-6 md:pb-6">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="group/workbench-header flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -424,28 +462,51 @@ export default function WorkbenchHome() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} disabled={isSaving}>
-              <Plus className="h-4 w-4"/>
-              新建工作台
-            </Button>
-            <Button variant="outline" size="sm" onClick={openEditInfo} disabled={!workbench || isSaving}>
-              编辑信息
-            </Button>
             <Button
-              variant="outline"
-              size="sm"
-              onClick={deleteCurrentWorkbench}
-              disabled={!workbench || workbenches.length <= 1 || isSaving}
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 opacity-0 transition-opacity group-hover/workbench-header:opacity-100"
+              title="新建工作台"
+              aria-label="新建工作台"
+              onClick={() => setCreateOpen(true)}
+              disabled={isSaving}
             >
-              删除工作台
+              <Plus className="h-4 w-4"/>
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 opacity-0 transition-opacity group-hover/workbench-header:opacity-100"
+                  title="更多操作"
+                  aria-label="更多操作"
+                  disabled={!workbench || isSaving}
+                >
+                  <MoreVertical className="h-4 w-4"/>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={openEditInfo} disabled={!workbench || isSaving}>
+                  <Pencil className="h-4 w-4"/> 编辑工作台
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={deleteCurrentWorkbench}
+                  disabled={!workbench || workbenches.length <= 1 || isSaving}
+                >
+                  <Trash2 className="h-4 w-4"/> 删除工作台
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="flex items-center gap-1">
-            <Button size="sm" onClick={openCreateDesigner} disabled={!workbench || isSaving}>
-              <Plus className="h-4 w-4"/>
-              添加组件
-            </Button>
+            {editable ? (
+              <Button size="sm" onClick={openCreateDesigner} disabled={!workbench || isSaving}>
+                <Plus className="h-4 w-4"/>
+                添加组件
+              </Button>
+            ) : null}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -464,8 +525,13 @@ export default function WorkbenchHome() {
               {fullscreen ? <Minimize className="h-4 w-4"/> : <Maximize className="h-4 w-4"/>}
             </Button>
 
-            <Button variant="outline" size="sm" onClick={() => setEditable((value) => !value)}>
-              {editable ? '锁定配置' : '编辑配置'}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={editable ? saveConfiguration : enterEditMode}
+              disabled={!workbench || isSaving}
+            >
+              {editable ? '保存配置' : '编辑组件'}
             </Button>
 
             <Button variant="ghost" size="icon" title="刷新数据" onClick={() => setRefreshKey((key) => key + 1)}>
@@ -488,9 +554,9 @@ export default function WorkbenchHome() {
         <div className="mt-4 min-h-0 flex-1 overflow-auto">
           {isLoading ? (
             <AppLoading className="min-h-[320px]"/>
-          ) : workbench && workbench.layout.items.length > 0 ? (
+          ) : workbench && displayLayout && displayLayout.items.length > 0 ? (
             <div ref={gridRef} className="grid-stack">
-              {workbench.layout.items.map((item) => {
+              {displayLayout.items.map((item) => {
                 const component = componentsById.get(item.componentId)
                 if (!component) return null
                 const selectedForm = forms.find((form) => form.name === component.config?.formName)

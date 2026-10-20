@@ -1,7 +1,7 @@
 import {navIcons, type NavIconName, type NavItem, type TopNavItem} from '@/data/mock'
 import type {AppMenu, AppMenuOrderInput} from '@/services/appMenus'
 
-function menuIcon(iconName?: string | null) {
+export function menuIcon(iconName?: string | null) {
   return iconName && iconName !== 'none' ? navIcons[iconName as NavIconName] : undefined
 }
 

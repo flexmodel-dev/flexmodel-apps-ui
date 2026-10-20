@@ -24,6 +24,7 @@ import {AppLoading} from '@/components/biz/AppLoading'
 import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
 import {getAppForms, type AppForm, type AppFormField} from '@/services/appForms'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
+import {menuIcon} from '@/services/appMenuNavigation'
 import {
   WORKBENCH_GRID_COLUMNS,
   WORKBENCH_MAX_GRID_HEIGHT,
@@ -122,9 +123,10 @@ function toResult(
     palette: type === 'pie' ? 'multi' : 'primary',
     metric: kpiOptions[0]?.id,
     shortcuts: [],
+    columnsPerRow: 2,
   }
   return {
-    title: component?.title ?? '',
+    title: component?.title ?? preset.label,
     type,
     w: item?.w ?? preset.w,
     h: item?.h ?? preset.h,
@@ -187,6 +189,11 @@ export function ComponentDesigner({
     setResult((previous) => ({
       ...previous,
       type,
+      title:
+        !previous.title.trim() ||
+        previous.title.trim() === componentTypes.find((item) => item.type === previous.type)?.label
+          ? preset.label
+          : previous.title,
       w: preset.w,
       h: preset.h,
       config: {
@@ -197,6 +204,7 @@ export function ComponentDesigner({
         palette: type === 'pie' ? 'multi' : 'primary',
         metric: previous.config.metric ?? kpiOptions[0]?.id,
         shortcuts: [],
+        columnsPerRow: 2,
       },
     }))
   }
@@ -229,7 +237,10 @@ export function ComponentDesigner({
       config.smooth = result.config.smooth ?? false
       config.palette = result.config.palette ?? 'primary'
     }
-    if (result.type === 'shortcuts') config.shortcuts = result.config.shortcuts ?? []
+    if (result.type === 'shortcuts') {
+      config.shortcuts = result.config.shortcuts ?? []
+      config.columnsPerRow = result.config.columnsPerRow ?? 2
+    }
     onSave({...result, title, config})
   }
 
@@ -241,6 +252,7 @@ export function ComponentDesigner({
     id: menu.id,
     label: menu.name,
     to: menu.pageRoute ?? `/apps/${appId}/${menu.id}`,
+    icon: menuIcon(menu.iconName),
   }))
   const previewComponent: WorkbenchComponent = {
     id: component?.id ?? 'preview',
@@ -432,6 +444,20 @@ export function ComponentDesigner({
               ) : result.type === 'shortcuts' ? (
                 <div>
                   <span className="text-sm font-medium text-foreground">快捷入口</span>
+                  <div className="mt-2">
+                    <span className="text-sm font-medium text-foreground">每行数量</span>
+                    <Select
+                      value={String(result.config.columnsPerRow ?? 2)}
+                      onValueChange={(value) => updateConfig({columnsPerRow: Number(value)})}
+                    >
+                      <SelectTrigger className="mt-2"><SelectValue/></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({length: 12}, (_, index) => index + 1).map((count) => (
+                          <SelectItem key={count} value={String(count)}>{count} 个</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="mt-2 grid gap-2">
                     {formMenus.map((menu) => {
                       const checked = (result.config.shortcuts ?? []).includes(menu.id)

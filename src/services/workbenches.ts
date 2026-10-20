@@ -28,6 +28,7 @@ export interface WorkbenchComponentConfig {
   metric?: string
   visibleColumns?: string[]
   shortcuts?: string[]
+  columnsPerRow?: number
 }
 
 export interface WorkbenchComponent {

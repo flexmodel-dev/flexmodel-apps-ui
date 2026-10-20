@@ -1,6 +1,6 @@
 import * as React from 'react'
 import ReactECharts from 'echarts-for-react'
-import {FileText} from 'lucide-react'
+import {FileText, type LucideIcon} from 'lucide-react'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import type {WorkbenchComponent, WorkbenchComponentConfig} from '@/services/workbenches'
 import {
@@ -10,6 +10,7 @@ import {
   getRecords,
   kpiOptions,
 } from '@/data/mock'
+import {cn} from '@/lib/utils'
 
 export interface ComponentCanvasColumn {
   name: string
@@ -20,6 +21,7 @@ export interface ComponentCanvasShortcut {
   id: string
   label: string
   to: string
+  icon?: LucideIcon
 }
 
 function componentConfig(component: WorkbenchComponent): WorkbenchComponentConfig {
@@ -172,19 +174,48 @@ export function ComponentCanvas({
 
   if (component.type === 'shortcuts') {
     const menus = shortcutTargets.filter((item) => (config.shortcuts ?? []).includes(item.id))
+    const columnsPerRow = config.columnsPerRow ?? 2
+    const iconContainerSize =
+      columnsPerRow === 1 ? 'h-20 w-20' :
+        columnsPerRow === 2 ? 'h-16 w-16' :
+          columnsPerRow === 3 ? 'h-14 w-14' :
+            columnsPerRow === 4 ? 'h-12 w-12' :
+              columnsPerRow <= 6 ? 'h-10 w-10' : 'h-8 w-8'
+    const iconSize =
+      columnsPerRow === 1 ? 'h-10 w-10' :
+        columnsPerRow === 2 ? 'h-8 w-8' :
+          columnsPerRow === 3 ? 'h-7 w-7' :
+            columnsPerRow === 4 ? 'h-6 w-6' :
+              columnsPerRow <= 6 ? 'h-5 w-5' : 'h-4 w-4'
+    const textSize =
+      columnsPerRow <= 3 ? 'text-base' :
+        columnsPerRow <= 4 ? 'text-sm' : 'text-xs'
     return (
-      <div className="grid h-full grid-cols-1 content-start gap-2 sm:grid-cols-2">
-        {menus.map((item) => (
-          <button
-            key={item.to}
-            type="button"
-            onClick={() => onOpenMenu?.(item.to)}
-            className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <FileText className="mt-0.5 h-4 w-4 text-primary"/>
-            <span className="text-sm font-medium text-foreground">{item.label}</span>
-          </button>
-        ))}
+      <div
+        className="grid h-full content-start gap-2"
+        style={{gridTemplateColumns: `repeat(${columnsPerRow}, minmax(0, 1fr))`}}
+      >
+        {menus.map((item) => {
+          const Icon = item.icon ?? FileText
+          return (
+            <button
+              key={item.to}
+              type="button"
+              onClick={() => onOpenMenu?.(item.to)}
+              className="flex flex-col items-center gap-2 rounded-lg p-3 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span
+                className={cn(
+                  'flex items-center justify-center rounded-lg bg-primary/20 shadow-sm',
+                  iconContainerSize,
+                )}
+              >
+                <Icon className={cn('text-primary', iconSize)}/>
+              </span>
+              <span className={cn('font-medium text-foreground', textSize)}>{item.label}</span>
+            </button>
+          )
+        })}
       </div>
     )
   }
