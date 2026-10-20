@@ -28,7 +28,10 @@ export function MenuLinkPicker({
   onChange: (value?: string) => void
   appId?: string
 }) {
-  const [appTargets, setAppTargets] = React.useState<AppMenuTargets>({builtIn: [], forms: []})
+  const [appTargets, setAppTargets] = React.useState<AppMenuTargets>({
+    builtIn: [],
+    forms: [],
+  })
 
   React.useEffect(() => {
     if (!appId) {
@@ -90,7 +93,6 @@ export function MenuLinkPicker({
               </SelectItem>
             ))}
           </SelectGroup>
-          <SelectSeparator/>
           <SelectGroup>
             <SelectLabel>表单</SelectLabel>
             {formLinks.map((link) => (

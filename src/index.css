@@ -201,4 +201,8 @@
   .grid-stack > .grid-stack-item.ui-resizable-resizing > .ui-resizable-handle {
     opacity: 1;
   }
+
+  .grid-stack > .grid-stack-item > .ui-resizable-se {
+    bottom: calc(var(--gs-item-margin-bottom) - 2px);
+  }
 }

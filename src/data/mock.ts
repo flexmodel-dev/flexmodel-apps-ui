@@ -918,7 +918,7 @@ export const projectPlans: ProjectPlan[] = [
 export interface WorkbenchComponent {
   id: string
   title: string
-  type: 'bar' | 'line' | 'pie' | 'dataloader' | 'index' | 'favorites' | 'tasks'
+  type: 'bar' | 'line' | 'pie' | 'dataloader' | 'index' | 'shortcuts' | 'tasks'
   w: number
   h: number
   x: number
@@ -939,7 +939,7 @@ export interface ComponentConfig {
   palette: 'primary' | 'multi'
   metric: string
   visibleColumns: string[]
-  favoriteForms: string[]
+  shortcuts: string[]
 }
 
 export const workbenches = [
@@ -970,7 +970,7 @@ export const addableComponentTypes = [
   {type: 'bar', label: '柱状组件', description: '比较表单数据的分组规模', w: 6, h: 6},
   {type: 'pie', label: '饼图组件', description: '展示表单数据分组占比', w: 4, h: 6},
   {type: 'dataloader', label: '明细组件', description: '查看表单记录明细', w: 12, h: 7},
-  {type: 'favorites', label: '我的常用', description: '放置常用表单，点击直达对应菜单', w: 6, h: 4},
+  {type: 'shortcuts', label: '快捷入口', description: '配置常用入口，点击直达对应菜单', w: 6, h: 4},
   {type: 'tasks', label: '我的任务', description: '按待办工作、最近处理、我发起的查看流程审批列表', w: 4, h: 6},
 ] as const
 
@@ -989,7 +989,7 @@ export const salesColumns = [
   {id: 'rate', label: '完成率'},
 ]
 
-export const favoriteForms = [
+export const shortcuts = [
   {label: '客户', to: '/apps/app-sales/menu-customer'},
   {label: '商机', to: '/apps/app-sales/menu-opportunity'},
   {label: '产品', to: '/apps/app-sales/menu-product'},
@@ -1111,7 +1111,7 @@ export function defaultComponentConfig(type: WorkbenchComponent['type']): Compon
     palette: type === 'pie' ? 'multi' : 'primary',
     metric: 'new-customers',
     visibleColumns: salesColumns.map((column) => column.id),
-    favoriteForms: favoriteForms.map((item) => item.to),
+    shortcuts: shortcuts.map((item) => item.to),
   }
 }
 

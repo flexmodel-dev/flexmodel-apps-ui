@@ -148,7 +148,10 @@ export function AppMenuManager({
     useSensor(KeyboardSensor, {coordinateGetter: sortableKeyboardCoordinates}),
   )
   const [menus, setMenus] = React.useState<AppMenu[]>([])
-  const [targets, setTargets] = React.useState<AppMenuTargets>({builtIn: [], forms: []})
+  const [targets, setTargets] = React.useState<AppMenuTargets>({
+    builtIn: [],
+    forms: [],
+  })
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [form, setForm] = React.useState<MenuForm | null>(null)
@@ -336,7 +339,7 @@ export function AppMenuManager({
                   <MenuRow
                     menu={menu}
                     scope="root"
-                    targetLabel={menu.target ? targetValue(menu.target) : undefined}
+                    targetLabel={menu.target ? targetLabel(targetValue(menu.target)) : undefined}
                     onEdit={() => startEdit(menu)}
                     onDelete={() => setDeleteTarget(menu)}
                   />
@@ -356,7 +359,7 @@ export function AppMenuManager({
                               key={child.id}
                               menu={child}
                               scope="child"
-                              targetLabel={child.target ? targetValue(child.target) : undefined}
+                              targetLabel={child.target ? targetLabel(targetValue(child.target)) : undefined}
                               onEdit={() => startEdit(child)}
                               onDelete={() => setDeleteTarget(child)}
                             />

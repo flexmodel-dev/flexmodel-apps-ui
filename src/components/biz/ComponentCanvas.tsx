@@ -1,27 +1,48 @@
 import * as React from 'react'
 import ReactECharts from 'echarts-for-react'
 import {FileText} from 'lucide-react'
-import {UserAvatar} from '@/components/ui/avatar'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import type {WorkbenchComponent, WorkbenchComponentConfig} from '@/services/workbenches'
 import {
-  componentData,
-  defaultComponentConfig,
   approvals,
   currentUser,
-  favoriteForms,
   getComponentRows,
+  getRecords,
   kpiOptions,
-  salesColumns,
-  type WorkbenchComponent,
 } from '@/data/mock'
 
-function componentConfig(component: WorkbenchComponent) {
-  return component.config ?? defaultComponentConfig(component.type)
+export interface ComponentCanvasColumn {
+  name: string
+  label: string
+}
+
+export interface ComponentCanvasShortcut {
+  id: string
+  label: string
+  to: string
+}
+
+function componentConfig(component: WorkbenchComponent): WorkbenchComponentConfig {
+  return component.config ?? {}
 }
 
 function buildOption(component: WorkbenchComponent, refreshKey: number, filter: string) {
   const config = componentConfig(component)
-  const source = getComponentRows(config)
+  const source = getComponentRows({
+    title: component.title,
+    type: component.type,
+    formName: config.formName ?? '',
+    dimensionField: config.dimensionField ?? '',
+    measureField: config.measureField ?? '',
+    aggregation: config.aggregation === 'avg' ? 'average' : (config.aggregation ?? 'count'),
+    showLegend: config.showLegend ?? false,
+    showLabel: config.showLabel ?? false,
+    smooth: config.smooth ?? false,
+    palette: config.palette ?? 'primary',
+    metric: config.metric ?? '',
+    visibleColumns: config.visibleColumns ?? [],
+    shortcuts: config.shortcuts ?? [],
+  })
   const primaryHsl = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
   const primary = `hsl(${primaryHsl})`
   const primaryMuted = `hsl(${primaryHsl} / 0.12)`
@@ -29,7 +50,7 @@ function buildOption(component: WorkbenchComponent, refreshKey: number, filter: 
   const jitter = (value: number, offset: number) =>
     value + ((refreshKey * 3 + offset + filterWeight) % 7) - 3
 
-  if (config.type === 'pie') {
+  if (component.type === 'pie') {
     return {
       tooltip: {trigger: 'item'},
       legend: {
@@ -60,7 +81,7 @@ function buildOption(component: WorkbenchComponent, refreshKey: number, filter: 
     }
   }
 
-  const isLine = config.type === 'line'
+  const isLine = component.type === 'line'
   return {
     grid: {top: 30, left: 50, right: 20, bottom: 30},
     tooltip: {trigger: 'axis'},
@@ -98,15 +119,19 @@ export function ComponentCanvas({
                                   refreshKey,
                                   filter,
                                   onOpenMenu,
+                                  columns = [],
+                                  shortcutTargets = [],
                                 }: {
   component: WorkbenchComponent
   refreshKey: number
   filter: string
   onOpenMenu?: (to: string) => void
+  columns?: ComponentCanvasColumn[]
+  shortcutTargets?: ComponentCanvasShortcut[]
 }) {
   const config = componentConfig(component)
 
-  if (config.type === 'index') {
+  if (component.type === 'index') {
     const metric = kpiOptions.find((item) => item.id === config.metric) ?? kpiOptions[0]
     return (
       <div className="flex h-full flex-col items-center justify-center">
@@ -118,24 +143,25 @@ export function ComponentCanvas({
     )
   }
 
-  if (config.type === 'dataloader') {
-    const visibleColumns = salesColumns.filter((column) =>
-      config.visibleColumns.includes(column.id),
+  if (component.type === 'dataloader') {
+    const visibleColumns = columns.filter((column) =>
+      (config.visibleColumns ?? []).includes(column.name),
     )
+    const rows = getRecords(config.formName ?? '')
     return (
       <table className="app-table w-full">
         <thead>
         <tr>
           {visibleColumns.map((column) => (
-            <th key={column.id}>{column.label}</th>
+            <th key={column.name}>{column.label}</th>
           ))}
         </tr>
         </thead>
         <tbody>
-        {componentDataRows().map((row) => (
-          <tr key={row.name}>
+        {rows.map((row) => (
+          <tr key={String(row.id)}>
             {visibleColumns.map((column) => (
-              <td key={column.id}>{row[column.id]}</td>
+              <td key={column.name}>{String(row[column.name] ?? '')}</td>
             ))}
           </tr>
         ))}
@@ -144,11 +170,11 @@ export function ComponentCanvas({
     )
   }
 
-  if (config.type === 'favorites') {
-    const forms = favoriteForms.filter((item) => config.favoriteForms.includes(item.to))
+  if (component.type === 'shortcuts') {
+    const menus = shortcutTargets.filter((item) => (config.shortcuts ?? []).includes(item.id))
     return (
       <div className="grid h-full grid-cols-1 content-start gap-2 sm:grid-cols-2">
-        {forms.map((item) => (
+        {menus.map((item) => (
           <button
             key={item.to}
             type="button"
@@ -163,7 +189,7 @@ export function ComponentCanvas({
     )
   }
 
-  if (config.type === 'tasks') {
+  if (component.type === 'tasks') {
     const pendingTasks = approvals.filter((item) => item.status === '待审批')
     const recentTasks = approvals.filter((item) => item.status !== '待审批')
     const initiatedTasks = approvals.filter((item) => item.applicant === currentUser.fullName)
@@ -237,8 +263,4 @@ export function ComponentCanvas({
       notMerge
     />
   )
-}
-
-function componentDataRows(): Record<string, string | number>[] {
-  return componentData.salesRank
 }
