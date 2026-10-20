@@ -133,7 +133,7 @@ export function ComponentCanvas({
     const metricData = data?.type === 'metric' ? data : null
     return (
       <div className="flex h-full flex-col items-center justify-center">
-        <div className="text-4xl font-light text-primary">{metricData?.value ?? '--'}</div>
+        <div className="text-5xl font-light leading-none tabular-nums text-primary">{metricData?.value ?? '--'}</div>
       </div>
     )
   }
