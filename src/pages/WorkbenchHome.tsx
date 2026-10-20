@@ -108,7 +108,7 @@ function ComponentCard({
               </Button>
             </div>
           </div>
-          <div className="mt-3 min-h-0 flex-1 overflow-auto">
+          <div className="workbench-component-scroll mt-3 min-h-0 flex-1 overflow-auto">
             <ComponentCanvas
               component={component}
               data={data}
