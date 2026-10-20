@@ -151,6 +151,21 @@ export function ComponentDesigner({
     toResult(component, item),
   )
   const [titleError, setTitleError] = React.useState('')
+  const previewStageRef = React.useRef<HTMLDivElement | null>(null)
+  const [previewStageSize, setPreviewStageSize] = React.useState({width: 0, height: 0})
+
+  React.useEffect(() => {
+    if (!open) return
+    const stageElement = previewStageRef.current
+    if (!stageElement) return
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect
+      if (!rect) return
+      setPreviewStageSize({width: rect.width, height: rect.height})
+    })
+    observer.observe(stageElement)
+    return () => observer.disconnect()
+  }, [open])
 
   React.useEffect(() => {
     if (!open) return
@@ -264,14 +279,22 @@ export function ComponentDesigner({
     name: field.name,
     label: field.label,
   }))
+  const selectedComponentType = componentTypes.find((item) => item.type === result.type) ?? componentTypes[1]
+  const previewRowHeight = 80
+  const previewWidthUnits = Math.min(Math.max(result.w || 1, 1), WORKBENCH_GRID_COLUMNS)
+  const previewHeightUnits = Math.min(Math.max(result.h || 1, 1), WORKBENCH_MAX_GRID_HEIGHT)
+  const previewHeight = previewHeightUnits * previewRowHeight
+  const previewScale =
+    previewStageSize.height > 0 ? Math.min(1, previewStageSize.height / previewHeight) : 1
+  const previewWidth = `${(previewWidthUnits / WORKBENCH_GRID_COLUMNS) * 100}%`
 
   return (
     <BizDialog
       open={open}
       onOpenChange={(next) => !next && onClose()}
       title={mode === 'create' ? '新增组件' : '编辑组件'}
-      width={1080}
-      height="min(82vh, 760px)"
+      width={1680}
+      height="min(92vh, 960px)"
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
@@ -286,17 +309,51 @@ export function ComponentDesigner({
           {loadError}
         </div>
       ) : (
-        <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <Tabs defaultValue="basic" className="min-h-0">
-            <TabsList className="grid w-full grid-cols-4">
+        <div className="grid h-full min-h-0 gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <Tabs defaultValue="basic" className="min-h-0 rounded-xl border border-border bg-card p-4">
+            <TabsList className="grid h-9 w-full grid-cols-4 rounded-lg bg-muted p-1">
               <TabsTrigger value="basic">基础</TabsTrigger>
               <TabsTrigger value="data">数据</TabsTrigger>
               <TabsTrigger value="style">样式</TabsTrigger>
               <TabsTrigger value="layout">布局</TabsTrigger>
             </TabsList>
-            <TabsContent value="basic" className="mt-4 space-y-4">
+            <TabsContent value="basic" className="mt-5 space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">组件标题</label>
+                <span className="text-xs font-medium text-muted-foreground">组件类型</span>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {componentTypes.map((item) => {
+                    const Icon = componentTypeIcons[item.type]
+                    const selected = result.type === item.type
+                    return (
+                      <button
+                        key={item.type}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => changeType(item.type)}
+                        className={cn(
+                          'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition-colors hover:border-primary/50',
+                          selected ? 'border-primary bg-primary/5 text-primary' : 'border-border text-foreground',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors',
+                            selected ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
+                          )}
+                        >
+                          <Icon className="h-4 w-4"/>
+                        </span>
+                        <span className="truncate text-sm font-medium">{item.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                  {selectedComponentType.description}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">组件标题</label>
                 <Input
                   value={result.title}
                   placeholder="请输入组件标题"
@@ -306,28 +363,6 @@ export function ComponentDesigner({
                   }}
                 />
                 {titleError ? <p className="mt-1 text-xs text-destructive">{titleError}</p> : null}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {componentTypes.map((item) => {
-                  const Icon = componentTypeIcons[item.type]
-                  return (
-                    <button
-                      key={item.type}
-                      type="button"
-                      onClick={() => changeType(item.type)}
-                      className={cn(
-                        'flex items-start gap-3 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary/50',
-                        result.type === item.type && 'border-primary bg-primary/5',
-                      )}
-                    >
-                      <Icon className="mt-0.5 h-4 w-4 text-primary"/>
-                      <span>
-                        <span className="block text-sm font-medium text-foreground">{item.label}</span>
-                        <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
-                      </span>
-                    </button>
-                  )
-                })}
               </div>
             </TabsContent>
 
@@ -571,15 +606,28 @@ export function ComponentDesigner({
             </TabsContent>
           </Tabs>
 
-          <div className="min-h-0 overflow-hidden rounded-lg border border-border bg-muted/30 p-4">
-            <div className="flex h-full min-h-[320px] flex-col">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground">{previewComponent.title}</h4>
-                <span className="text-xs text-muted-foreground">
-                  {result.w}/12 · {result.h}行
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-muted/40">
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  {React.createElement(componentTypeIcons[result.type], {className: 'h-4 w-4'})}
                 </span>
+                <h4 className="truncate text-sm font-semibold text-foreground">{previewComponent.title}</h4>
               </div>
-              <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background p-4">
+              <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                {result.w}/12 · {result.h}行
+              </span>
+            </div>
+            <div ref={previewStageRef} className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-6">
+              <div
+                className="overflow-hidden rounded-xl border border-border bg-background shadow-sm"
+                style={{
+                  width: previewWidth,
+                  height: previewHeight,
+                  transform: `scale(${previewScale})`,
+                }}
+              >
                 <ComponentCanvas
                   component={previewComponent}
                   refreshKey={0}

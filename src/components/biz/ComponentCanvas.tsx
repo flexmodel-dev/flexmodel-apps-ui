@@ -289,7 +289,8 @@ export function ComponentCanvas({
   return (
     <ReactECharts
       option={buildOption(component, refreshKey, filter)}
-      style={{height: '100%'}}
+      className="h-full w-full"
+      style={{height: '100%', width: '100%'}}
       opts={{renderer: 'svg'}}
       notMerge
     />
