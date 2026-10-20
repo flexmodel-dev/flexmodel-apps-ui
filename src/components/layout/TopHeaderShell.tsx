@@ -97,7 +97,7 @@ function TopHeaderShell({
                 isDark ? 'bg-primary/20 text-primary' : 'bg-white/20 text-primary-foreground',
               )}
             >
-              {LogoIcon ? <LogoIcon className="h-5 w-5"/> : 'N'}
+              {LogoIcon ? <LogoIcon className="h-5 w-5"/> : 'F'}
             </span>
             <span className="max-w-[34vw] truncate text-base font-semibold sm:text-lg">{brand}</span>
           </Link>
@@ -109,7 +109,7 @@ function TopHeaderShell({
                 isDark ? 'bg-primary/20 text-primary' : 'bg-white/20 text-primary-foreground',
               )}
             >
-              {LogoIcon ? <LogoIcon className="h-5 w-5"/> : 'N'}
+              {LogoIcon ? <LogoIcon className="h-5 w-5"/> : 'F'}
             </span>
             <span className="max-w-[34vw] truncate text-base font-semibold sm:text-lg">{brand}</span>
           </div>
