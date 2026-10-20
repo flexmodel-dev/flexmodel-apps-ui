@@ -9,7 +9,7 @@ export type AppIconName =
   | 'Tags'
   | 'TrendingUp'
 
-export type AppPrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose' | 'black'
+export type AppPrimaryColor = 'blue' | 'indigo' | 'green' | 'amber' | 'rose' | 'black'
 
 export interface App {
   id: string
@@ -74,7 +74,7 @@ function normalizeApp(payload: AppPayload): App {
     name: payload.name ?? '',
     description: payload.description ?? '',
     iconName: (payload.iconName ?? 'Boxes') as AppIconName,
-    primaryColor: (payload.primaryColor ?? 'indigo') as AppPrimaryColor,
+    primaryColor: (payload.primaryColor ?? 'blue') as AppPrimaryColor,
     enabled: payload.enabled ?? true,
     owner: payload.owner ?? 'admin',
     createdAt: formatDateTime(payload.createdAt),

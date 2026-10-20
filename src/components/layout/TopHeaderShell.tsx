@@ -67,7 +67,7 @@ function TopHeaderShell({
   }
 
   React.useEffect(() => {
-    document.documentElement.dataset.primary = 'indigo'
+    document.documentElement.dataset.primary = 'blue'
   }, [])
 
   return (

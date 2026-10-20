@@ -79,9 +79,9 @@ export function AppLayout({
   }, [appId, routeTopId, appMenus, location.pathname, activeTopId, menuVersion])
 
   React.useEffect(() => {
-    document.documentElement.dataset.primary = app?.primaryColor ?? 'indigo'
+    document.documentElement.dataset.primary = app?.primaryColor ?? 'blue'
     return () => {
-      document.documentElement.dataset.primary = 'indigo'
+      document.documentElement.dataset.primary = 'blue'
     }
   }, [app?.primaryColor])
 

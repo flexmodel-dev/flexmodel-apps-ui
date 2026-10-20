@@ -81,15 +81,15 @@ export const appIcons: Record<AppIconName, LucideIcon> = {
   TrendingUp,
 }
 
-export type AppPrimaryColor = 'indigo' | 'blue' | 'green' | 'amber' | 'rose' | 'black'
+export type AppPrimaryColor = 'blue' | 'indigo' | 'green' | 'amber' | 'rose' | 'black'
 
 export const appPrimaryColors: Array<{
   value: AppPrimaryColor
   label: string
   swatch: string
 }> = [
-  {value: 'indigo', label: '靛蓝', swatch: 'hsl(243 75% 59%)'},
   {value: 'blue', label: '蓝色', swatch: 'hsl(217 91% 60%)'},
+  {value: 'indigo', label: '靛蓝', swatch: 'hsl(243 75% 59%)'},
   {value: 'green', label: '绿色', swatch: 'hsl(160 84% 39%)'},
   {value: 'amber', label: '橙色', swatch: 'hsl(38 92% 50%)'},
   {value: 'rose', label: '玫红', swatch: 'hsl(350 89% 60%)'},

@@ -40,7 +40,7 @@ export default function AppSettings({ section }: { section: string }) {
   const [formValue, setFormValue] = React.useState(() => ({
     name: '',
     iconName: 'Boxes' as AppIconName,
-    primaryColor: 'indigo' as AppPrimaryColor,
+    primaryColor: 'blue' as AppPrimaryColor,
     description: '',
   }))
   const [formError, setFormError] = React.useState<string | null>(null)
