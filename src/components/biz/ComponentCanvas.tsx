@@ -11,6 +11,7 @@ import {
   approvals,
   currentUser,
 } from '@/data/mock'
+import {formatRecordValue} from '@/lib/recordValue'
 import {cn} from '@/lib/utils'
 
 export interface ComponentCanvasColumn {
@@ -156,7 +157,7 @@ export function ComponentCanvas({
         {rows.map((row) => (
           <tr key={String(row.id)}>
             {visibleColumns.map((column) => (
-              <td key={column.name}>{String(row[column.name] ?? '')}</td>
+              <td key={column.name}>{formatRecordValue(row[column.name])}</td>
             ))}
           </tr>
         ))}

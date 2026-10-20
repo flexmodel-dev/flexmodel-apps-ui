@@ -5,6 +5,7 @@ import {Input} from '@/components/ui/input'
 import {Empty} from '@/components/ui/empty'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {getAppForm, type AppForm} from '@/services/appForms'
+import {displayRecordText} from '@/lib/recordValue'
 import {
   deleteAppRecord,
   getAppRecords,
@@ -12,10 +13,6 @@ import {
   type AppRecordPage,
 } from '@/services/appRecords'
 
-function displayText(value: unknown) {
-  if (value === undefined || value === null || value === '') return '-'
-  return String(value)
-}
 
 interface AppSubform {
   formName: string
@@ -192,7 +189,7 @@ export function AppSubformRecords({
           {records.list.map((record) => (
             <tr key={String(record.id)}>
               {columns.map((name) => (
-                <td key={name}>{displayText(record[name])}</td>
+                <td key={name}>{displayRecordText(record[name])}</td>
               ))}
               <td>
                 <div className="flex items-center gap-1">
