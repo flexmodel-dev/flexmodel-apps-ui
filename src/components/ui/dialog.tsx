@@ -70,8 +70,8 @@ export function BizDialog({
         <div
           className={
             height
-              ? 'min-h-0 flex-1 overflow-y-auto py-4 text-sm text-muted-foreground'
-              : 'max-h-[70vh] overflow-y-auto py-4 text-sm text-muted-foreground'
+              ? 'min-h-0 flex-1 overflow-y-auto px-1.5 py-4 text-sm text-muted-foreground'
+              : 'max-h-[70vh] overflow-y-auto px-1.5 py-4 text-sm text-muted-foreground'
           }
         >
           {children}
