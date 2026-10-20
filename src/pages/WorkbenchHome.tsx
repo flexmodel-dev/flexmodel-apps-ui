@@ -218,6 +218,11 @@ export default function WorkbenchHome() {
       disableResize: !editable,
     }, gridElement)
     if (!grid) return
+    layout.items.forEach((item) => {
+      const element = gridElement.querySelector<HTMLElement>(`[gs-id="${item.componentId}"]`)
+      if (!element) return
+      grid.update(element, {x: item.x, y: item.y, w: item.w, h: item.h})
+    })
     const commitLayoutChange = (_event: Event, changedElement: GridItemHTMLElement) => {
       const changedItem = changedElement.gridstackNode
       if (!changedItem?.id) return
