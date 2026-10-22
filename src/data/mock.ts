@@ -14,6 +14,8 @@ import {
   User,
   type LucideIcon,
 } from 'lucide-react'
+import type {ApprovalFlow, ApprovalForm, MemberDirectory, RecordStore} from '../types/approval'
+import {createApprovalNode, literal, newRule} from '../lib/approval'
 
 /**
  * 假数据层
@@ -748,35 +750,6 @@ export const approvals: ApprovalItem[] = [
   },
 ]
 
-/* ---------------- 通知 ---------------- */
-
-export interface Notification {
-  id: string
-  type: 10 | 20 | 30 | 40
-  unread: boolean
-  fromUser: string
-  message: string
-  time: string
-}
-
-export const notifications: Notification[] = [
-  { id: '021-01', type: 20, unread: true, fromUser: '钱迅', message: '提交的《华辰科技 - ERP 报价》需要你审批', time: '10 分钟前' },
-  { id: '021-02', type: 10, unread: true, fromUser: '超级管理员', message: '分配了 2 条客户记录给你', time: '32 分钟前' },
-  { id: '021-03', type: 30, unread: true, fromUser: '赵云', message: '在动态中提到了你：@admin 这个方案需要评审一下', time: '1 小时前' },
-  { id: '021-04', type: 20, unread: true, fromUser: '孙丽', message: '提交的《年假申请 - 孙丽》需要你审批', time: '2 小时前' },
-  { id: '021-05', type: 40, unread: false, fromUser: '周武', message: '在项目「v4.5 发布」中指派了任务给你', time: '昨天 17:42' },
-  { id: '021-06', type: 30, unread: false, fromUser: '吴征', message: '发布了新的公司公告《关于国庆放假安排》', time: '昨天 14:05' },
-  {
-    id: '021-07',
-    type: 10,
-    unread: false,
-    fromUser: '超级管理员',
-    message: '共享了工作台「销售数据大盘」给你',
-    time: '前天 09:30'
-  },
-  { id: '021-08', type: 20, unread: false, fromUser: '系统', message: '你提交的《办公用品采购报销》已审批通过', time: '3 天前' },
-]
-
 /* ---------------- 动态 Feeds ---------------- */
 
 export interface Feed {
@@ -1451,3 +1424,130 @@ export const recycleBin = [
   {id: 'r-2', formLabel: '商机', recordName: '苏州金鸡湖互联 - 网站改版', deletedBy: '孙丽', deletedOn: d(4, 16, 44)},
   {id: 'r-3', formLabel: '产品', recordName: '旧版报表模块', deletedBy: 'admin', deletedOn: d(6, 10, 5)},
 ]
+
+/* ---------------- 审批流程本地演示（不写入真实业务记录） ---------------- */
+export const approvalDirectory: MemberDirectory = {
+  members: users.filter(user => user.active).map(user => ({
+    id: user.id, name: user.fullName, role: user.role,
+    organization: departments.find(dept => dept.name === user.dept)!.id,
+    managerId: user.id === currentUser.id ? undefined : user.name === 'sunli' ? users[2].id : currentUser.id,
+  })),
+  organizations: departments.map(dept => ({
+    id: dept.id,
+    name: dept.name,
+    parentId: departments.find(parent => parent.name === dept.parent)?.id
+  })),
+}
+export const approvalDemoForms: ApprovalForm[] = [{
+  ref: {kind: 'demo', name: 'expense'}, label: '报销单（示例）',
+  fields: [{name: 'id', label: '记录 ID', type: 'TEXT'}, {
+    name: 'title',
+    label: '报销事由',
+    type: 'TEXT'
+  }, {name: 'amount', label: '报销金额', type: 'DECIMAL'}, {
+    name: 'category',
+    label: '费用类型',
+    type: 'TEXT'
+  }, {name: 'status', label: '审批状态', type: 'TEXT'}],
+}, {
+  ref: {kind: 'demo', name: 'archive'}, label: '审批归档（示例）',
+  fields: [{name: 'id', label: '记录 ID', type: 'TEXT'}, {
+    name: 'title',
+    label: '归档标题',
+    type: 'TEXT'
+  }, {name: 'amount', label: '金额', type: 'DECIMAL'}, {name: 'status', label: '状态', type: 'TEXT'}],
+}]
+export const approvalSampleVariables = {
+  record: {
+    id: 'EXP-001',
+    title: '客户拜访差旅报销',
+    amount: 8600,
+    category: '差旅费',
+    status: '待审批'
+  }, reviewerIds: [users[4].id]
+}
+export const approvalSampleRecords: RecordStore = {
+  'demo:expense': [approvalSampleVariables.record, {
+    id: 'EXP-002',
+    title: '办公用品采购',
+    amount: 320,
+    category: '办公费',
+    status: '草稿'
+  }],
+  'demo:archive': [],
+}
+
+export function createApprovalTemplates(appId: string): ApprovalFlow[] {
+  const node = createApprovalNode
+  const archive = node('create')
+  archive.data.title = '归档审批结果'
+  if (archive.data.config.kind === 'create') {
+    archive.data.config.form = {kind: 'demo', name: 'archive'}
+    archive.data.config.assignments = [{
+      id: 'archive-title',
+      field: 'title',
+      value: {kind: 'variable', value: 'record.title'}
+    }, {id: 'archive-amount', field: 'amount', value: {kind: 'variable', value: 'record.amount'}}]
+    archive.data.config.output = 'archiveRecord'
+  }
+  const manager = node('approval')
+  manager.id = 'demo-manager';
+  manager.data.title = '直属主管审批'
+  if (manager.data.config.kind === 'approval') manager.data.config.rules = [{
+    ...newRule(),
+    source: 'initiator',
+    scope: 'manager'
+  }]
+  const finance = node('approval')
+  finance.data.title = '财务复核'
+  if (finance.data.config.kind === 'approval') finance.data.config.rules = [{
+    ...newRule(),
+    source: 'roles',
+    values: ['会计']
+  }]
+  const gateway = node('gateway')
+  gateway.data.title = '报销金额判断'
+  gateway.blocks![0].data.title = '大额报销'
+  gateway.blocks![0].data.config = {
+    kind: 'branch',
+    fallback: false,
+    match: 'all',
+    conditions: [{id: 'amount-condition', field: 'record.amount', operator: 'gte', value: literal('5000')}]
+  }
+  gateway.blocks![0].blocks = [finance]
+  gateway.blocks![1].data.title = '常规报销'
+  const update = node('update')
+  update.data.title = '更新报销状态'
+  if (update.data.config.kind === 'update') {
+    update.data.config.conditions = [{
+      id: 'record-id',
+      field: 'id',
+      operator: 'eq',
+      value: {kind: 'variable', value: 'record.id'}
+    }]
+    update.data.config.assignments = [{id: 'status-assignment', field: 'status', value: literal('已通过')}]
+  }
+  const subflow = node('subflow')
+  subflow.data.title = '审批结果归档'
+  subflow.data.config = {kind: 'subflow', flowId: 'demo-archive', inputs: [], outputs: []}
+  return [{
+    id: 'demo-expense',
+    appId,
+    name: '费用报销审批',
+    description: '主管审批 → 金额分流 → 财务复核 → 自动归档',
+    form: {kind: 'demo', name: 'expense'},
+    status: 'enabled',
+    updatedAt: new Date().toISOString(),
+    definition: {nodes: [node('start'), manager, gateway, update, subflow, node('end')]}
+  },
+    {
+      id: 'demo-archive',
+      appId,
+      name: '审批归档子流程',
+      description: '将审批结果保存至归档表单，可被其他流程调用',
+      form: {kind: 'demo', name: 'expense'},
+      status: 'enabled',
+      updatedAt: new Date().toISOString(),
+      definition: {nodes: [node('start'), archive, node('end')]}
+    }]
+}

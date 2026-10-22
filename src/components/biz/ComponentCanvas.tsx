@@ -1,16 +1,12 @@
 import * as React from 'react'
 import ReactECharts from 'echarts-for-react'
 import {FileText, type LucideIcon} from 'lucide-react'
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import {ApprovalFeed} from '@/pages/Approvals/ApprovalFeed'
 import type {
   WorkbenchComponent,
   WorkbenchComponentData,
   WorkbenchDataPoint,
 } from '@/services/workbenches'
-import {
-  approvals,
-  currentUser,
-} from '@/data/mock'
 import {formatRecordValue} from '@/lib/recordValue'
 import {cn} from '@/lib/utils'
 
@@ -214,71 +210,7 @@ export function ComponentCanvas({
     )
   }
 
-  if (config.type === 'tasks') {
-    const pendingTasks = approvals.filter((item) => item.status === '待审批')
-    const recentTasks = approvals.filter((item) => item.status !== '待审批')
-    const initiatedTasks = approvals.filter((item) => item.applicant === currentUser.fullName)
-
-    const renderTasks = (items: typeof approvals) => {
-      if (!items.length) {
-        return <div className='rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground'>暂无数据</div>
-      }
-      return (
-        <div className='divide-y divide-border'>
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type='button'
-              onClick={() => onOpenMenu?.('/approval/home')}
-              className='flex w-full items-center justify-between gap-3 py-2 text-left transition-colors hover:bg-primary/5'
-            >
-              <span className='min-w-0 flex-1'>
-                <span className='block truncate text-xs font-medium text-foreground'>{item.recordName}</span>
-                <span className='mt-1 block truncate text-xs text-muted-foreground'>
-                  {item.applicant} · {item.currentNode}
-                </span>
-              </span>
-              <span className='shrink-0 text-xs text-muted-foreground'>{item.submittedOn}</span>
-            </button>
-          ))}
-        </div>
-      )
-    }
-
-    return (
-      <Tabs defaultValue='pending' className='flex h-full min-h-0 flex-col'>
-        <TabsList className='h-auto w-full justify-start rounded-none border-b bg-transparent p-0'>
-          <TabsTrigger
-            value='pending'
-            className='h-10 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none'
-          >
-            待办工作
-          </TabsTrigger>
-          <TabsTrigger
-            value='recent'
-            className='h-10 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none'
-          >
-            最近处理
-          </TabsTrigger>
-          <TabsTrigger
-            value='initiated'
-            className='h-10 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none'
-          >
-            我发起的
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value='pending' className='mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1'>
-          {renderTasks(pendingTasks)}
-        </TabsContent>
-        <TabsContent value='recent' className='mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1'>
-          {renderTasks(recentTasks)}
-        </TabsContent>
-        <TabsContent value='initiated' className='mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1'>
-          {renderTasks(initiatedTasks)}
-        </TabsContent>
-      </Tabs>
-    )
-  }
+  if (config.type === 'tasks') return <ApprovalFeed compact/>
 
   if (config.type !== 'chart') {
     throw new Error('工作台组件类型不合法')

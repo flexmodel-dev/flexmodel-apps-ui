@@ -31,9 +31,6 @@ import {
 const sections = {
   base: '基本信息',
   fields: '字段管理',
-  'easy-action': '自定义操作',
-  'record-alerts': '记录锁定',
-  advanced: '高级配置',
 } as const
 
 const fieldTypes: Array<{ type: AppFormFieldType; label: string }> = [

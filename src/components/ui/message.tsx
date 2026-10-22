@@ -45,13 +45,13 @@ export function MessageViewport() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed right-4 top-4 z-[1200] flex w-full max-w-sm flex-col gap-2"
+      className="pointer-events-none fixed left-1/2 top-4 z-[1200] flex w-full max-w-sm -translate-x-1/2 flex-col items-center gap-2"
     >
       {items.map(item => (
         <div
           key={item.id}
           className={cn(
-            'flex items-start gap-2 rounded-lg border bg-card px-3 py-2 text-sm shadow-lg',
+            'flex w-fit items-start gap-2 rounded-lg border bg-card px-3 py-2 text-sm shadow-lg',
             item.type === 'error' ? 'border-destructive/40 text-destructive' : 'text-foreground'
           )}
         >

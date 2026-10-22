@@ -54,12 +54,13 @@ export function BizDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        aria-describedby={undefined}
         style={{maxWidth: width ?? 520, height: height ?? undefined}}
         className={height ? 'flex flex-col' : undefined}
         hideClose
       >
         <div className="flex items-center justify-between border-b border-border pb-4">
-          <h5 className="text-lg font-semibold">{title}</h5>
+          <DialogPrimitive.Title className="text-lg font-semibold">{title}</DialogPrimitive.Title>
           <div className="flex items-center gap-1">
             {headerExtra}
             <DialogPrimitive.Close className="rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground">

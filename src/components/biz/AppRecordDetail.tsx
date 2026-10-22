@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {RecordApprovalPanel} from '@/pages/Approvals/RecordApprovalPanel'
 import {ChevronDown, Pencil, Trash2} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
@@ -7,22 +8,13 @@ import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
+import {parseFormLayout} from '@/components/biz/form/parseFormLayout'
+import {renderFormValue} from '@/components/biz/form/FormReadonlyValue'
 import {Empty} from '@/components/ui/empty'
 import {cn} from '@/lib/utils'
 import {formItemWidthTypeClasses} from '@/lib/form-items'
-import {getAppForm, type AppForm, type AppFormField, type AppFormItem} from '@/services/appForms'
+import {getAppForm, type AppForm} from '@/services/appForms'
 import {deleteAppRecord, getAppRecord, type AppRecord} from '@/services/appRecords'
-
-function renderValue(field: AppFormField, value: unknown) {
-  if (value === undefined || value === null || value === '') {
-    return <span className="text-muted-foreground">-</span>
-  }
-  if (field.type === 'BOOL') return value === true ? '是' : '否'
-  if (field.type === 'NUMBER' || field.type === 'DECIMAL') {
-    return Number(value).toLocaleString()
-  }
-  return String(value)
-}
 
 function recordTitle(value: unknown, recordId: string) {
   if (Array.isArray(value) && value.length > 0) {
@@ -48,6 +40,7 @@ export function AppRecordDetail({
   onDeleted?: () => void
   onOpenRecord?: (formName: string, recordId: string) => void
 }) {
+  const [approvalLocked, setApprovalLocked] = React.useState(false)
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [record, setRecord] = React.useState<AppRecord | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
@@ -97,36 +90,7 @@ export function AppRecordDetail({
   }
   if (!form || !record) return <Empty description="记录不存在"/>
 
-  const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
-  const layoutItems: AppFormItem[] = form.layout.items.length
-    ? form.layout.items
-    : form.fields.filter((field) => !field.builtin).map((field) => ({type: 'FIELD' as const, name: field.name}))
-  const sections: Array<{
-    key: string
-    label: string
-    fields: Array<{ field: AppFormField; item?: AppFormItem }>
-  }> = [
-    {key: 'default', label: form.label, fields: []},
-  ]
-  const subformItems: Array<{ key: string; item: AppFormItem }> = []
-  layoutItems.forEach((item, index) => {
-    if (item.type === 'SECTION') {
-      sections.push({
-        key: `section-${index}`,
-        label: item.label?.trim() || '分栏',
-        fields: [],
-      })
-      return
-    }
-    if (item.type === 'SUBFORM') {
-      subformItems.push({key: `subform-${index}`, item})
-      return
-    }
-    const field = item.name ? fieldMap.get(item.name) : undefined
-    if (field && !item.hidden) {
-      sections[sections.length - 1].fields.push({field, item})
-    }
-  })
+  const {sections, subformItems} = parseFormLayout(form)
 
   return (
     <div className="space-y-4">
@@ -137,15 +101,17 @@ export function AppRecordDetail({
           </div>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
+          <Button size="sm" variant="secondary" disabled={approvalLocked} onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4"/> 编辑
           </Button>
-          <Button size="sm" variant="danger" onClick={() => setDeleteOpen(true)}>
+          <Button size="sm" variant="danger" disabled={approvalLocked} onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-4 w-4"/> 删除
           </Button>
         </div>
       </div>
 
+      {!form.builtin &&
+        <RecordApprovalPanel appId={appId} formName={formName} recordId={recordId} onLocked={setApprovalLocked}/>}
       <div className="space-y-5 rounded-xl border bg-card p-4 shadow-sm">
         {sections.filter((section) => section.fields.length).map((section) => {
           const collapsed = section.key !== 'default' && collapsedSections.includes(section.key)
@@ -171,9 +137,8 @@ export function AppRecordDetail({
               {!collapsed && (
                 <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12">
                   {section.fields.map(({field, item}) => {
-                    const layoutItem = layoutItems.find((layoutEntry) => layoutEntry.type === 'FIELD' && layoutEntry.name === field.name)
-                    const width = item?.width ?? layoutItem?.width ?? 'HALF'
-                    const label = layoutItem?.label?.trim() || field.label
+                    const width = item.width ?? 'HALF'
+                    const label = item.label?.trim() || field.label
                     return (
                       <div key={field.name} className={cn('min-w-0', formItemWidthTypeClasses[width])}>
                         <div className="text-xs text-muted-foreground">{label}</div>
@@ -185,7 +150,7 @@ export function AppRecordDetail({
                               value={record[field.name]}
                               onOpenRecord={onOpenRecord}
                             />
-                          ) : renderValue(field, record[field.name])}
+                          ) : renderFormValue(field, record[field.name])}
                         </div>
                       </div>
                     )

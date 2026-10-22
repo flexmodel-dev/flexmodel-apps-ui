@@ -4,6 +4,7 @@ import {AdminTablePage} from './AdminTablePage'
 import {FormManagementContent} from './AdminContent'
 import {Button} from '@/components/ui/button'
 import {CirclePlus} from 'lucide-react'
+import ApprovalList from '@/pages/Approvals/ApprovalList'
 
 export {AdminUsers} from './AdminUsers'
 export {AdminRoles} from './AdminRoles'
@@ -15,22 +16,9 @@ export function AdminForms({embedded = false, appId}: { embedded?: boolean; appI
 }
 
 /** 审批流程列表 */
-export function AdminApprovals({ embedded = false }: { embedded?: boolean } = {}) {
-  return (
-    <AdminTablePage
-      title="审批流程"
-      desc="表单审批流程配置"
-      bare={embedded}
-      rows={[
-        {id: 'approval', name: '审批流程', state: '启用'},
-      ]}
-      columns={[
-        {key: 'name', label: '流程名称'},
-        {key: 'state', label: '状态'},
-      ]}
-      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建流程</Button>}
-    />
-  )
+export function AdminApprovals({embedded = false, appId}: { embedded?: boolean; appId?: string } = {}) {
+  const content = <ApprovalList appId={appId}/>
+  return embedded ? content : <AdminLayout>{content}</AdminLayout>
 }
 
 /** 触发器列表 */

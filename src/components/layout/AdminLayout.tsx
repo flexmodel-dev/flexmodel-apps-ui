@@ -72,21 +72,6 @@ export function AdminLayout({
             text: '字段管理',
             to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`
           },
-          {
-            id: 'mobile-form-easy-action',
-            text: '自定义操作',
-            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/easy-action`
-          },
-          {
-            id: 'mobile-form-record-alerts',
-            text: '记录锁定',
-            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/record-alerts`
-          },
-          {
-            id: 'mobile-form-advanced',
-            text: '高级配置',
-            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/advanced`
-          },
         ],
       },
     ]
@@ -135,21 +120,6 @@ export function AdminLayout({
                     to: `/admin/apps/${currentAppId}/forms/${currentFormName}/form-design`
                   },
                   {key: 'fields', label: '字段管理', to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`},
-                  {
-                    key: 'easy-action',
-                    label: '自定义操作',
-                    to: `/admin/apps/${currentAppId}/forms/${currentFormName}/easy-action`
-                  },
-                  {
-                    key: 'record-alerts',
-                    label: '记录锁定',
-                    to: `/admin/apps/${currentAppId}/forms/${currentFormName}/record-alerts`
-                  },
-                  {
-                    key: 'advanced',
-                    label: '高级配置',
-                    to: `/admin/apps/${currentAppId}/forms/${currentFormName}/advanced`
-                  },
                 ].map((item) => (
                   <li key={item.key}>
                     <Link

@@ -1,11 +1,10 @@
 import * as React from 'react'
 import {useNavigate} from 'react-router-dom'
-import {Info, Settings} from 'lucide-react'
+import {Info, Send, Settings} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
+import {BizDrawer} from '@/components/ui/drawer'
 import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {Textarea} from '@/components/ui/textarea'
-import {Checkbox} from '@/components/ui/checkbox'
+import {message} from '@/components/ui/message'
 import {
   Select,
   SelectContent,
@@ -19,154 +18,32 @@ import {
   formItemWidthTypeClasses,
 } from '@/lib/form-items'
 import {
-  getAppForm,
+  FieldControl,
+  type ReferenceOption,
+} from '@/components/biz/form/FormFieldControl'
+import {parseFormLayout, type FormLayoutEntry} from '@/components/biz/form/parseFormLayout'
+import {
+  buildRecordPayload,
+  initialCreateValues,
+  toEditValues,
+} from '@/components/biz/form/recordPayload'
+import {useReferenceOptions} from '@/components/biz/form/useReferenceOptions'
+import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
+import {
   type AppForm,
-  type AppFormField,
   type AppFormItem,
 } from '@/services/appForms'
 import {
   createAppRecord,
-  getAppRecords,
   getAppRecord,
   updateAppRecord,
   type AppRecord,
   type AppRecordContext,
 } from '@/services/appRecords'
+import {getApprovalFlows, submitApproval} from '@/services/approvals'
+import type {ApprovalFlow} from '@/types/approval'
 
-export type ReferenceOption = { value: string; label: string }
-
-function toInputValue(field: AppFormField, value: unknown) {
-  if (field.type === 'BOOL') return value === true || value === 'true'
-  if (field.type === 'MULTIREFERENCE') {
-    return Array.isArray(value) ? value.map(item => String(item)) : []
-  }
-  if (field.type === 'REFERENCE' && value && typeof value === 'object' && 'id' in value) {
-    return String((value as { id?: unknown }).id ?? '')
-  }
-  return value === undefined || value === null ? '' : String(value)
-}
-
-function FieldControl({
-                        field,
-                        value,
-                        options,
-                        referenceOptions,
-                        disabled,
-                        onChange,
-                      }: {
-  field: AppFormField
-  value: unknown
-  options: Array<{ id?: string; text?: string; color?: string }>
-  referenceOptions: ReferenceOption[]
-  disabled?: boolean
-  onChange: (value: unknown) => void
-}) {
-  if (['PICKLIST', 'SELECT', 'CLASSIFICATION', 'MULTISELECT'].includes(field.type)) {
-    return (
-      <Select value={String(value)} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger>
-          <SelectValue placeholder={`请选择${field.label}`}/>
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.id ?? option.text} value={option.id ?? option.text ?? ''}>
-              {option.text ?? option.id}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    )
-  }
-
-  if (field.type === 'MULTIREFERENCE') {
-    return (
-      <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-2">
-        {referenceOptions.map((option) => {
-          const selected = Array.isArray(value) && value.map(String).includes(option.value)
-          return (
-            <label key={option.value} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={selected}
-                disabled={disabled}
-                onCheckedChange={(checked) => {
-                  const current = Array.isArray(value) ? value.map(String) : []
-                  onChange(checked === true
-                    ? Array.from(new Set([...current, option.value]))
-                    : current.filter((item) => item !== option.value))
-                }}
-              />
-              <span className="min-w-0 flex-1 truncate">{option.label}</span>
-            </label>
-          )
-        })}
-      </div>
-    )
-  }
-
-  if (field.type === 'REFERENCE') {
-    return (
-      <Select value={String(value)} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger>
-          <SelectValue placeholder={`请选择${field.label}`}/>
-        </SelectTrigger>
-        <SelectContent>
-          {referenceOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    )
-  }
-
-  if (field.type === 'BOOL') {
-    return (
-      <label className="flex h-10 items-center gap-2 text-sm">
-        <Checkbox
-          checked={value === true}
-          disabled={disabled}
-          onCheckedChange={(checked) => onChange(checked === true)}
-        />
-        {value === true ? '是' : '否'}
-      </label>
-    )
-  }
-
-  if (field.type === 'NTEXT') {
-    return (
-      <Textarea
-        value={String(value)}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    )
-  }
-
-  const inputType = field.type === 'NUMBER' || field.type === 'DECIMAL'
-    ? 'number'
-    : field.type === 'DATE'
-      ? 'date'
-      : field.type === 'DATETIME'
-        ? 'datetime-local'
-        : field.type === 'TIME'
-          ? 'time'
-          : field.type === 'EMAIL'
-            ? 'email'
-            : field.type === 'PHONE'
-              ? 'tel'
-              : field.type === 'URL'
-                ? 'url'
-                : 'text'
-
-  return (
-    <Input
-      type={inputType}
-      value={String(value)}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={`请输入${field.label}`}
-    />
-  )
-}
+export type {ReferenceOption}
 
 export function AppRecordFormModal({
                                      open,
@@ -181,6 +58,11 @@ export function AppRecordFormModal({
                                      renderSubform,
                                      designPath,
                                      onSaved,
+                                     title,
+                                     readOnly,
+                                     footer,
+                                     footerExtra,
+                                     aside,
                                    }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -194,41 +76,51 @@ export function AppRecordFormModal({
   renderSubform?: (item: AppFormItem) => React.ReactNode
   designPath?: string
   onSaved?: (id: string) => void
+  title?: React.ReactNode
+  readOnly?: boolean
+  footer?: React.ReactNode
+  footerExtra?: React.ReactNode
+  aside?: React.ReactNode
 }) {
   const navigate = useNavigate()
   const [values, setValues] = React.useState<AppRecord>({})
   const [error, setError] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [loadedReferenceOptions, setLoadedReferenceOptions] = React.useState<Record<string, ReferenceOption[]>>({})
+  const [savedRecordId, setSavedRecordId] = React.useState<string | null>(null)
+  const [flows, setFlows] = React.useState<ApprovalFlow[]>([])
+  const [flowOpen, setFlowOpen] = React.useState(false)
+  const [flowId, setFlowId] = React.useState('')
+  const [isStarting, setIsStarting] = React.useState(false)
+  const requestKey = React.useRef(crypto.randomUUID())
 
-  const layoutItems = form.layout.items
-  const fieldsByName = new Map(form.fields.map((field) => [field.name, field]))
-  const renderItems = layoutItems.filter((item): item is AppFormItem =>
-    item.type === 'SECTION'
-    || item.type === 'SUBFORM'
-    || (item.type === 'FIELD'
-      && Boolean(item.name)
-      && fieldsByName.has(item.name!)
-      && !(recordContext && item.name === recordContext.referenceField)))
-  const renderableFieldNames = new Set(renderItems
-    .filter((item): item is AppFormItem => item.type === 'FIELD' && Boolean(item.name))
-    .map((item) => item.name!))
+  const effectiveRecordId = savedRecordId ?? recordId ?? null
+  const {entries, renderableFieldNames} = parseFormLayout(form, {
+    excludeField: recordContext?.referenceField,
+  })
+  const mainEntries = entries.filter(
+    (entry): entry is Exclude<FormLayoutEntry, { kind: 'SUBFORM' }> => entry.kind !== 'SUBFORM',
+  )
+  const subformEntries = entries.filter(
+    (entry): entry is Extract<FormLayoutEntry, { kind: 'SUBFORM' }> => entry.kind === 'SUBFORM',
+  )
+  const referenceOptionsMap = useReferenceOptions({
+    appId,
+    form,
+    open,
+    excludeField: recordContext?.referenceField,
+    overrides: referenceOptions,
+  })
+
+  React.useEffect(() => {
+    if (!open) setSavedRecordId(null)
+  }, [open])
 
   React.useEffect(() => {
     if (!open) return
     let cancelled = false
     setError('')
     if (!recordId) {
-      const initial: AppRecord = {}
-      form.fields.filter((field) => !(recordContext && field.name === recordContext.referenceField)).forEach((field) => {
-        const defaultOption = field.options?.find(option => option.defaultSelected)
-        initial[field.name] = field.type === 'BOOL'
-          ? false
-          : field.type === 'MULTIREFERENCE'
-            ? []
-            : defaultOption?.id ?? defaultOption?.text ?? ''
-      })
-      if (!cancelled) setValues(initial)
+      if (!cancelled) setValues(initialCreateValues(form, recordContext?.referenceField))
       return () => {
         cancelled = true
       }
@@ -237,15 +129,9 @@ export function AppRecordFormModal({
       ? loadRecord(recordId)
       : getAppRecord(appId, form.name, recordId, recordContext)
     recordPromise
-      .then((record) => {
+      .then((loadedRecord) => {
         if (cancelled) return
-        const initial: AppRecord = {}
-        form.fields.filter((field) => !(
-          recordContext && field.name === recordContext.referenceField
-        )).forEach((field) => {
-          initial[field.name] = toInputValue(field, record[field.name])
-        })
-        setValues(initial)
+        setValues(toEditValues(form, loadedRecord, recordContext?.referenceField))
       })
       .catch((caught: unknown) => {
         if (!cancelled) setError(caught instanceof Error ? caught.message : '加载记录失败')
@@ -256,64 +142,42 @@ export function AppRecordFormModal({
   }, [appId, form, open, recordContext, recordId, loadRecord])
 
   React.useEffect(() => {
-    if (!open) return
+    if (!open || recordId || form.builtin) return
     let cancelled = false
-    const referenceFields = form.fields.filter((field) =>
-      (field.type === 'REFERENCE' || field.type === 'MULTIREFERENCE')
-      && field.referenceForm
-      && !referenceOptions?.[field.name]
-      && !(recordContext && field.name === recordContext.referenceField)
-    )
-    Promise.all(referenceFields.map(async (field) => {
-      const referenceForm = await getAppForm(appId, field.referenceForm!)
-      const page = await getAppRecords(appId, field.referenceForm!, {page: 1, size: 100})
-      return [field.name, page.list.map((record) => ({
-        value: String(record.id ?? ''),
-        label: String(record[referenceForm.displayField ?? 'id'] ?? record.id ?? ''),
-      }))] as const
-    }))
-      .then((entries) => {
-        if (cancelled) return
-        setLoadedReferenceOptions(Object.fromEntries(entries))
+    getApprovalFlows(appId)
+      .then((definitions) => {
+        if (!cancelled) setFlows(definitions.filter((flow) =>
+          flow.status === 'enabled' && flow.form.kind === 'app' && flow.form.name === form.name))
       })
       .catch(() => {
-        if (!cancelled) setLoadedReferenceOptions({})
+        if (!cancelled) setFlows([])
       })
     return () => {
       cancelled = true
     }
-  }, [appId, form, open, recordContext, referenceOptions])
+  }, [appId, form, open, recordId])
+
+  React.useEffect(() => {
+    if (!open) setFlowOpen(false)
+  }, [open])
+
+  const buildPayload = (): AppRecord | null =>
+    buildRecordPayload(form, renderableFieldNames, values, setError)
+
+  const persistRecord = (payload: AppRecord) =>
+    saveRecord
+      ? saveRecord(payload, recordId)
+      : effectiveRecordId
+        ? updateAppRecord(appId, form.name, effectiveRecordId, payload, recordContext)
+        : createAppRecord(appId, form.name, payload, recordContext)
 
   const submit = async () => {
-    const payload: AppRecord = {}
-    for (const field of form.fields.filter((item) =>
-      renderableFieldNames.has(item.name)
-      && !item.builtin
-      && !(recordContext && item.name === recordContext.referenceField)
-    )) {
-      const value = values[field.name]
-      if (field.required && (value === undefined || value === null || value === '')) {
-        setError(`${field.label}不能为空`)
-        return
-      }
-      if (field.type === 'NUMBER' || field.type === 'DECIMAL') {
-        payload[field.name] = value === '' ? null : Number(value)
-      } else if (field.type === 'BOOL') {
-        payload[field.name] = value === true
-      } else if (field.type === 'MULTIREFERENCE') {
-        payload[field.name] = Array.isArray(value) ? value : []
-      } else {
-        payload[field.name] = value === '' ? null : value
-      }
-    }
+    const payload = buildPayload()
+    if (!payload) return
     setIsSubmitting(true)
     setError('')
     try {
-      const saved = saveRecord
-        ? await saveRecord(payload, recordId)
-        : recordId
-          ? await updateAppRecord(appId, form.name, recordId, payload, recordContext)
-          : await createAppRecord(appId, form.name, payload, recordContext)
+      const saved = await persistRecord(payload)
       onOpenChange(false)
       onSaved?.(String(saved.id ?? ''))
     } catch (caught: unknown) {
@@ -323,13 +187,77 @@ export function AppRecordFormModal({
     }
   }
 
+  const persistForSubform = async (): Promise<string | null> => {
+    if (isSubmitting || isStarting) return null
+    const payload = buildPayload()
+    if (!payload) return null
+    setIsSubmitting(true)
+    try {
+      const saved = await persistRecord(payload)
+      const id = String(saved.id ?? '')
+      if (!effectiveRecordId && id) {
+        setSavedRecordId(id)
+        message.success('主表单已自动保存')
+      }
+      return id || null
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : '保存记录失败')
+      return null
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const renderDefaultSubform = (item: AppFormItem) => {
+    if (recordContext || saveRecord) return null
+    if (!item.formName || !item.referenceField) return null
+    return (
+      <AppSubformRecords
+        appId={appId}
+        mainFormName={form.name}
+        mainRecordId={effectiveRecordId}
+        subform={{formName: item.formName, referenceField: item.referenceField}}
+        onBeforeCreate={persistForSubform}
+        readOnly={readOnly}
+      />
+    )
+  }
+
+  const openFlowDialog = () => {
+    const payload = buildPayload()
+    if (!payload) return
+    setFlowId(flows[0]?.id ?? '')
+    setFlowOpen(true)
+  }
+
+  const startFlow = async () => {
+    const payload = buildPayload()
+    if (!payload) return
+    setIsStarting(true)
+    setError('')
+    try {
+      const saved = await persistRecord(payload)
+      await submitApproval(appId, form.name, String(saved.id ?? ''), flowId, requestKey.current)
+      requestKey.current = crypto.randomUUID()
+      setFlowOpen(false)
+      onOpenChange(false)
+      onSaved?.(String(saved.id ?? ''))
+      message.success('已提交，流程正在启动')
+    } catch (caught: unknown) {
+      setFlowOpen(false)
+      setError(caught instanceof Error ? caught.message : '发起流程失败')
+    } finally {
+      setIsStarting(false)
+    }
+  }
+
   return (
-    <BizDialog
+    <>
+      <BizDrawer
       open={open}
       onOpenChange={onOpenChange}
-      width={960}
-      title={recordId ? `编辑${form.label}` : `新建${form.label}`}
-      headerExtra={
+      title={title ?? (effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`)}
+      headerExtra={!readOnly ? (
         <Button
           variant="ghost"
           size="icon"
@@ -343,59 +271,104 @@ export function AppRecordFormModal({
         >
           <Settings className="h-4 w-4"/>
         </Button>
-      }
-      footer={
+      ) : undefined}
+      footer={footer ?? (
         <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          {footerExtra && <div className="mr-auto flex items-center">{footerExtra}</div>}
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting || isStarting}>
             取消
           </Button>
-          <Button onClick={submit} disabled={isSubmitting}>保存</Button>
+          <Button onClick={submit} disabled={isSubmitting || isStarting}>保存</Button>
+          {!effectiveRecordId && flows.length > 0 && (
+            <Button variant="outline" onClick={openFlowDialog} disabled={isSubmitting || isStarting}>
+              发起流程
+            </Button>
+          )}
         </>
-      }
+      )}
+      aside={aside}
     >
-      <div className="space-y-5">
+        <div className="space-y-4">
         {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
-        <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12">
-          {renderItems.map((item) => {
-            if (item.type === 'SECTION') {
-              return (
-                <div key={`${item.type}-${item.label}`} className="md:col-span-12">
-                  <AppFormSectionTitle label={item.label?.trim() || '分栏'}/>
-                </div>
-              )
-            }
-            const field = fieldsByName.get(item.name!)!
-            if (item.hidden) return null
-            if (item.type === 'SUBFORM') {
-              return (
-                <div key={`${item.formName ?? 'subform'}-${item.referenceField ?? ''}`} className="md:col-span-12">
-                  {renderSubform?.(item) ?? null}
-                </div>
-              )
-            }
+          {mainEntries.length > 0 && (
+            <div className="space-y-5 rounded-xl border bg-card p-4 shadow-sm">
+              <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12">
+                {mainEntries.map((entry) => {
+                  if (entry.kind === 'SECTION') {
+                    return (
+                      <div key={entry.key} className="md:col-span-12">
+                        <AppFormSectionTitle label={entry.label}/>
+                      </div>
+                    )
+                  }
+                  const {field, item} = entry
+                  return (
+                    <div
+                      key={entry.key}
+                      className={cn('space-y-1.5', formItemWidthTypeClasses[item.width ?? 'HALF'])}
+                    >
+                      <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {item.label?.trim() || field.label}
+                        {field.required && <span className="text-destructive">*</span>}
+                        {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
+                      </label>
+                      <FieldControl
+                        field={field}
+                        value={values[field.name]}
+                        options={field.options ?? []}
+                        referenceOptions={referenceOptionsMap[field.name] ?? []}
+                        disabled={readOnly || item.readonly || field.builtin}
+                        onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {subformEntries.map((entry) => {
+            const content = renderSubform?.(entry.item) ?? renderDefaultSubform(entry.item)
+            if (!content) return null
             return (
-              <div
-                key={field.name}
-                className={cn('space-y-1.5', formItemWidthTypeClasses[item.width ?? 'HALF'])}
-              >
-                <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {item.label?.trim() || field.label}
-                  {field.required && <span className="text-destructive">*</span>}
-                  {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
-                </label>
-                <FieldControl
-                  field={field}
-                  value={values[field.name]}
-                  options={field.options ?? []}
-                  referenceOptions={{...referenceOptions, ...loadedReferenceOptions}[field.name] ?? []}
-                  disabled={item.readonly || field.builtin}
-                  onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
-                />
+              <div key={entry.key}>
+                {content}
               </div>
             )
           })}
         </div>
+      </BizDrawer>
+      <BizDialog
+        open={flowOpen}
+        onOpenChange={setFlowOpen}
+        title="发起流程"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setFlowOpen(false)} disabled={isStarting}>取消</Button>
+            <Button onClick={startFlow} disabled={isStarting || !flowId}>
+              {isStarting ? '提交中…' : '确认发起'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">选择审批流程</label>
+            <Select value={flowId} onValueChange={setFlowId}>
+              <SelectTrigger>
+                <SelectValue placeholder="请选择审批流程"/>
+              </SelectTrigger>
+              <SelectContent>
+                {flows.map((flow) => (
+                  <SelectItem key={flow.id} value={flow.id}>{flow.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            提交时会保存记录快照。审批结束前，人工编辑和删除将被锁定，流程配置的数据操作继续执行。
+          </p>
       </div>
     </BizDialog>
+    </>
   )
 }

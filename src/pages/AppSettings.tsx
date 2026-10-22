@@ -185,7 +185,9 @@ export default function AppSettings({ section }: { section: string }) {
             )}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4" key={app.updatedAt}>
+          <div
+            className={activeSection === 'approvals' ? 'min-h-0 flex-1 overflow-hidden p-4' : 'min-h-0 flex-1 overflow-y-auto p-4'}
+            key={app.updatedAt}>
             {activeSection === 'basic' && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-md border p-4">
@@ -221,7 +223,7 @@ export default function AppSettings({ section }: { section: string }) {
 
             {activeSection === 'menus' && <AppMenuManager appId={app.id}/>}
 
-            {activeSection === 'approvals' && <AdminApprovals embedded />}
+            {activeSection === 'approvals' && <AdminApprovals embedded appId={app.id}/>}
 
             {activeSection === 'triggers' && <AdminTriggers embedded />}
 

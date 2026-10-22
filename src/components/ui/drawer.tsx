@@ -1,7 +1,7 @@
 import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
-import { X } from 'lucide-react'
+import {PanelRightClose, PanelRightOpen, X} from 'lucide-react'
 
 const Drawer = DialogPrimitive.Root
 const DrawerTrigger = DialogPrimitive.Trigger
@@ -46,6 +46,77 @@ const DrawerContent = React.forwardRef<
   </DrawerPortal>
 ))
 DrawerContent.displayName = 'DrawerContent'
+
+/** 带标题和底部的右侧抽屉，与详情页抽屉宽度保持一致；aside 提供时右侧内嵌面板，右上角按钮展开/折叠 */
+export function BizDrawer({
+                            open,
+                            onOpenChange,
+                            title,
+                            width,
+                            children,
+                            footer,
+                            headerExtra,
+                            aside,
+                            asideLabel = '流程进度',
+                          }: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  title: React.ReactNode
+  width?: string
+  children: React.ReactNode
+  footer?: React.ReactNode
+  headerExtra?: React.ReactNode
+  aside?: React.ReactNode
+  asideLabel?: string
+}) {
+  const [asideOpen, setAsideOpen] = React.useState(true)
+  React.useEffect(() => {
+    if (open) setAsideOpen(true)
+  }, [open])
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent
+        aria-describedby={undefined}
+        hideClose
+        className={cn('w-full md:w-[calc(100vw-16rem)]', width)}
+      >
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <DrawerTitle className="text-lg font-semibold">{title}</DrawerTitle>
+          <div className="flex items-center gap-1">
+            {headerExtra}
+            {aside && (
+              <button
+                type="button"
+                className="rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground"
+                title={asideOpen ? `收起${asideLabel}` : `展开${asideLabel}`}
+                aria-label={asideOpen ? `收起${asideLabel}` : `展开${asideLabel}`}
+                onClick={() => setAsideOpen((value) => !value)}
+              >
+                {asideOpen ? <PanelRightClose className="h-4 w-4"/> : <PanelRightOpen className="h-4 w-4"/>}
+              </button>
+            )}
+            <DrawerClose className="rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground">
+              <X className="h-4 w-4"/>
+            </DrawerClose>
+          </div>
+        </div>
+        <div className="flex min-h-0 flex-1">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            {children}
+          </div>
+          {aside && asideOpen && (
+            <aside className="min-h-0 w-72 shrink-0 overflow-y-auto border-l border-border bg-muted/30 px-4 py-4">
+              {aside}
+            </aside>
+          )}
+        </div>
+        {footer && (
+          <div className="flex justify-end gap-2 border-t border-border px-6 py-4">{footer}</div>
+        )}
+      </DrawerContent>
+    </Drawer>
+  )
+}
 
 export {
   Drawer,

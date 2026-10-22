@@ -24,11 +24,15 @@ export function AppSubformRecords({
                                     mainFormName,
                                     mainRecordId,
                                     subform,
+                                    onBeforeCreate,
+                                    readOnly,
                                   }: {
   appId: string
   mainFormName: string
-  mainRecordId: string
+  mainRecordId: string | null
   subform: AppSubform
+  onBeforeCreate?: () => Promise<string | null>
+  readOnly?: boolean
 }) {
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [page, setPage] = React.useState(1)
@@ -40,9 +44,16 @@ export function AppSubformRecords({
   const [formOpen, setFormOpen] = React.useState(false)
   const [recordId, setRecordId] = React.useState<string | null>(null)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [isCreating, setIsCreating] = React.useState(false)
   const pageSize = 10
 
   const load = React.useCallback(() => {
+    if (!mainRecordId) {
+      setRecords({list: [], total: 0})
+      setIsLoading(false)
+      setError(null)
+      return
+    }
     let cancelled = false
     setIsLoading(true)
     setError(null)
@@ -71,6 +82,21 @@ export function AppSubformRecords({
     }
   }, [appId, mainFormName, mainRecordId, page, search, subform.formName, subform.referenceField])
 
+  const createRecord = async () => {
+    if (isCreating) return
+    setIsCreating(true)
+    try {
+      const resolved = onBeforeCreate
+        ? await onBeforeCreate()
+        : mainRecordId
+      if (!resolved) return
+      setRecordId(null)
+      setFormOpen(true)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   React.useEffect(() => {
     let cancelled = false
     getAppForm(appId, subform.formName)
@@ -88,6 +114,7 @@ export function AppSubformRecords({
   React.useEffect(() => load(), [load])
 
   const removeRecord = async (id: string) => {
+    if (!mainRecordId) return
     setDeletingId(id)
     setError(null)
     try {
@@ -131,39 +158,43 @@ export function AppSubformRecords({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative hidden md:block">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
-            <Input
-              className="h-9 w-48 pl-8"
-              value={searchInput}
-              placeholder="搜索子表记录"
-              onChange={(event) => {
-                setSearchInput(event.target.value)
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter') return
-                setPage(1)
-                setSearch(searchInput.trim())
-              }}
-            />
-          </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            title="刷新"
-            onClick={load}
-          >
-            <RefreshCw className="h-4 w-4"/>
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setRecordId(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus className="h-4 w-4"/> 新增
-          </Button>
+          {mainRecordId && (
+            <>
+              <div className="relative hidden md:block">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
+                <Input
+                  className="h-9 w-48 pl-8"
+                  value={searchInput}
+                  placeholder="搜索子表记录"
+                  onChange={(event) => {
+                    setSearchInput(event.target.value)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return
+                    setPage(1)
+                    setSearch(searchInput.trim())
+                  }}
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                title="刷新"
+                onClick={load}
+              >
+                <RefreshCw className="h-4 w-4"/>
+              </Button>
+            </>
+          )}
+          {!readOnly && (
+            <Button
+              size="sm"
+              disabled={isCreating}
+              onClick={() => void createRecord()}
+            >
+              <Plus className="h-4 w-4"/> 新增
+            </Button>
+          )}
         </div>
       </div>
 
@@ -173,92 +204,100 @@ export function AppSubformRecords({
         </div>
       )}
 
-      <div className="mt-3 overflow-x-auto">
-        <table className="app-table w-full min-w-[640px]">
-          <thead>
-          <tr>
-            {columns.map((name) => (
-              <th key={name}>
-                {form?.fields.find((field) => field.name === name)?.label ?? name}
-              </th>
-            ))}
-            <th className="w-[120px]">操作</th>
-          </tr>
-          </thead>
-          <tbody>
-          {records.list.map((record) => (
-            <tr key={String(record.id)}>
-              {columns.map((name) => (
-                <td key={name}>{displayRecordText(record[name])}</td>
-              ))}
-              <td>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    title="编辑"
-                    onClick={() => {
-                      setRecordId(String(record.id))
-                      setFormOpen(true)
-                    }}
-                  >
-                    <Pencil className="h-3.5 w-3.5"/>
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    title="删除"
-                    disabled={deletingId === String(record.id)}
-                    onClick={() => removeRecord(String(record.id))}
-                  >
-                    <Trash2 className="h-3.5 w-3.5"/>
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-          </tbody>
-        </table>
-      </div>
-
-      {!isLoading && records.list.length === 0 && (
+      {!mainRecordId ? (
         <Empty
-          className="min-h-[160px] rounded-lg border border-dashed"
-          description={
-            <>
-              <p className="m-0 font-medium text-foreground">暂无子表记录</p>
-              <p className="mt-1">点击新增添加子表记录</p>
-            </>
-          }
+          className="mt-3 min-h-[120px] rounded-lg border border-dashed"
+          description={readOnly
+            ? '主表单尚未保存'
+            : '主表单尚未保存，点击「新增」将自动保存主表单后添加子表记录'}
         />
+      ) : (
+        <>
+          <div className="mt-3 overflow-x-auto">
+            <table className="app-table w-full min-w-[640px]">
+              <thead>
+              <tr>
+                {columns.map((name) => (
+                  <th key={name}>
+                    {form?.fields.find((field) => field.name === name)?.label ?? name}
+                  </th>
+                ))}
+                {!readOnly && <th className="w-[120px]">操作</th>}
+              </tr>
+              </thead>
+              <tbody>
+              {records.list.map((record) => (
+                <tr key={String(record.id)}>
+                  {columns.map((name) => (
+                    <td key={name}>{displayRecordText(record[name])}</td>
+                  ))}
+                  {!readOnly && (
+                    <td>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          title="编辑"
+                          onClick={() => {
+                            setRecordId(String(record.id))
+                            setFormOpen(true)
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5"/>
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          title="删除"
+                          disabled={deletingId === String(record.id)}
+                          onClick={() => removeRecord(String(record.id))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5"/>
+                        </Button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              </tbody>
+            </table>
+          </div>
+
+          {!isLoading && records.list.length === 0 && (
+            <Empty
+              className="min-h-[160px] rounded-lg border border-dashed"
+              description={readOnly ? '暂无子表记录' : '暂无子表记录，点击新增添加子表记录'}
+            />
+          )}
+
+          <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+            <span>共 {records.total} 条</span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={page <= 1 || isLoading}
+                onClick={() => setPage((previous) => Math.max(1, previous - 1))}
+              >
+                上一页
+              </Button>
+              <span>{page}</span>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={page * pageSize >= records.total || isLoading}
+                onClick={() => setPage((previous) => previous + 1)}
+              >
+                下一页
+              </Button>
+            </div>
+          </div>
+        </>
       )}
 
-      <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
-        <span>共 {records.total} 条</span>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={page <= 1 || isLoading}
-            onClick={() => setPage((previous) => Math.max(1, previous - 1))}
-          >
-            上一页
-          </Button>
-          <span>{page}</span>
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={page * pageSize >= records.total || isLoading}
-            onClick={() => setPage((previous) => previous + 1)}
-          >
-            下一页
-          </Button>
-        </div>
-      </div>
-
-      {form && (
+      {form && mainRecordId && (
         <AppRecordFormModal
           open={formOpen}
           onOpenChange={setFormOpen}

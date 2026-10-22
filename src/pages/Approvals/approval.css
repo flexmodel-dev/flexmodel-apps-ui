@@ -1,0 +1,54 @@
+.approval-workspace {
+  --g-editor-background: hsl(var(--background));
+  --g-base-color: hsl(var(--border));
+  position: relative;
+  isolation: isolate;
+  background-color: hsl(var(--background));
+  background-image: radial-gradient(
+    hsl(var(--muted-foreground) / 0.2) 0.75px,
+    transparent 0.75px
+  );
+  background-size: 20px 20px;
+}
+
+.approval-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.approval-workspace .flow-lines-container {
+  stroke-width: 1.5px;
+}
+
+.approval-workspace .flow-canvas-collapse-adder {
+  visibility: hidden;
+}
+
+.approval-workspace .gedit-flow-background {
+  background: transparent;
+}
+
+.approval-workspace .gedit-playground {
+  background: transparent;
+}
+
+.approval-node:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 4px;
+}
+
+.approval-workspace .gedit-flow-activity-node {
+  color: hsl(var(--foreground));
+}
+
+.approval-workspace canvas {
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .approval-workspace * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

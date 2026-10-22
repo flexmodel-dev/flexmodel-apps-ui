@@ -1,10 +1,10 @@
 import * as React from 'react'
 import {Link} from 'react-router-dom'
-import {Bell, Menu, Moon, Sun, type LucideIcon} from 'lucide-react'
+import {Menu, Moon, Sun, type LucideIcon} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {UserAvatar} from '@/components/ui/avatar'
-import {Badge} from '@/components/ui/badge'
+import {NotificationBell} from '@/components/notifications/NotificationBell'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,10 +20,6 @@ import {MobileNavDrawer} from './MobileNavDrawer'
 export const headerActionClass =
   'text-white/80 hover:bg-white/15 hover:text-white data-[state=open]:bg-white/20 data-[state=open]:text-white dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white'
 
-const notificationItems = [
-  {id: 1, from: '钱迅', text: '提交的《华辰科技 - ERP 报价》需要你审批', time: '10 分钟前'},
-  {id: 2, from: '超级管理员', text: '分配了 2 条客户记录给你', time: '32 分钟前'},
-]
 
 function TopHeaderShell({
                           brand, brandTo,
@@ -158,38 +154,7 @@ function TopHeaderShell({
             {isDark ? <Sun className="h-5 w-5"/> : <Moon className="h-5 w-5"/>}
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" title="通知" className={cn('relative', headerActionClass)}>
-                <Bell className="h-5 w-5"/>
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive"/>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[320px]">
-              <DropdownMenuLabel className="flex items-center justify-between">
-                <span>通知</span>
-                <Badge>2</Badge>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator/>
-              {notificationItems.map((item) => (
-                <DropdownMenuItem key={item.id} className="block items-start">
-                  <div className="flex items-start gap-3">
-                    <UserAvatar name={item.from} size={28}/>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm">{item.text}</p>
-                      <p className="text-xs text-muted-foreground">{item.time}</p>
-                    </div>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator/>
-              <DropdownMenuItem asChild>
-                <Link to="/notifications" className="w-full justify-center">
-                  查看全部
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NotificationBell className={cn('relative', headerActionClass)}/>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

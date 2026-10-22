@@ -29,13 +29,23 @@ import {
 } from '@/pages/admin'
 import {MessageViewport} from '@/components/ui/message'
 import {getAuthSession} from '@/services/auth'
+import {NotificationProvider} from '@/components/notifications/NotificationProvider'
+
+const ApprovalDesigner = React.lazy(() => import('@/pages/Approvals/ApprovalDesigner'))
+
+function ApprovalDesignerRoute() {
+  const current = useLocation()
+  return <React.Suspense fallback={<div
+    className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">正在加载流程设计器…</div>}><ApprovalDesigner
+    key={current.pathname}/></React.Suspense>
+}
 
 function RequireAuth() {
   const location = useLocation()
   if (!getAuthSession()) {
     return <Navigate to="/login" replace state={{from: location.pathname}}/>
   }
-  return <Outlet/>
+  return <NotificationProvider><Outlet/></NotificationProvider>
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -58,13 +68,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/admin/apps/:appId/settings/forms"
                  element={<AppSettings section="forms"/>}/>
           <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals"/>}/>
+          <Route path="/admin/apps/:appId/approvals/:flowId/design" element={<ApprovalDesignerRoute/>}/>
           <Route path="/admin/apps/:appId/settings/triggers" element={<AppSettings section="triggers"/>}/>
           {/* 内置模块 */}
           <Route path="/approval/home" element={<ApprovalHome/>}/>
           <Route path="/feeds/home" element={<FeedsHome/>}/>
           <Route path="/files/home" element={<FilesDocs/>}/>
           <Route path="/notifications" element={<Notifications/>}/>
-          <Route path="/notifications/todo" element={<Notifications/>}/>
+          <Route path="/notifications/todo" element={<Navigate to="/approval/home" replace/>}/>
           <Route path="/project/:projectId/tasks" element={<ProjectTasks/>}/>
           <Route path="/contacts/home" element={<ContactsHome/>}/>
           {/* 管理中心 */}
@@ -74,12 +85,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                  element={<FormSettings section="fields"/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/form-design"
                  element={<FormDesign/>}/>
-          <Route path="/admin/apps/:appId/forms/:formName/easy-action"
-                 element={<FormSettings section="easy-action"/>}/>
-          <Route path="/admin/apps/:appId/forms/:formName/record-alerts"
-                 element={<FormSettings section="record-alerts"/>}/>
-          <Route path="/admin/apps/:appId/forms/:formName/advanced"
-                 element={<FormSettings section="advanced"/>}/>
           <Route path="/admin/users" element={<AdminUsers/>}/>
           <Route path="/admin/role-privileges" element={<AdminRoles/>}/>
           <Route path="/admin/robot/approvals" element={<AdminApprovals/>}/>

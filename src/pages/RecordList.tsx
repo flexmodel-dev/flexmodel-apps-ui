@@ -32,9 +32,7 @@ import {
 } from '@/components/ui/select'
 import {Pagination} from '@/components/biz/Pagination'
 import {Empty} from '@/components/ui/empty'
-import {Drawer, DrawerContent} from '@/components/ui/drawer'
-import {AppRecordDetail} from '@/components/biz/AppRecordDetail'
-import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
+import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {
   getAppForm,
@@ -195,9 +193,9 @@ export default function RecordList({formName}: { formName?: string }) {
   const [searchOpen, setSearchOpen] = React.useState(false)
   const searchAreaRef = React.useRef<HTMLDivElement>(null)
   const [detailId, setDetailId] = React.useState<string | null>(null)
+  const [detailMode, setDetailMode] = React.useState<'view' | 'edit'>('view')
   const [linkedRecord, setLinkedRecord] = React.useState<{ formName: string; recordId: string } | null>(null)
   const [formOpen, setFormOpen] = React.useState(false)
-  const [formRecordId, setFormRecordId] = React.useState<string | null>(null)
   const [refreshTick, setRefreshTick] = React.useState(0)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
@@ -284,9 +282,9 @@ export default function RecordList({formName}: { formName?: string }) {
   React.useEffect(() => {
     setSelected([])
     setDetailId(null)
+    setDetailMode('view')
     setLinkedRecord(null)
     setFormOpen(false)
-    setFormRecordId(null)
     setQ('')
     setDebouncedQ('')
     setSortKey('')
@@ -463,10 +461,12 @@ export default function RecordList({formName}: { formName?: string }) {
   const toggleOne = (id: string) => setSelected((previous) =>
     previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id])
 
-  const editRecord = (recordId: string) => {
-    setFormRecordId(recordId)
-    setFormOpen(true)
+  const openRecordDetail = (recordId: string, mode: 'view' | 'edit' = 'view') => {
+    setDetailId(recordId)
+    setDetailMode(mode)
   }
+
+  const editRecord = (recordId: string) => openRecordDetail(recordId, 'edit')
 
   const sortBy = (key: string) => {
     if (sortKey === key) setSortAsc((asc) => !asc)
@@ -490,7 +490,7 @@ export default function RecordList({formName}: { formName?: string }) {
           className="text-left font-medium text-primary hover:underline"
           onClick={(event) => {
             event.stopPropagation()
-            setDetailId(String(row.id))
+            openRecordDetail(String(row.id))
           }}
         >
           {displayValue}
@@ -577,10 +577,7 @@ export default function RecordList({formName}: { formName?: string }) {
             <Button
               size="sm"
               className={compactButtonClass}
-              onClick={() => {
-                setFormRecordId(null)
-                setFormOpen(true)
-              }}
+              onClick={() => setFormOpen(true)}
             >
               <Plus className="h-4 w-4"/> 新建
             </Button>
@@ -643,10 +640,7 @@ export default function RecordList({formName}: { formName?: string }) {
                 size="sm"
                 className={compactButtonClass}
                 disabled={selected.length !== 1}
-                onClick={() => {
-                  setFormRecordId(selected[0] ?? null)
-                  setFormOpen(true)
-                }}
+                onClick={() => openRecordDetail(selected[0], 'edit')}
               >
                 <Edit className="h-4 w-4"/> 编辑
               </Button>
@@ -717,7 +711,7 @@ export default function RecordList({formName}: { formName?: string }) {
                         'cursor-pointer transition-colors hover:bg-muted/40',
                         selected.includes(recordId) && 'bg-primary/10',
                       )}
-                      onClick={() => setDetailId(recordId)}
+                      onClick={() => openRecordDetail(recordId)}
                     >
                       <td onClick={(event) => event.stopPropagation()}>
                         <Checkbox
@@ -783,52 +777,49 @@ export default function RecordList({formName}: { formName?: string }) {
         </div>
       </div>
 
-      <Drawer open={Boolean(detailId)} onOpenChange={(open) => !open && setDetailId(null)}>
-        <DrawerContent className="w-full overflow-y-auto md:w-[calc(100vw-16rem)]">
-          <div className="p-4 md:p-5">
-            {detailId && (
-              <AppRecordDetail
-                appId={appId}
-                formName={resolvedFormName}
-                recordId={detailId}
-                onOpenRecord={openLinkedRecord}
-                onDeleted={() => {
-                  setDetailId(null)
-                  setLinkedRecord(null)
-                  setSelected((previous) => previous.filter((id) => id !== detailId))
-                  refresh()
-                }}
-              />
-            )}
-          </div>
-        </DrawerContent>
-      </Drawer>
+      <AppRecordDrawer
+        open={Boolean(detailId)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailId(null)
+            setDetailMode('view')
+          }
+        }}
+        appId={appId}
+        formName={resolvedFormName}
+        recordId={detailId}
+        initialMode={detailMode}
+        onSaved={() => refresh()}
+        onOpenRecord={openLinkedRecord}
+        onDeleted={() => {
+          setDetailId(null)
+          setLinkedRecord(null)
+          setSelected((previous) => previous.filter((id) => id !== detailId))
+          refresh()
+        }}
+      />
 
-      <Drawer open={Boolean(linkedRecord)} onOpenChange={(open) => !open && setLinkedRecord(null)}>
-        <DrawerContent className="w-[calc(100vw-4rem)] overflow-y-auto md:w-[calc(100vw-20rem)]">
-          <div className="p-4 md:p-5">
-            {linkedRecord && (
-              <AppRecordDetail
-                appId={appId}
-                formName={linkedRecord.formName}
-                recordId={linkedRecord.recordId}
-                onOpenRecord={openLinkedRecord}
-                onDeleted={() => {
-                  setLinkedRecord(null)
-                  refresh()
-                }}
-              />
-            )}
-          </div>
-        </DrawerContent>
-      </Drawer>
+      <AppRecordDrawer
+        open={Boolean(linkedRecord)}
+        onOpenChange={(open) => {
+          if (!open) setLinkedRecord(null)
+        }}
+        appId={appId}
+        formName={linkedRecord?.formName ?? resolvedFormName}
+        recordId={linkedRecord?.recordId ?? null}
+        onSaved={() => refresh()}
+        onOpenRecord={openLinkedRecord}
+        onDeleted={() => {
+          setLinkedRecord(null)
+          refresh()
+        }}
+      />
 
-      <AppRecordFormModal
+      <AppRecordDrawer
         open={formOpen}
         onOpenChange={setFormOpen}
         appId={appId}
-        form={form}
-        recordId={formRecordId}
+        formName={resolvedFormName}
         onSaved={() => {
           setSelected([])
           refresh()
