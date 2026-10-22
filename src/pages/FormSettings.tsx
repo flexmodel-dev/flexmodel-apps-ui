@@ -4,7 +4,7 @@ import {Pencil, Plus, Trash2} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
-import {BizDialog} from '@/components/ui/dialog'
+import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {Empty} from '@/components/ui/empty'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {Badge} from '@/components/ui/badge'
@@ -27,6 +27,7 @@ import {
   type AppFormFieldType,
   type AppForm,
 } from '@/services/appForms'
+import {toErrorMessage} from '@/lib/utils'
 
 const sections = {
   base: '基本信息',
@@ -110,7 +111,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       .catch((caught) => {
         if (cancelled) return
         setForm(null)
-        setError(caught instanceof Error ? caught.message : '加载表单失败')
+        setError(toErrorMessage(caught, '加载表单失败'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -168,7 +169,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       setForm(updatedForm)
       setBaseOpen(false)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '保存表单失败')
+      setError(toErrorMessage(caught, '保存表单失败'))
     } finally {
       setIsSubmitting(false)
     }
@@ -181,7 +182,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       setDeleteOpen(false)
       navigate(`/admin/apps/${appId}/settings/forms`)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '删除表单失败')
+      setError(toErrorMessage(caught, '删除表单失败'))
     } finally {
       setIsSubmitting(false)
     }
@@ -213,7 +214,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       }
       setFieldDraft(null)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '保存字段失败')
+      setError(toErrorMessage(caught, '保存字段失败'))
     } finally {
       setIsSubmitting(false)
     }
@@ -233,7 +234,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       })
       setFieldDelete(null)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '删除字段失败')
+      setError(toErrorMessage(caught, '删除字段失败'))
     } finally {
       setIsSubmitting(false)
     }
@@ -476,37 +477,25 @@ export default function FormSettings({section}: { section: FormSettingsSection }
         )}
       </BizDialog>
 
-      <BizDialog
+      <ConfirmDialog
         open={Boolean(fieldDelete)}
         onOpenChange={(open) => !open && setFieldDelete(null)}
         title="删除字段"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setFieldDelete(null)} disabled={isSubmitting}>取消</Button>
-            <Button variant="danger" onClick={removeField} disabled={isSubmitting}>
-              {isSubmitting ? '删除中...' : '删除'}
-            </Button>
-          </>
-        }
-      >
-        <div className="pt-1">确认删除字段「{fieldDelete?.label}」吗？</div>
-      </BizDialog>
+        message={`确认删除字段「${fieldDelete?.label}」吗？`}
+        busy={isSubmitting}
+        confirmText="删除"
+        onConfirm={removeField}
+      />
 
-      <BizDialog
+      <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="删除表单"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteOpen(false)} disabled={isSubmitting}>取消</Button>
-            <Button variant="danger" onClick={removeForm} disabled={isSubmitting}>
-              {isSubmitting ? '删除中...' : '删除'}
-            </Button>
-          </>
-        }
-      >
-        <div className="pt-1">确认删除表单「{form.label}」吗？</div>
-      </BizDialog>
+        message={`确认删除表单「${form.label}」吗？`}
+        busy={isSubmitting}
+        confirmText="删除"
+        onConfirm={removeForm}
+      />
     </AdminLayout>
   )
 }

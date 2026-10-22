@@ -7,80 +7,32 @@ import {message} from '@/components/ui/message'
 import {getAuthSession} from '@/services/auth'
 import {
   approvalStatus,
-  decideApproval,
-  getApprovalDetail,
-  getApprovalDirectory,
+  FINISHED_STATUS,
   manageApproval,
   retryApprovalNotifications,
-  type ApprovalDetail,
   type ApprovalItem
 } from '@/services/approvals'
 import {ApprovalTimeline} from './ApprovalProgress'
+import {useApprovalDetail} from './useApprovalDetail'
+import {useApprovalDecision} from '@/components/biz/approvalDecision'
+import {toErrorMessage} from '@/lib/utils'
 
 export function InstanceDrawer({item, onClose, onChanged}: {
   item: ApprovalItem | null;
   onClose: () => void;
   onChanged?: () => void
 }) {
-  const [detail, setDetail] = React.useState<ApprovalDetail | null>(null)
-  const [names, setNames] = React.useState<Record<string, string>>({})
-  const [error, setError] = React.useState('')
-  const [comment, setComment] = React.useState('')
-  const [busy, setBusy] = React.useState(false)
   const [child, setChild] = React.useState<ApprovalItem | null>(null)
-  const request = React.useRef<{ task: string; decision: string; comment: string; key: string } | null>(null)
+  const [busy, setBusy] = React.useState(false)
   const actor = getAuthSession()?.user.id
-  React.useEffect(() => {
-    if (!item) return
-    let active = true
-    setDetail(null);
-    setError('');
-    setComment('');
-    request.current = null
-    const load = async () => {
-      try {
-        const loaded = await getApprovalDetail(item.appId, item.id);
-        if (active) {
-          setDetail(loaded);
-          setError('')
-        }
-      } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : '读取审批失败')
-      }
-    }
-    void load()
-    getApprovalDirectory(item.appId).then(value => {
-      if (active) setNames(Object.fromEntries(value.members.map(member => [member.id, member.name])))
-    }).catch(() => {
-    })
-    const timer = window.setInterval(load, 2500)
-    return () => {
-      active = false;
-      window.clearInterval(timer)
-    }
-  }, [item?.appId, item?.id])
+  const {detail, names, error, load} = useApprovalDetail(item?.appId ?? '', item?.id, 2500)
+  const decision = useApprovalDecision(item?.appId ?? '', async () => {
+    await load()
+    onChanged?.()
+  })
   const task = detail?.tasks.find(task => task.user_id === actor && task.status === 'PENDING')
-  const act = async (decision: 'approve' | 'reject') => {
-    if (!item || !task) return
-    setBusy(true)
-    try {
-      if (!request.current || request.current.task !== task.id || request.current.decision !== decision || request.current.comment !== comment) request.current = {
-        task: task.id,
-        decision,
-        comment,
-        key: crypto.randomUUID()
-      }
-      await decideApproval(item.appId, task.id, decision, comment, request.current.key)
-      setDetail(await getApprovalDetail(item.appId, item.id));
-      setComment('');
-      request.current = null
-      message.success(decision === 'approve' ? '已同意，流程正在继续' : '已拒绝，流程正在结束');
-      onChanged?.()
-    } catch (cause) {
-      message.error(cause instanceof Error ? cause.message : '签核失败，可重试')
-    } finally {
-      setBusy(false)
-    }
+  const act = (kind: 'approve' | 'reject') => {
+    void decision.decide(task?.id, kind)
   }
   const manage = async (action: 'retry' | 'terminate') => {
     if (!item) return
@@ -91,7 +43,7 @@ export function InstanceDrawer({item, onClose, onChanged}: {
       message.success(action === 'retry' ? '已重新投递失败消息' : '已提交终止请求');
       onChanged?.()
     } catch (cause) {
-      message.error(cause instanceof Error ? cause.message : '操作失败')
+      message.error(toErrorMessage(cause, '操作失败'))
     } finally {
       setBusy(false)
     }
@@ -129,10 +81,10 @@ export function InstanceDrawer({item, onClose, onChanged}: {
               setBusy(true);
               try {
                 await retryApprovalNotifications(item.appId, item.id);
-                setDetail(await getApprovalDetail(item.appId, item.id));
+                await load();
                 message.success('已重新投递失败通知')
-              } catch (error) {
-                message.error(error instanceof Error ? error.message : '重试失败')
+              } catch (cause) {
+                message.error(toErrorMessage(cause, '重试失败'))
               } finally {
                 setBusy(false)
               }
@@ -169,12 +121,13 @@ export function InstanceDrawer({item, onClose, onChanged}: {
     </div>
     {task ?
       <div className="space-y-3 border-t bg-card p-5"><Textarea aria-label="审批意见" placeholder="填写审批意见（选填）"
-                                                                value={comment} maxLength={2000}
-                                                                onChange={event => setComment(event.target.value)}/>
-        <div className="flex justify-end gap-2"><Button variant="outline" disabled={busy}
-                                                        onClick={() => void act('reject')}><X className="h-4 w-4"/>拒绝</Button><Button
-          disabled={busy} onClick={() => void act('approve')}><Check className="h-4 w-4"/>同意</Button></div>
-      </div> : detail?.canManage && !['APPROVED', 'REJECTED', 'TERMINATED'].includes(detail.status) &&
+                                                                value={decision.comment} maxLength={2000}
+                                                                onChange={event => decision.setComment(event.target.value)}/>
+        <div className="flex justify-end gap-2"><Button variant="outline" disabled={decision.busy}
+                                                        onClick={() => act('reject')}><X
+          className="h-4 w-4"/>拒绝</Button><Button
+          disabled={decision.busy} onClick={() => act('approve')}><Check className="h-4 w-4"/>同意</Button></div>
+      </div> : detail?.canManage && !FINISHED_STATUS.includes(detail.status) &&
       <div className="border-t p-4 text-right"><Button variant="outline" size="sm" disabled={busy}
                                                        onClick={() => void manage('terminate')}>终止审批</Button></div>}
   </DrawerContent></Drawer>{child && <InstanceDrawer item={child} onClose={() => setChild(null)}/>}</>

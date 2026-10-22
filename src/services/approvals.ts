@@ -2,6 +2,7 @@ import type {ApprovalFlow, FormRef, MemberDirectory, ValidationIssue} from '../t
 import {createApprovalTemplates} from '../data/mock'
 import {cloneNode, emptyDocument, flattenNodes} from '../lib/approval'
 import {requestJson} from './http'
+import {cachedFetch, createAppDataCache} from './appDataCache'
 import {decodeApprovalFlow, encodeApprovalFlow, type ApprovalFlowRecord} from './approval-model'
 
 const base = (appId: string) => `/api/apps/${encodeURIComponent(appId)}/approval-flows`
@@ -9,21 +10,13 @@ export const getApprovalFlows = async (appId: string) => (await requestJson<Appr
 export const getApprovalFlow = async (appId: string, id: string) => decodeApprovalFlow(await requestJson<ApprovalFlowRecord>(`${base(appId)}/${encodeURIComponent(id)}`), appId)
 export const getApprovalDirectory = (appId: string) => requestJson<MemberDirectory>(`/api/apps/${encodeURIComponent(appId)}/approval-directory`)
 
-const memberNameCache = new Map<string, Promise<Record<string, string>>>()
+const memberNameCache = createAppDataCache<Record<string, string>>()
 
 /** 审批成员目录的 id → 姓名映射（会话内缓存），供列表直接展示发起人姓名 */
 export function getApprovalMemberNames(appId: string): Promise<Record<string, string>> {
-  let names = memberNameCache.get(appId)
-  if (!names) {
-    names = getApprovalDirectory(appId)
-      .then((directory) => Object.fromEntries(directory.members.map((member) => [member.id, member.name])))
-      .catch((cause: unknown) => {
-        memberNameCache.delete(appId)
-        throw cause
-      })
-    memberNameCache.set(appId, names)
-  }
-  return names
+  return cachedFetch(memberNameCache, appId, () =>
+    getApprovalDirectory(appId)
+      .then((directory) => Object.fromEntries(directory.members.map((member) => [member.id, member.name]))))
 }
 
 export const validateApprovalFlow = (flow: ApprovalFlow) => requestJson<ValidationIssue[]>(`${base(flow.appId)}/validate`, {
@@ -139,6 +132,9 @@ export const approvalStatus: Record<string, string> = {
   TERMINATED: '已终止',
   ERROR: '执行异常'
 }
+
+/** 审批已结束的状态集合 */
+export const FINISHED_STATUS = ['APPROVED', 'REJECTED', 'TERMINATED']
 
 export function listPersonalApprovals(view: 'pending' | 'handled' | 'initiated', appId?: string, search = '', page = 1) {
   const params = new URLSearchParams({view, search, page: String(page), size: '30'})

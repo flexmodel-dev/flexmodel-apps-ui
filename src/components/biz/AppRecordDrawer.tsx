@@ -2,16 +2,8 @@ import * as React from 'react'
 import {useNavigate} from 'react-router-dom'
 import {Check, Info, LockKeyhole, Pencil, Send, Settings, Trash2, X} from 'lucide-react'
 import {BizDrawer} from '@/components/ui/drawer'
-import {BizDialog} from '@/components/ui/dialog'
+import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
-import {Textarea} from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {message} from '@/components/ui/message'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
@@ -19,6 +11,8 @@ import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {ApprovalProgressPanel} from '@/pages/Approvals/ApprovalProgress'
 import {useRecordApproval} from '@/components/biz/useRecordApproval'
+import {ApprovalDecisionDialog, useApprovalDecision} from '@/components/biz/approvalDecision'
+import {FlowStartDialog, useFormApprovalFlows} from '@/components/biz/form/flowLaunch'
 import {
   FieldControl,
   type ReferenceOption,
@@ -31,8 +25,8 @@ import {
 } from '@/components/biz/form/recordPayload'
 import {useReferenceOptions} from '@/components/biz/form/useReferenceOptions'
 import {renderFormValue} from '@/components/biz/form/FormReadonlyValue'
-import {displayRecordText} from '@/lib/recordValue'
-import {cn} from '@/lib/utils'
+import {displayRecordText, recordTitle} from '@/lib/recordValue'
+import {cn, toErrorMessage} from '@/lib/utils'
 import {formItemWidthTypeClasses} from '@/lib/form-items'
 import {getAppForm, type AppForm, type AppFormField, type AppFormItem} from '@/services/appForms'
 import {
@@ -42,21 +36,9 @@ import {
   updateAppRecord,
   type AppRecord,
 } from '@/services/appRecords'
-import {getApprovalFlows, submitApproval, decideApproval} from '@/services/approvals'
-import type {ApprovalFlow} from '@/types/approval'
+import {submitApproval} from '@/services/approvals'
 
 export type AppRecordDrawerMode = 'view' | 'edit' | 'create'
-
-function recordTitle(value: unknown, recordId: string) {
-  if (Array.isArray(value) && value.length > 0) {
-    return recordTitle(value[0], recordId)
-  }
-  if (value && typeof value === 'object' && 'displayValue' in value) {
-    const reference = value as { displayValue?: unknown }
-    return String(reference.displayValue ?? recordId)
-  }
-  return String(value ?? recordId)
-}
 
 function renderViewValue(field: AppFormField, value: unknown) {
   if (field.type === 'MULTIREFERENCE') return displayRecordText(value)
@@ -103,20 +85,10 @@ export function AppRecordDrawer({
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [discardKind, setDiscardKind] = React.useState<'close' | 'edit' | null>(null)
-  const [flows, setFlows] = React.useState<ApprovalFlow[]>([])
   const [flowOpen, setFlowOpen] = React.useState(false)
   const [flowId, setFlowId] = React.useState('')
   const [isStarting, setIsStarting] = React.useState(false)
-  const [decision, setDecision] = React.useState<'approve' | 'reject' | null>(null)
-  const [comment, setComment] = React.useState('')
-  const [isDeciding, setIsDeciding] = React.useState(false)
   const requestKey = React.useRef(crypto.randomUUID())
-  const decisionRequest = React.useRef<{
-    taskId: string;
-    decision: 'approve' | 'reject';
-    comment: string;
-    key: string
-  } | null>(null)
   const initialModeRef = React.useRef(initialMode)
   initialModeRef.current = initialMode
 
@@ -127,7 +99,16 @@ export function AppRecordDrawer({
     recordId: activeRecordId,
     enabled: open && !isCreate && !!form && !form.builtin,
   })
+  const decision = useApprovalDecision(appId, () => {
+    approval.refresh()
+    onSaved?.(activeRecordId ?? '')
+  })
   const approvalLocked = approval.locked
+  const flows = useFormApprovalFlows({
+    appId,
+    formName: form?.name ?? '',
+    enabled: open && isCreate && !!form && !form.builtin,
+  })
   const referenceOptionsMap = useReferenceOptions({appId, form, open})
   const {entries} = form ? parseFormLayout(form) : {entries: [] as FormLayoutEntry[]}
   const mainEntries = entries.filter(
@@ -147,7 +128,7 @@ export function AppRecordDrawer({
         if (!cancelled) setForm(loaded)
       })
       .catch((caught: unknown) => {
-        if (!cancelled) setFormError(caught instanceof Error ? caught.message : '加载表单失败')
+        if (!cancelled) setFormError(toErrorMessage(caught, '加载表单失败'))
       })
       .finally(() => {
         if (!cancelled) setIsFormLoading(false)
@@ -169,7 +150,6 @@ export function AppRecordDrawer({
     setDeleteOpen(false)
     setFlowOpen(false)
     setDiscardKind(null)
-    setDecision(null)
   }, [open, recordId])
 
   React.useEffect(() => {
@@ -185,7 +165,7 @@ export function AppRecordDrawer({
         if (!cancelled) setRecord(loaded)
       })
       .catch((caught: unknown) => {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : '加载记录失败')
+        if (!cancelled) setError(toErrorMessage(caught, '加载记录失败'))
       })
     return () => {
       cancelled = true
@@ -196,22 +176,6 @@ export function AppRecordDrawer({
     if (!open || !activeRecordId) return
     return loadRecord()
   }, [open, activeRecordId, loadRecord])
-
-  React.useEffect(() => {
-    if (!open || !isCreate || !form || form.builtin) return
-    let cancelled = false
-    getApprovalFlows(appId)
-      .then((definitions) => {
-        if (!cancelled) setFlows(definitions.filter((flow) =>
-          flow.status === 'enabled' && flow.form.kind === 'app' && flow.form.name === form.name))
-      })
-      .catch(() => {
-        if (!cancelled) setFlows([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [open, isCreate, appId, form])
 
   const buildPayload = (): AppRecord | null =>
     form ? buildRecordPayload(form, parseFormLayout(form).renderableFieldNames, values, setError) : null
@@ -270,7 +234,7 @@ export function AppRecordDrawer({
       message.success('保存成功')
       onSaved?.(id)
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '保存记录失败')
+      setError(toErrorMessage(caught, '保存记录失败'))
     } finally {
       setIsSubmitting(false)
     }
@@ -290,7 +254,7 @@ export function AppRecordDrawer({
       }
       return id || null
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '保存记录失败')
+      setError(toErrorMessage(caught, '保存记录失败'))
       return null
     } finally {
       setIsSavingSubform(false)
@@ -306,7 +270,7 @@ export function AppRecordDrawer({
       onOpenChange(false)
       onDeleted?.()
     } catch (caught: unknown) {
-      message.error(caught instanceof Error ? caught.message : '删除记录失败')
+      message.error(toErrorMessage(caught, '删除记录失败'))
     } finally {
       setIsDeleting(false)
     }
@@ -344,49 +308,9 @@ export function AppRecordDrawer({
       message.success('已提交，流程正在启动')
     } catch (caught: unknown) {
       setFlowOpen(false)
-      setError(caught instanceof Error ? caught.message : '发起流程失败')
+      setError(toErrorMessage(caught, '发起流程失败'))
     } finally {
       setIsStarting(false)
-    }
-  }
-
-  const openDecision = (next: 'approve' | 'reject') => {
-    setComment('')
-    setDecision(next)
-  }
-
-  const closeDecision = () => {
-    if (isDeciding) return
-    setDecision(null)
-    setComment('')
-  }
-
-  const confirmDecision = async () => {
-    if (!approval.myTask || !decision) return
-    setIsDeciding(true)
-    try {
-      if (!decisionRequest.current
-        || decisionRequest.current.taskId !== approval.myTask
-        || decisionRequest.current.decision !== decision
-        || decisionRequest.current.comment !== comment) {
-        decisionRequest.current = {
-          taskId: approval.myTask,
-          decision,
-          comment,
-          key: crypto.randomUUID(),
-        }
-      }
-      await decideApproval(appId, approval.myTask, decision, comment, decisionRequest.current.key)
-      decisionRequest.current = null
-      setDecision(null)
-      setComment('')
-      message.success(decision === 'approve' ? '已同意，流程正在继续' : '已拒绝，流程正在结束')
-      approval.refresh()
-      onSaved?.(activeRecordId ?? '')
-    } catch (caught: unknown) {
-      message.error(caught instanceof Error ? caught.message : '签核失败，可重试')
-    } finally {
-      setIsDeciding(false)
     }
   }
 
@@ -435,10 +359,10 @@ export function AppRecordDrawer({
       </Button>
       {approval.myTask && (
         <>
-          <Button variant="secondary" disabled={isDeciding} onClick={() => openDecision('reject')}>
+          <Button variant="secondary" disabled={decision.busy} onClick={() => decision.openDecision('reject')}>
             <X className="h-4 w-4"/>不同意
           </Button>
-          <Button disabled={isDeciding} onClick={() => openDecision('approve')}>
+          <Button disabled={decision.busy} onClick={() => decision.openDecision('approve')}>
             <Check className="h-4 w-4"/>同意
           </Button>
         </>
@@ -614,85 +538,34 @@ export function AppRecordDrawer({
         </div>
       </BizDialog>
 
-      <BizDialog
+      <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="删除记录"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteOpen(false)} disabled={isDeleting}>
-              取消
-            </Button>
-            <Button variant="danger" onClick={() => void confirmDelete()} disabled={isDeleting}>
-              {isDeleting ? '删除中' : '删除'}
-            </Button>
-          </>
-        }
-      >
-        <div className="text-sm text-muted-foreground">
-          确认删除这条记录吗？删除后不可恢复。
-        </div>
-      </BizDialog>
+        message="确认删除这条记录吗？删除后不可恢复。"
+        busy={isDeleting}
+        confirmText="删除"
+        onConfirm={() => void confirmDelete()}
+      />
 
-      <BizDialog
+      <FlowStartDialog
         open={flowOpen}
         onOpenChange={setFlowOpen}
-        title="发起流程"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setFlowOpen(false)} disabled={isStarting}>取消</Button>
-            <Button onClick={startFlow} disabled={isStarting || !flowId}>
-              {isStarting ? '提交中…' : '确认发起'}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">选择审批流程</label>
-            <Select value={flowId} onValueChange={setFlowId}>
-              <SelectTrigger>
-                <SelectValue placeholder="请选择审批流程"/>
-              </SelectTrigger>
-              <SelectContent>
-                {(isCreate ? flows : approval.flows).map((flow) => (
-                  <SelectItem key={flow.id} value={flow.id}>{flow.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            提交时会保存记录快照。审批结束前，人工编辑和删除将被锁定，流程配置的数据操作继续执行。
-          </p>
-        </div>
-      </BizDialog>
+        flows={isCreate ? flows : approval.flows}
+        flowId={flowId}
+        onFlowIdChange={setFlowId}
+        isStarting={isStarting}
+        onConfirm={() => void startFlow()}
+      />
 
-      <BizDialog
-        open={!!decision}
-        onOpenChange={(next) => {
-          if (!next) closeDecision()
-        }}
-        title={decision === 'approve' ? '同意审批' : '不同意审批'}
-        footer={
-          <>
-            <Button variant="secondary" disabled={isDeciding} onClick={closeDecision}>取消</Button>
-            <Button disabled={isDeciding} onClick={() => void confirmDecision()}>
-              {isDeciding ? '提交中…' : decision === 'approve' ? '确认同意' : '确认不同意'}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground">审批意见（选填）</label>
-          <Textarea
-            aria-label="审批意见"
-            placeholder="填写审批意见"
-            value={comment}
-            maxLength={2000}
-            onChange={(event) => setComment(event.target.value)}
-          />
-        </div>
-      </BizDialog>
+      <ApprovalDecisionDialog
+        pending={decision.pending}
+        comment={decision.comment}
+        busy={decision.busy}
+        onCommentChange={decision.setComment}
+        onClose={decision.closeDecision}
+        onConfirm={() => void decision.confirmDecision(approval.myTask)}
+      />
     </>
   )
 }

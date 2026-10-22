@@ -55,7 +55,8 @@ import {
   flattenNodes,
   validateFlow,
 } from '@/lib/approval'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
+import {useDarkMode} from '@/lib/useDarkMode'
 import FlowCanvas, {findNode} from './FlowCanvas'
 import NodePanel from './NodePanel'
 import SimulationPanel from './SimulationPanel'
@@ -83,16 +84,7 @@ export default function ApprovalDesigner() {
   const [, refresh] = React.useReducer((value) => value + 1, 0)
   const [leavePath, setLeavePath] = React.useState('')
   const [deleteNodeId, setDeleteNodeId] = React.useState('')
-  const [dark, setDark] = React.useState(() => {
-    const stored = localStorage.getItem('night')
-    if (stored === 'true' || stored === 'false') return stored === 'true'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  })
-  React.useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
-    localStorage.setItem('night', String(dark))
-  }, [dark])
+  const [dark, setDark] = useDarkMode()
   const {
     forms,
     error: formError,
@@ -121,7 +113,7 @@ export default function ApprovalDesigner() {
       })
       .catch((error) => {
         if (active)
-          setLoadError(error instanceof Error ? error.message : '读取流程失败')
+          setLoadError(toErrorMessage(error, '读取流程失败'))
       })
     return () => {
       active = false
@@ -204,7 +196,7 @@ export default function ApprovalDesigner() {
       message.success('流程草稿已保存到服务器')
       return true
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败')
+      message.error(toErrorMessage(error, '保存失败'))
       return false
     } finally {
       setSaving(false)
@@ -219,7 +211,7 @@ export default function ApprovalDesigner() {
       setShowIssues(!!result.length)
       return result.length === 0
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '校验失败，请重试');
+      message.error(toErrorMessage(error, '校验失败，请重试'));
       return false
     }
   }
@@ -410,7 +402,7 @@ export default function ApprovalDesigner() {
                     message.success('流程已发布并启用')
                   } catch (error) {
                     message.error(
-                      error instanceof Error ? error.message : '启用失败',
+                      toErrorMessage(error, '启用失败'),
                     )
                   }
                 }}

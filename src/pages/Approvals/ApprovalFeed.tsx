@@ -1,12 +1,12 @@
 import * as React from 'react'
 import {useParams} from 'react-router-dom'
-import {Search, ClipboardCheck, RefreshCw} from 'lucide-react'
+import {ClipboardCheck, RefreshCw} from 'lucide-react'
 import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
 import {Pagination} from '@/components/biz/Pagination'
+import {SearchInput} from '@/components/biz/SearchInput'
 import {approvalStatus, getApprovalMemberNames, listPersonalApprovals, type ApprovalItem} from '@/services/approvals'
 import {ApprovalTaskDrawer} from './ApprovalTaskDrawer'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 
 export function ApprovalFeed({appId, compact = false}: { appId?: string; compact?: boolean }) {
   const params = useParams()
@@ -32,7 +32,7 @@ export function ApprovalFeed({appId, compact = false}: { appId?: string; compact
           setError('')
         }
       } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : '加载失败')
+        if (active) setError(toErrorMessage(cause, '加载失败'))
       } finally {
         if (active) setLoading(false)
       }
@@ -74,12 +74,11 @@ export function ApprovalFeed({appId, compact = false}: { appId?: string; compact
                   setSelected(null)
                 }}>{label}</button>)}</div>
       {!compact && <div className="flex items-center gap-2">
-        <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/><Input
-          aria-label="搜索审批" className="h-9 w-56 pl-9" placeholder="搜索流程或当前节点" value={search}
-          onChange={event => {
-            setSearch(event.target.value);
-            setPage(1)
-          }}/></div>
+        <SearchInput aria-label="搜索审批" className="w-56" placeholder="搜索流程或当前节点" value={search}
+                     onChange={event => {
+                       setSearch(event.target.value);
+                       setPage(1)
+                     }}/>
         <Button variant="ghost" size="sm" aria-label="刷新审批" onClick={refresh}><RefreshCw
           className="h-4 w-4"/></Button></div>}</div>
     <div className="min-h-0 flex-1 overflow-auto">{error ?

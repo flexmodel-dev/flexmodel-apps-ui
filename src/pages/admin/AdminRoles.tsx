@@ -16,6 +16,7 @@ import {
   type SystemPermissionResource,
   type SystemRecord,
 } from '@/services/systemForms'
+import {toErrorMessage} from '@/lib/utils'
 
 function text(value: unknown): string {
   return value === null || value === undefined ? '' : String(value)
@@ -43,7 +44,7 @@ export function AdminRoles() {
       setRoles(rolePage.list)
       setFormDefinition(definition)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '加载角色失败')
+      setError(toErrorMessage(caught, '加载角色失败'))
     } finally {
       setLoading(false)
     }
@@ -66,7 +67,7 @@ export function AdminRoles() {
       setDeletingRole(null)
       await load()
     } catch (caught) {
-      setFormError(caught instanceof Error ? caught.message : '删除角色失败')
+      setFormError(toErrorMessage(caught, '删除角色失败'))
     } finally {
       setSaving(false)
     }

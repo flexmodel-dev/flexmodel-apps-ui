@@ -1,52 +1,21 @@
 // Invoked by ApprovalFlowResourceTest while its isolated Quarkus/SQLite server is running.
-import {chromium, expect} from '@playwright/test'
-import {spawn} from 'node:child_process'
-import {fileURLToPath} from 'node:url'
-import {resolve, dirname} from 'node:path'
+import {expect} from '@playwright/test'
 import {mkdir} from 'node:fs/promises'
+import {resolve} from 'node:path'
+import {projectRoot, startFrontend, apiRequest, launchContext} from './harness.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const api = process.env.APPROVAL_TEST_API
 const token = process.env.APPROVAL_TEST_TOKEN
 if (!api || !token) throw new Error('该测试由 Quarkus 集成测试提供独立后端和登录凭证')
-const frontend = 'http://127.0.0.1:5183'
-const server = spawn(process.execPath, [resolve(root, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', '5183', '--strictPort'], {
-  cwd: root,
-  env: {...process.env, VITE_API_TARGET: api},
-  stdio: 'ignore',
-  windowsHide: true
-})
+const {server, frontend} = await startFrontend(api, 5183)
+const request = (path, body, method) => apiRequest(api, token, path, body, method)
 const errors = []
 let browser
 
-async function request(path, body, method = body ? 'POST' : 'GET') {
-  const response = await fetch(api + '/api' + path, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + token
-    }, ...(body ? {body: JSON.stringify(body)} : {})
-  })
-  const result = await response.json().catch(() => null)
-  if (!response.ok) throw new Error(path + ': ' + response.status + ' ' + JSON.stringify(result))
-  return result
-}
-
 try {
-  for (let i = 0; i < 100; i++) {
-    try {
-      if ((await fetch(frontend)).ok) break
-    } catch {
-    }
-    await new Promise(resolve => setTimeout(resolve, 200))
-  }
-  browser = await chromium.launch({headless: true})
-  const context = await browser.newContext({viewport: {width: 1440, height: 900}, locale: 'zh-CN'})
-  await context.addInitScript(({token}) => {
-    localStorage.setItem('flexmodel-apps.auth.token', token);
-    localStorage.setItem('flexmodel-apps.auth.user', JSON.stringify({id: 'admin', name: 'Admin'}))
-  }, {token})
-  const page = await context.newPage()
+  const launched = await launchContext(token)
+  browser = launched.browser
+  const page = await launched.context.newPage()
   page.on('pageerror', error => errors.push(error.message))
   const suffix = Date.now().toString(36), form = 'browser_approval_' + suffix
   await request('/apps/dev_test/forms', {name: form, label: '浏览器审批验收', createDisplayField: true})
@@ -102,8 +71,11 @@ try {
   await page.getByTitle('流程操作', {exact: true}).click()
   await page.getByText('发布并启用', {exact: true}).click()
   await expect(page.getByText('流程已发布并启用', {exact: true})).toBeVisible()
-  await mkdir(resolve(root, 'artifacts'), {recursive: true})
-  await page.screenshot({animations: 'disabled', path: resolve(root, 'artifacts/approvals-backend-designer.png')})
+  await mkdir(resolve(projectRoot, 'artifacts'), {recursive: true})
+  await page.screenshot({
+    animations: 'disabled',
+    path: resolve(projectRoot, 'artifacts/approvals-backend-designer.png')
+  })
   await page.goto(frontend + '/#/apps/dev_test/' + menu.id + '/view/' + record.id)
   await expect(page.getByRole('button', {name: '提交审批', exact: true})).toBeEnabled()
   await page.getByRole('button', {name: '提交审批', exact: true}).click()
@@ -119,7 +91,7 @@ try {
     await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {
     })))
   })
-  await page.screenshot({animations: 'disabled', path: resolve(root, 'artifacts/approvals-backend-signing.png')})
+  await page.screenshot({animations: 'disabled', path: resolve(projectRoot, 'artifacts/approvals-backend-signing.png')})
   await page.getByRole('button', {name: '同意', exact: true}).click()
   await expect(page.getByText('已通过', {exact: true})).toBeVisible({timeout: 20000})
   await page.getByRole('button', {name: 'Close', exact: true}).count().then(async count => {
@@ -133,7 +105,10 @@ try {
     document.documentElement.classList.add('dark');
     localStorage.setItem('night', 'true')
   })
-  await page.screenshot({animations: 'disabled', path: resolve(root, 'artifacts/approvals-backend-center-dark.png')})
+  await page.screenshot({
+    animations: 'disabled',
+    path: resolve(projectRoot, 'artifacts/approvals-backend-center-dark.png')
+  })
   await page.goto(frontend + '/#/apps/dev_test/' + menu.id + '/view/' + record.id)
   await expect(page.getByRole('button', {name: '编辑', exact: true})).toBeEnabled()
   if (errors.length) throw new Error('浏览器异常: ' + errors.join('; '))

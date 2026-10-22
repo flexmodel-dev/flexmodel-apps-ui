@@ -68,7 +68,7 @@ import {
   formItemWidthOptions,
   type FormItemWidthType,
 } from '@/lib/form-items'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -500,7 +500,7 @@ export function FormDesigner({
       setFieldRemarks((previous) => ({...previous, [createdField.name]: remark}))
       setCreatingField(null)
     } catch (caught) {
-      setFieldError(caught instanceof Error ? caught.message : '保存字段失败')
+      setFieldError(toErrorMessage(caught, '保存字段失败'))
     }
   }
   const addDivider = () => {
@@ -563,7 +563,7 @@ export function FormDesigner({
         : previous.map((item, index) => index === subformDraft.index ? nextItem : item))
       setSubformDraft(null)
     } catch (caught) {
-      setSubformError(caught instanceof Error ? caught.message : '保存子表单失败')
+      setSubformError(toErrorMessage(caught, '保存子表单失败'))
     } finally {
       setIsSavingSubform(false)
     }
@@ -588,7 +588,7 @@ export function FormDesigner({
       onFormChange(updatedForm)
       setSaved(true)
     } catch (caught) {
-      setLayoutError(caught instanceof Error ? caught.message : '保存布局失败')
+      setLayoutError(toErrorMessage(caught, '保存布局失败'))
     } finally {
       setIsSavingLayout(false)
     }

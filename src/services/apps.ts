@@ -1,5 +1,5 @@
 import {requestJson} from '@/services/http'
-import {createAppDataCache} from '@/services/appDataCache'
+import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
 
 export type AppIconName =
   | 'ShoppingCart'
@@ -50,10 +50,6 @@ const API_BASE = '/api/apps'
 const appsCache = createAppDataCache<App[]>()
 const appCache = createAppDataCache<App>()
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  return requestJson<T>(path, init)
-}
-
 function formatDateTime(value?: string): string {
   if (!value) return ''
   const date = new Date(value)
@@ -82,32 +78,14 @@ function normalizeApp(payload: AppPayload): App {
   }
 }
 
-export async function getApps(): Promise<App[]> {
-  let appsRequest = appsCache.get('')
-  if (!appsRequest) {
-    appsRequest = request<AppPayload[]>(API_BASE)
-      .then((apps) => apps.map(normalizeApp))
-      .catch((caught: unknown) => {
-        appsCache.delete('')
-        throw caught
-      })
-    appsCache.set('', appsRequest)
-  }
-  return appsRequest
+export function getApps(): Promise<App[]> {
+  return cachedFetch(appsCache, '', () =>
+    requestJson<AppPayload[]>(API_BASE).then((apps) => apps.map(normalizeApp)))
 }
 
-export async function getAppById(appId: string): Promise<App> {
-  let appRequest = appCache.get(appId)
-  if (!appRequest) {
-    appRequest = request<AppPayload>(`${API_BASE}/${appId}`)
-      .then(normalizeApp)
-      .catch((caught: unknown) => {
-        appCache.delete(appId)
-        throw caught
-      })
-    appCache.set(appId, appRequest)
-  }
-  return appRequest
+export function getAppById(appId: string): Promise<App> {
+  return cachedFetch(appCache, appId, () =>
+    requestJson<AppPayload>(`${API_BASE}/${appId}`).then(normalizeApp))
 }
 
 function cacheApp(app: App) {
@@ -121,7 +99,7 @@ function cacheApp(app: App) {
 }
 
 export async function createApp(input: AppInput): Promise<App> {
-  const app = await request<AppPayload>(API_BASE, {
+  const app = await requestJson<AppPayload>(API_BASE, {
     method: 'POST',
     body: JSON.stringify(input),
   })
@@ -135,7 +113,7 @@ export async function createApp(input: AppInput): Promise<App> {
 }
 
 export async function updateApp(appId: string, input: AppInput): Promise<App> {
-  const app = await request<AppPayload>(`${API_BASE}/${appId}`, {
+  const app = await requestJson<AppPayload>(`${API_BASE}/${appId}`, {
     method: 'PUT',
     body: JSON.stringify(input),
   })
@@ -145,7 +123,7 @@ export async function updateApp(appId: string, input: AppInput): Promise<App> {
 }
 
 export async function deleteApp(appId: string): Promise<void> {
-  await request<null>(`${API_BASE}/${appId}`, {method: 'DELETE'})
+  await requestJson<null>(`${API_BASE}/${appId}`, {method: 'DELETE'})
   appCache.delete(appId)
   const cachedAppsRequest = appsCache.get('')
   if (cachedAppsRequest) {

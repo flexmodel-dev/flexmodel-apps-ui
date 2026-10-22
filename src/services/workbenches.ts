@@ -1,5 +1,5 @@
 import {requestJson} from '@/services/http'
-import {createAppDataCache} from '@/services/appDataCache'
+import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
 import {invalidateAppMenuTargets} from '@/services/appMenus'
 
 export const WORKBENCH_SCHEMA_VERSION = 1
@@ -222,45 +222,20 @@ function invalidateWorkbenchCaches(appId: string, workbenchId?: string) {
   invalidateAppMenuTargets(appId)
 }
 
-export async function getWorkbenches(appId: string): Promise<WorkbenchSummary[]> {
-  let request = listCache.get(appId)
-  if (!request) {
-    request = requestJson<WorkbenchSummary[]>(`${API_BASE}/${appId}/workbenches`)
-      .catch((caught: unknown) => {
-        listCache.delete(appId)
-        throw caught
-      })
-    listCache.set(appId, request)
-  }
-  return request
+export function getWorkbenches(appId: string): Promise<WorkbenchSummary[]> {
+  return cachedFetch(listCache, appId, () =>
+    requestJson<WorkbenchSummary[]>(`${API_BASE}/${appId}/workbenches`))
 }
 
-export async function getWorkbenchCapabilities(appId: string): Promise<WorkbenchCapability> {
-  let request = capabilityCache.get(appId)
-  if (!request) {
-    request = requestJson<WorkbenchCapability>(`${API_BASE}/${appId}/workbenches/capabilities`)
-      .catch((caught: unknown) => {
-        capabilityCache.delete(appId)
-        throw caught
-      })
-    capabilityCache.set(appId, request)
-  }
-  return request
+export function getWorkbenchCapabilities(appId: string): Promise<WorkbenchCapability> {
+  return cachedFetch(capabilityCache, appId, () =>
+    requestJson<WorkbenchCapability>(`${API_BASE}/${appId}/workbenches/capabilities`))
 }
 
-export async function getWorkbench(appId: string, workbenchId: string): Promise<Workbench> {
-  const key = detailKey(appId, workbenchId)
-  let request = detailCache.get(key)
-  if (!request) {
-    request = requestJson<Workbench>(`${API_BASE}/${appId}/workbenches/${encodeURIComponent(workbenchId)}`)
-      .then(normalizeWorkbench)
-      .catch((caught: unknown) => {
-        detailCache.delete(key)
-        throw caught
-      })
-    detailCache.set(key, request)
-  }
-  return request
+export function getWorkbench(appId: string, workbenchId: string): Promise<Workbench> {
+  return cachedFetch(detailCache, detailKey(appId, workbenchId), () =>
+    requestJson<Workbench>(`${API_BASE}/${appId}/workbenches/${encodeURIComponent(workbenchId)}`)
+      .then(normalizeWorkbench))
 }
 
 export async function createWorkbench(

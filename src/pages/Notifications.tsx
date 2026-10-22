@@ -16,7 +16,7 @@ import {
 import {ApprovalTaskDrawer} from './Approvals/ApprovalTaskDrawer'
 import {getAuthSession} from '@/services/auth'
 import {message} from '@/components/ui/message'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 
 export default function Notifications() {
   const [params, setParams] = useSearchParams()
@@ -39,7 +39,7 @@ export default function Notifications() {
         if (page > 1 && !value.list.length) setPage(page - 1)
       }
     }).catch(cause => {
-      if (active) setError(cause instanceof Error ? cause.message : '加载失败')
+      if (active) setError(toErrorMessage(cause, '加载失败'))
     }).finally(() => {
       if (active) setLoading(false)
     })
@@ -68,7 +68,7 @@ export default function Notifications() {
         }
       }
     }).catch(cause => {
-      if (active) setDetailError(cause instanceof Error ? cause.message : '读取通知失败')
+      if (active) setDetailError(toErrorMessage(cause, '读取通知失败'))
     })
     return () => {
       active = false
@@ -81,7 +81,7 @@ export default function Notifications() {
       refresh();
       reload()
     } catch (cause) {
-      message.error(cause instanceof Error ? cause.message : '操作失败')
+      message.error(toErrorMessage(cause, '操作失败'))
     } finally {
       setBusy(false)
     }

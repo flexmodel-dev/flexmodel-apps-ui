@@ -8,10 +8,7 @@ import {Input} from '@/components/ui/input'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {Empty} from '@/components/ui/empty'
 import {createAppForm, getAppForms, type AppForm} from '@/services/appForms'
-import {
-  type AppApprovalFlow,
-  type AppTriggerConfig
-} from '@/data/mock'
+import {toErrorMessage} from '@/lib/utils'
 
 interface FormCreateDraft {
   label: string
@@ -48,7 +45,7 @@ export function FormManagementContent({appId}: { appId?: string }) {
       .then((loadedForms) => !cancelled && setForms(loadedForms))
       .catch((caught: unknown) => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : '加载表单失败')
+        setError(toErrorMessage(caught, '加载表单失败'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -72,7 +69,7 @@ export function FormManagementContent({appId}: { appId?: string }) {
       setCreateDraft(emptyFormDraft)
       loadForms()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '创建表单失败')
+      setError(toErrorMessage(caught, '创建表单失败'))
     } finally {
       setIsSubmitting(false)
     }
@@ -170,42 +167,6 @@ export function FormManagementContent({appId}: { appId?: string }) {
           </label>
         </div>
       </BizDialog>
-    </div>
-  )
-}
-
-export function ApprovalFlowsContent({ rows }: { rows: AppApprovalFlow[] }) {
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-          <div>
-            <div className="font-medium">{row.name}</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {row.businessObject} · {row.applies} · {row.modifiedOn}
-            </div>
-          </div>
-          <span className={row.state === '启用' ? 'text-sm text-green-600' : 'text-sm text-muted-foreground'}>● {row.state}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-export function TriggerRulesContent({ rows }: { rows: AppTriggerConfig[] }) {
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
-          <div>
-            <div className="font-medium">{row.name}</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {row.businessObject} · {row.when} · {row.action}
-            </div>
-          </div>
-          <span className={row.state === '启用' ? 'text-sm text-green-600' : 'text-sm text-muted-foreground'}>● {row.state}</span>
-        </div>
-      ))}
     </div>
   )
 }

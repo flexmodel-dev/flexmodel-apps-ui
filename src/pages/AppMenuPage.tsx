@@ -10,6 +10,7 @@ import FilesDocs from '@/pages/FilesDocs'
 import Notifications from '@/pages/Notifications'
 import RecordList from '@/pages/RecordList'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
+import {toErrorMessage} from '@/lib/utils'
 
 function findMenu(menus: AppMenu[], menuId?: string): AppMenu | undefined {
   for (const menu of menus) {
@@ -58,7 +59,7 @@ export default function AppMenuPage() {
       .then((loadedMenus) => !cancelled && setMenus(loadedMenus))
       .catch((caught: unknown) => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : '加载应用菜单失败，请稍后重试。')
+        setError(toErrorMessage(caught, '加载应用菜单失败，请稍后重试。'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {

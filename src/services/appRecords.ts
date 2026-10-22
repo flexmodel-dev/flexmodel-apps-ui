@@ -1,4 +1,4 @@
-import {requestJson} from '@/services/http'
+import {normalizePage, requestJson} from '@/services/http'
 
 export type AppRecord = Record<string, unknown>
 
@@ -45,13 +45,6 @@ function contextQuery(context?: AppRecordContext) {
   const params = new URLSearchParams()
   appendContext(params, context)
   return params.size ? `?${params}` : ''
-}
-
-function normalizePage(page: AppRecordPage): AppRecordPage {
-  return {
-    list: Array.isArray(page.list) ? page.list : [],
-    total: Number.isFinite(page.total) ? Number(page.total) : 0,
-  }
 }
 
 export async function getAppRecords(

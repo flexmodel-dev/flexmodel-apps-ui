@@ -58,11 +58,6 @@ export interface BusinessObjectMeta {
   badge?: string
 }
 
-export interface RbRecord {
-  id: string
-  [key: string]: unknown
-}
-
 export const appIconOptions = [
   'ShoppingCart',
   'Banknote',
@@ -137,7 +132,6 @@ export interface AppMeta {
   primaryColor: AppPrimaryColor
   description: string
   updatedAt: string
-  ownedBusinessObjectNames?: string[]
 }
 
 export interface AppMenuItem {
@@ -145,25 +139,6 @@ export interface AppMenuItem {
   businessObjectId: string
   label: string
   icon: LucideIcon
-}
-
-export interface AppApprovalFlow {
-  id: string
-  name: string
-  businessObject: string
-  applies: string
-  state: '启用' | '停用'
-  modifiedOn: string
-}
-
-export interface AppTriggerConfig {
-  id: string
-  name: string
-  businessObject: string
-  when: string
-  action: string
-  state: '启用' | '停用'
-  modifiedOn: string
 }
 
 /* ---------------- 用户/部门 ---------------- */
@@ -311,7 +286,6 @@ export const apps: AppMeta[] = [
     primaryColor: 'indigo',
     description: '管理客户、商机和产品数据，跟踪销售全过程。',
     updatedAt: d(1, 16, 30),
-    ownedBusinessObjectNames: [],
   },
   {
     id: 'app-expense',
@@ -320,7 +294,6 @@ export const apps: AppMeta[] = [
     primaryColor: 'blue',
     description: '提交和审核费用报销，沉淀常用报销流程。',
     updatedAt: d(2, 10, 15),
-    ownedBusinessObjectNames: ['Expense'],
   },
 ]
 
@@ -335,74 +308,8 @@ const appMenus: Record<string, AppMenuItem[]> = {
   ],
 }
 
-const appApprovalFlows: Record<string, AppApprovalFlow[]> = {
-  'app-sales': [
-    {
-      id: 'af-001',
-      name: '报价审批流程',
-      businessObject: 'Opportunity',
-      applies: '金额 > 50,000',
-      state: '启用',
-      modifiedOn: d(3, 10, 15)
-    },
-  ],
-  'app-expense': [
-    {
-      id: 'af-101',
-      name: '费用报销流程',
-      businessObject: 'Expense',
-      applies: '全部',
-      state: '启用',
-      modifiedOn: d(2, 14, 20)
-    },
-  ],
-}
-
-const appTriggers: Record<string, AppTriggerConfig[]> = {
-  'app-sales': [
-    {
-      id: 'at-001',
-      name: '新客户自动分配',
-      businessObject: 'Customer',
-      when: '新建时',
-      action: '数据分配',
-      state: '启用',
-      modifiedOn: d(5, 11, 20)
-    },
-  ],
-  'app-expense': [
-    {
-      id: 'at-101',
-      name: '高额报销提醒',
-      businessObject: 'Expense',
-      when: '字段更新',
-      action: '发送通知',
-      state: '启用',
-      modifiedOn: d(4, 9, 35)
-    },
-  ],
-}
-
-export function getApps(): AppMeta[] {
-  return apps
-}
-
-export function getAppById(appId: string | undefined): AppMeta | undefined {
-  return apps.find((app) => app.id === appId)
-}
-
 export function getAppMenus(appId: string | undefined): AppMenuItem[] {
   return appMenus[appId ?? ''] ?? []
-}
-
-export function getAppMenuItem(appId: string | undefined, menuId: string | undefined): AppMenuItem | undefined {
-  return getAppMenus(appId).find((item) => item.id === menuId)
-}
-
-export function getAppBusinessObjects(appId: string | undefined): BusinessObjectMeta[] {
-  return getAppMenus(appId)
-    .map((item) => getBusinessObject(item.businessObjectId))
-    .filter((item): item is BusinessObjectMeta => Boolean(item))
 }
 
 export function getAppMenuForBusinessObject(businessObjectName: string): { appId: string; menuId: string } | undefined {
@@ -443,77 +350,7 @@ export const formMenuLinks: MenuLinkOption[] = businessObjects.flatMap((business
     : []
 })
 
-export function getAppBusinessObjectCount(appId: string): number {
-  return new Set(getAppMenus(appId).map((item) => item.businessObjectId)).size
-}
-
-export function getAppApprovalFlows(appId: string | undefined): AppApprovalFlow[] {
-  return appApprovalFlows[appId ?? ''] ?? []
-}
-
-export function getAppTriggers(appId: string | undefined): AppTriggerConfig[] {
-  return appTriggers[appId ?? ''] ?? []
-}
-
-function createAppId(name: string) {
-  const prefix = `app-${Date.now().toString(36)}`
-  return prefix || `app-${name}`
-}
-
-export function createApp(values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedBusinessObjectNames'>): AppMeta {
-  const app: AppMeta = {
-    ...values,
-    id: createAppId(values.name),
-    updatedAt: d(0, 12, 0),
-    ownedBusinessObjectNames: [],
-  }
-  apps.unshift(app)
-  appMenus[app.id] = []
-  appApprovalFlows[app.id] = []
-  appTriggers[app.id] = []
-  return app
-}
-
-export function updateApp(appId: string, values: Omit<AppMeta, 'id' | 'updatedAt' | 'ownedBusinessObjectNames'>): AppMeta | undefined {
-  const index = apps.findIndex((app) => app.id === appId)
-  if (index < 0) return undefined
-  const updated: AppMeta = {
-    ...apps[index],
-    ...values,
-    id: appId,
-    updatedAt: d(0, 12, 0),
-  }
-  apps[index] = updated
-  return updated
-}
-
-export function deleteApp(appId: string): boolean {
-  const index = apps.findIndex((app) => app.id === appId)
-  if (index < 0) return false
-
-  const ownedBusinessObjectNames = new Set(apps[index].ownedBusinessObjectNames ?? [])
-  const hasOtherOwner = (businessObjectName: string) => apps.some(
-    (app) => app.id !== appId && (app.ownedBusinessObjectNames ?? []).includes(businessObjectName),
-  )
-  ownedBusinessObjectNames.forEach((businessObjectName) => {
-    if (!hasOtherOwner(businessObjectName)) {
-      const businessObjectIndex = businessObjects.findIndex((businessObject) => businessObject.name === businessObjectName)
-      if (businessObjectIndex >= 0) businessObjects.splice(businessObjectIndex, 1)
-      delete recordSets[businessObjectName]
-      Object.keys(appMenus).forEach((ownerId) => {
-        appMenus[ownerId] = appMenus[ownerId].filter((item) => item.businessObjectId !== businessObjectName)
-      })
-    }
-  })
-
-  delete appMenus[appId]
-  delete appApprovalFlows[appId]
-  delete appTriggers[appId]
-  apps.splice(index, 1)
-  return true
-}
-
-/* ---------------- 记录数据 ---------------- */
+/* ---------------- 时间工具 ---------------- */
 
 function d(daysAgo: number, hour = 10, min = 24) {
   const t = new Date(2026, 8, 8, hour, min)
@@ -525,230 +362,6 @@ function d(daysAgo: number, hour = 10, min = 24) {
 function dd(daysAgo: number) {
   return d(daysAgo).slice(0, 10)
 }
-
-function mkRows(businessObject: string, count: number, gen: (i: number) => Record<string, unknown>) {
-  const rows: RbRecord[] = []
-  for (let i = 1; i <= count; i++) rows.push({id: `${businessObject.toUpperCase().slice(0, 3)}-${String(1000 + i)}`, ...gen(i)})
-  return rows
-}
-
-const industry = (i: number) => ['IT/互联网', '制造业', '金融', '教育'][i % 4]
-const stage = (i: number) => ['初步接触', '需求确认', '方案报价', '商务谈判', '赢单', '输单'][i % 6]
-function uname(index: number) {
-  return users[(index % (users.length - 1)) + 1].fullName
-}
-
-const companyNames = [
-  '华辰科技有限公司', '深圳市数联集团', '北京云图信息技术', '杭州点智网络', '上海临港智造',
-  '广州启帆实业', '成都天府软件', '南京紫金山数据', '武汉光谷云', '西安丝路智联',
-  '重庆两江数科', '苏州金鸡湖互联', '长沙麓谷信息', '青岛海湾智控', '厦门鹭岛云商',
-  '合肥科大智能', '天津海河数媒', '昆明春城科技', '郑州中原智网', '济南泉城信息',
-]
-
-export const customerRecords: RbRecord[] = mkRows('CST', 20, (i) => ({
-  customerId: `C${String(2026).padStart(4, '0')}-${String(i).padStart(3, '0')}`,
-  customerName: companyNames[i - 1],
-  owningUser: uname(i + 3),
-  industry: industry(i),
-  annualRevenue: [1200, 860, 4300, 950, 2800, 640, 3100, 720, 1500, 3900][i % 10] + (i * 37) % 400,
-  telephone: `0755-88${String(8800000 + i * 1357).slice(0, 6)}`,
-  email: `contact${i}@company${i}.com.cn`,
-  address: `北京市海淀区中关村大街${27 + i}号院${(i % 8) + 1}号楼`,
-  createdOn: d(60 - i * 2, 9 + (i % 8)),
-  modifiedOn: d(i % 20, 14 + (i % 6), (i * 7) % 60),
-}))
-
-export const opportunityRecords: RbRecord[] = mkRows('OPP', 24, (i) => ({
-  opportunityId: `OPP-${String(3001 + i)}`,
-  opportunityName: `${companyNames[(i - 1) % 20].slice(0, 6)} - ${['ERP 系统', '智慧园区', '数据中台', '云迁移', '安全运维'][i % 5]}采购项目`,
-  customerId: customerRecords[(i - 1) % 20].customerName,
-  stage: stage(i),
-  amount: [58, 120, 36, 240, 88, 65, 150, 32, 78, 300][i % 10] + (i % 7),
-  closingDate: dd(-90 + i * 6),
-  owningUser: uname(i + 1),
-  createdOn: d(45 - i, 8 + (i % 9)),
-  modifiedOn: d(i % 15, 10 + (i % 7), (i * 11) % 60),
-}))
-
-export const productRecords: RbRecord[] = mkRows('PRD', 12, (i) => ({
-  productId: `P-${String(100 + i)}`,
-  productName: ['商业版', '开源版', '数据集成服务', '私有化部署服务', '定制开发服务', '技术支持年费', '培训服务', '云存储空间', 'AI 助手模块', '移动端模块', '报表模块', '流程引擎模块'][(i - 1) % 12],
-  price: [58000, 0, 12000, 35000, 80000, 9800, 5600, 2600, 19800, 8800, 6800, 12800][(i - 1) % 12],
-  status: i <= 9 ? '在售' : '下架',
-  createdOn: d(120 - i * 8, 10),
-  modifiedOn: d(i % 30, 16, 30),
-}))
-
-const recordSets: Record<string, RbRecord[]> = {
-  Customer: customerRecords,
-  Opportunity: opportunityRecords,
-  Product: productRecords,
-}
-
-export const expenseRecords: RbRecord[] = [
-  { id: 'EXP-1001', expenseId: 'BX-2026-001', expenseName: '上海客户出差', category: '交通费', amount: 4280, submitDate: '2026-09-05', owningUser: uname(1), createdOn: d(2, 9, 12), modifiedOn: d(1, 16, 20) },
-  { id: 'EXP-1002', expenseId: 'BX-2026-002', expenseName: '客户招待费用', category: '业务招待', amount: 1680, submitDate: '2026-09-04', owningUser: uname(3), createdOn: d(3, 11, 20), modifiedOn: d(2, 15, 5) },
-  { id: 'EXP-1003', expenseId: 'BX-2026-003', expenseName: '项目培训报名', category: '办公用品', amount: 2400, submitDate: '2026-09-01', owningUser: uname(2), createdOn: d(6, 14, 30), modifiedOn: d(5, 10, 40) },
-]
-
-recordSets.Expense = expenseRecords
-
-export function getRecords(businessObject: string): RbRecord[] {
-  return recordSets[businessObject] ?? []
-}
-
-export function getRecord(businessObject: string, id: string): RbRecord | undefined {
-  return getRecords(businessObject).find((record) => record.id === id)
-}
-
-export function createRecord(businessObject: string, values: Record<string, unknown>): RbRecord | undefined {
-  const meta = getBusinessObject(businessObject)
-  const records = getRecords(businessObject)
-  if (!meta) return undefined
-
-  const now = new Date()
-  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  const record: RbRecord = {
-    id: `${businessObject.slice(0, 3).toUpperCase()}-${records.length + 1001}`,
-    ...values,
-    createdOn: stamp,
-    modifiedOn: stamp,
-  }
-  records.unshift(record)
-  return record
-}
-
-export function updateRecord(businessObject: string, id: string, values: Record<string, unknown>): RbRecord | undefined {
-  const records = getRecords(businessObject)
-  const index = records.findIndex((record) => record.id === id)
-  if (index < 0) return undefined
-
-  const now = new Date()
-  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  const updated: RbRecord = {
-    ...records[index],
-    ...values,
-    modifiedOn: stamp,
-  }
-  records[index] = updated
-  return updated
-}
-
-/* ---------------- 审批 ---------------- */
-
-export interface ApprovalItem {
-  id: string
-  formLabel: string
-  recordName: string
-  applicant: string
-  submittedOn: string
-  status: '待审批' | '已通过' | '已驳回'
-  currentNode: string
-  content: string
-}
-
-export const approvals: ApprovalItem[] = [
-  {
-    id: '031-0001',
-    formLabel: '报销单',
-    recordName: '差旅费报销 - 上海出差',
-    applicant: '赵云',
-    submittedOn: d(1, 9, 12),
-    status: '待审批',
-    currentNode: '部门经理审批',
-    content: '申请报销差旅费 4,280 元'
-  },
-  {
-    id: '031-0002',
-    formLabel: '请假单',
-    recordName: '年假申请 - 孙丽',
-    applicant: '孙丽',
-    submittedOn: d(1, 10, 5),
-    status: '待审批',
-    currentNode: '人事备案',
-    content: '年假 3 天（09-10 ~ 09-12）'
-  },
-  {
-    id: '031-0003',
-    formLabel: '报价单',
-    recordName: '华辰科技 - ERP 报价',
-    applicant: '钱迅',
-    submittedOn: d(2, 15, 40),
-    status: '待审批',
-    currentNode: '总经理审批',
-    content: '总金额 120,000 元，折扣 88%'
-  },
-  {
-    id: '031-0004',
-    formLabel: '报销单',
-    recordName: '招待费报销',
-    applicant: '吴征',
-    submittedOn: d(3, 11, 20),
-    status: '待审批',
-    currentNode: '财务复核',
-    content: '客户招待费 1,680 元'
-  },
-  {
-    id: '031-0005',
-    formLabel: '合同评审',
-    recordName: '深圳数联 - 智慧园区合同',
-    applicant: '钱迅',
-    submittedOn: d(4, 16, 8),
-    status: '待审批',
-    currentNode: '法务审批',
-    content: '合同金额 580,000 元'
-  },
-  {
-    id: '031-0006',
-    formLabel: '请假单',
-    recordName: '调休申请 - 周武',
-    applicant: '周武',
-    submittedOn: d(5, 9, 45),
-    status: '已通过',
-    currentNode: '流程结束',
-    content: '调休 1 天（09-09）'
-  },
-  {
-    id: '031-0007',
-    formLabel: '报销单',
-    recordName: '办公用品采购报销',
-    applicant: '李杰',
-    submittedOn: d(6, 14, 30),
-    status: '已通过',
-    currentNode: '流程结束',
-    content: '办公耗材 960 元'
-  },
-  {
-    id: '031-0008',
-    formLabel: '报价单',
-    recordName: '北京云图 - 云迁移报价',
-    applicant: '孙丽',
-    submittedOn: d(7, 10, 15),
-    status: '已通过',
-    currentNode: '流程结束',
-    content: '总金额 86,000 元，折扣 95%'
-  },
-  {
-    id: '031-0009',
-    formLabel: '合同评审',
-    recordName: '杭州点智 - 数据中台合同',
-    applicant: '赵云',
-    submittedOn: d(9, 17, 22),
-    status: '已驳回',
-    currentNode: '流程结束',
-    content: '合同金额 320,000 元（付款条款未达标）'
-  },
-  {
-    id: '031-0010',
-    formLabel: '报销单',
-    recordName: '培训费报销',
-    applicant: '孙丽',
-    submittedOn: d(11, 9, 5),
-    status: '已通过',
-    currentNode: '流程结束',
-    content: '技术大会门票 2,400 元'
-  },
-]
 
 /* ---------------- 动态 Feeds ---------------- */
 
@@ -885,208 +498,6 @@ export const projectPlans: ProjectPlan[] = [
     { id: 't-302', projectId: '040-001', planId: 'plan-3', title: 'UI 设计定稿', priority: '中', executor: '孙丽', deadline: dd(2), finished: true, progress: 100 },
   ]},
 ]
-
-/* ---------------- 工作台组件配置 ---------------- */
-
-export interface WorkbenchComponent {
-  id: string
-  title: string
-  type: 'bar' | 'line' | 'pie' | 'dataloader' | 'index' | 'shortcuts' | 'tasks'
-  w: number
-  h: number
-  x: number
-  y: number
-  config?: ComponentConfig
-}
-
-export interface ComponentConfig {
-  title: string
-  type: WorkbenchComponent['type']
-  formName: string
-  dimensionField: string
-  measureField: string
-  aggregation: 'sum' | 'count' | 'average'
-  showLegend: boolean
-  showLabel: boolean
-  smooth: boolean
-  palette: 'primary' | 'multi'
-  metric: string
-  visibleColumns: string[]
-  shortcuts: string[]
-}
-
-export const workbenches = [
-  {id: 'workbench-0', name: '默认工作台'},
-  {id: 'workbench-1', name: '销售数据大盘'},
-]
-
-export const workbenchComponents: Record<string, WorkbenchComponent[]> = {
-  'workbench-0': [
-    { id: 'c-01', title: '本月新增客户', type: 'index', w: 2, h: 4, x: 0, y: 0 },
-    { id: 'c-02', title: '本月赢单商机', type: 'index', w: 2, h: 4, x: 2, y: 0 },
-    { id: 'c-03', title: '客户行业分布', type: 'pie', w: 4, h: 6, x: 4, y: 0 },
-    { id: 'c-04', title: '近 12 个月新增客户趋势', type: 'line', w: 6, h: 6, x: 0, y: 4 },
-    { id: 'c-05', title: '商机金额（按阶段）', type: 'bar', w: 6, h: 6, x: 6, y: 4 },
-    { id: 'c-06', title: '销售业绩排行', type: 'dataloader', w: 12, h: 7, x: 0, y: 10 },
-    {id: 'c-07', title: '我的任务', type: 'tasks', w: 4, h: 6, x: 0, y: 17},
-  ],
-  'workbench-1': [
-    { id: 'c-11', title: '销售目标完成率', type: 'index', w: 3, h: 4, x: 0, y: 0 },
-    { id: 'c-12', title: '商机阶段漏斗', type: 'pie', w: 4, h: 6, x: 3, y: 0 },
-    { id: 'c-13', title: '月度回款', type: 'bar', w: 5, h: 6, x: 7, y: 0 },
-  ],
-}
-
-export const addableComponentTypes = [
-  {type: 'index', label: '指标组件', description: '突出展示单个核心业务指标', w: 2, h: 4},
-  {type: 'line', label: '折线组件', description: '观察表单数据的趋势变化', w: 6, h: 6},
-  {type: 'bar', label: '柱状组件', description: '比较表单数据的分组规模', w: 6, h: 6},
-  {type: 'pie', label: '饼图组件', description: '展示表单数据分组占比', w: 4, h: 6},
-  {type: 'dataloader', label: '明细组件', description: '查看表单记录明细', w: 12, h: 7},
-  {type: 'shortcuts', label: '快捷入口', description: '配置常用入口，点击直达对应菜单', w: 6, h: 4},
-  {type: 'tasks', label: '我的任务', description: '按待办工作、最近处理、我发起的查看流程审批列表', w: 4, h: 6},
-] as const
-
-export const kpiOptions = [
-  {id: 'new-customers', label: '本月新增客户数', value: 20},
-  {id: 'won-opportunities', label: '本月赢单商机数', value: 8},
-  {id: 'target-completion', label: '销售目标完成率', value: 86},
-  {id: 'new-leads', label: '本季新增线索数', value: 42},
-]
-
-export const salesColumns = [
-  {id: 'name', label: '姓名'},
-  {id: 'dept', label: '部门'},
-  {id: 'target', label: '目标'},
-  {id: 'done', label: '完成'},
-  {id: 'rate', label: '完成率'},
-]
-
-export const shortcuts = [
-  {label: '客户', to: '/apps/app-sales/menu-customer'},
-  {label: '商机', to: '/apps/app-sales/menu-opportunity'},
-  {label: '产品', to: '/apps/app-sales/menu-product'},
-  {label: '报销单', to: '/apps/app-expense/menu-expense'},
-]
-
-export function addWorkbenchComponent(
-  workbenchId: string,
-  title: string,
-  type: WorkbenchComponent['type'],
-  config: ComponentConfig = defaultComponentConfig(type),
-) {
-  const components = workbenchComponents[workbenchId]
-  if (!components) return null
-
-  const preset = addableComponentTypes.find((item) => item.type === type) ?? addableComponentTypes[1]
-  const bottom = components.reduce((max, component) => Math.max(max, component.y + component.h), 0)
-  const component: WorkbenchComponent = {
-    id: `component-${String(components.length + 1).padStart(2, '0')}`,
-    title,
-    type: preset.type,
-    w: preset.w,
-    h: preset.h,
-    x: 0,
-    y: bottom,
-    config: {...config, title, type: preset.type},
-  }
-
-  components.push(component)
-  return component
-}
-
-/* ---------------- 组件数据 ---------------- */
-
-export const componentData = {
-  newCustomers12m: {
-    months: ['10月', '11月', '12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月'],
-    values: [18, 22, 26, 15, 20, 24, 28, 31, 25, 29, 34, 20],
-  },
-  industryDist: [
-    { name: 'IT/互联网', value: 42 },
-    { name: '制造业', value: 26 },
-    { name: '金融', value: 18 },
-    { name: '教育', value: 14 },
-  ],
-  stageAmount: {
-    stages: ['初步接触', '需求确认', '方案报价', '商务谈判', '赢单'],
-    values: [120, 240, 385, 520, 680],
-  },
-  monthlyPayment: {
-    months: ['4月', '5月', '6月', '7月', '8月', '9月'],
-    values: [82, 95, 120, 105, 138, 156],
-  },
-  salesRank: [
-    { name: '钱迅', dept: '销售部', target: 500, done: 468, rate: '93.6%' },
-    { name: '孙丽', dept: '销售部', target: 400, done: 305, rate: '76.3%' },
-    { name: '吴征', dept: '市场部', target: 300, done: 288, rate: '96.0%' },
-    { name: '赵云', dept: '研发部', target: 200, done: 122, rate: '61.0%' },
-  ],
-}
-
-export interface ComponentDataRow {
-  dimension: string
-  value: number
-}
-
-const componentMeasureFieldTypes = new Set(['DECIMAL', 'NUMBER'])
-
-export function isComponentMeasureField(field: BusinessObjectField) {
-  return componentMeasureFieldTypes.has(field.type)
-}
-
-function formatComponentDimension(value: unknown) {
-  if (value === null || value === undefined || value === '') return '未填写'
-  return String(value)
-}
-
-export function getComponentRows(config: ComponentConfig): ComponentDataRow[] {
-  const records = getRecords(config.formName)
-  const groups = new Map<string, { count: number; total: number; numericCount: number }>()
-
-  records.forEach((record) => {
-    const dimension = formatComponentDimension(record[config.dimensionField])
-    const group = groups.get(dimension) ?? {count: 0, total: 0, numericCount: 0}
-    const rawMeasure = record[config.measureField]
-    const measure = Number(rawMeasure)
-    const hasNumericMeasure = rawMeasure !== null && rawMeasure !== '' && Number.isFinite(measure)
-
-    group.count += 1
-    if (hasNumericMeasure) {
-      group.numericCount += 1
-      group.total += measure
-    }
-    groups.set(dimension, group)
-  })
-
-  return Array.from(groups.entries()).map(([dimension, group]) => ({
-    dimension,
-    value:
-      config.aggregation === 'count'
-        ? group.count
-        : config.aggregation === 'average'
-          ? group.numericCount ? group.total / group.numericCount : 0
-          : group.total,
-  }))
-}
-
-export function defaultComponentConfig(type: WorkbenchComponent['type']): ComponentConfig {
-  return {
-    title: '',
-    type,
-    formName: type === 'bar' ? 'Opportunity' : 'Customer',
-    dimensionField: type === 'bar' ? 'stage' : type === 'line' ? 'createdOn' : 'industry',
-    measureField: type === 'bar' ? 'amount' : 'annualRevenue',
-    aggregation: 'sum',
-    showLegend: type === 'pie',
-    showLabel: type !== 'line',
-    smooth: type === 'line',
-    palette: type === 'pie' ? 'multi' : 'primary',
-    metric: 'new-customers',
-    visibleColumns: salesColumns.map((column) => column.id),
-    shortcuts: shortcuts.map((item) => item.to),
-  }
-}
 
 /* ---------------- 导航配置（NavBuilder 默认 + 业务对象） ---------------- */
 
@@ -1418,13 +829,6 @@ export const loginLogs = [
   { id: 'l-4', user: 'unknown', ip: '203.0.113.7', agent: 'Firefox 129 · Linux', time: d(1, 3, 12), status: '失败（密码错误）' },
   { id: 'l-5', user: 'sunli', ip: '192.168.1.104', agent: 'Edge 128 · Windows', time: d(2, 9, 15), status: '成功' },
 ]
-
-export const recycleBin = [
-  {id: 'r-1', formLabel: '客户', recordName: '东莞虎门制造（重复录入）', deletedBy: '钱迅', deletedOn: d(2, 11, 30)},
-  {id: 'r-2', formLabel: '商机', recordName: '苏州金鸡湖互联 - 网站改版', deletedBy: '孙丽', deletedOn: d(4, 16, 44)},
-  {id: 'r-3', formLabel: '产品', recordName: '旧版报表模块', deletedBy: 'admin', deletedOn: d(6, 10, 5)},
-]
-
 /* ---------------- 审批流程本地演示（不写入真实业务记录） ---------------- */
 export const approvalDirectory: MemberDirectory = {
   members: users.filter(user => user.active).map(user => ({

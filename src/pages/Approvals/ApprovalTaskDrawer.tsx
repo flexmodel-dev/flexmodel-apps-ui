@@ -1,16 +1,13 @@
 import * as React from 'react'
 import {Check, X} from 'lucide-react'
 import {Drawer, DrawerContent, DrawerTitle} from '@/components/ui/drawer'
-import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
-import {Textarea} from '@/components/ui/textarea'
-import {message} from '@/components/ui/message'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
+import {ApprovalDecisionDialog, useApprovalDecision} from '@/components/biz/approvalDecision'
 import {getAppForm, type AppForm} from '@/services/appForms'
-import {decideApproval, type ApprovalItem} from '@/services/approvals'
+import {FINISHED_STATUS, type ApprovalItem} from '@/services/approvals'
 import {ApprovalProgressPanel} from './ApprovalProgress'
-
-const FINISHED_STATUS = ['APPROVED', 'REJECTED', 'TERMINATED']
+import {toErrorMessage} from '@/lib/utils'
 
 /**
  * 审批记录抽屉：统一用记录表单呈现审批关联的记录，右侧内嵌流程进度面板（右上角按钮展开/折叠）。
@@ -25,16 +22,11 @@ export function ApprovalTaskDrawer({item, onClose, onChanged}: {
 }) {
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [error, setError] = React.useState('')
-  const [decision, setDecision] = React.useState<'approve' | 'reject' | null>(null)
-  const [comment, setComment] = React.useState('')
-  const [busy, setBusy] = React.useState(false)
   const [revision, reload] = React.useReducer(value => value + 1, 0)
-  const request = React.useRef<{
-    taskId: string;
-    decision: 'approve' | 'reject';
-    comment: string;
-    key: string
-  } | null>(null)
+  const decision = useApprovalDecision(item?.appId ?? '', () => {
+    onChanged?.()
+    onClose()
+  })
 
   // 待我审批的任务：列表项带 taskId 且尚未决策（已处理条目也带 taskId，但有 decision）
   const hasTask = !!item?.taskId && !item?.decision
@@ -54,59 +46,19 @@ export function ApprovalTaskDrawer({item, onClose, onChanged}: {
         }
       })
       .catch((caught: unknown) => {
-        if (active) setError(caught instanceof Error ? caught.message : '读取表单失败')
+        if (active) setError(toErrorMessage(caught, '读取表单失败'))
       })
     return () => {
       active = false
     }
   }, [item?.appId, item?.formName, item?.recordId, revision])
 
-  const openDecision = (next: 'approve' | 'reject') => {
-    setComment('')
-    setDecision(next)
-  }
-
-  const closeDecision = () => {
-    if (busy) return
-    setDecision(null)
-    setComment('')
-  }
-
-  const confirm = async () => {
-    if (!item?.taskId || !decision) return
-    setBusy(true)
-    try {
-      if (!request.current
-        || request.current.taskId !== item.taskId
-        || request.current.decision !== decision
-        || request.current.comment !== comment) {
-        request.current = {
-          taskId: item.taskId,
-          decision,
-          comment,
-          key: crypto.randomUUID(),
-        }
-      }
-      await decideApproval(item.appId, item.taskId, decision, comment, request.current.key)
-      request.current = null
-      setDecision(null)
-      setComment('')
-      message.success(decision === 'approve' ? '已同意，流程正在继续' : '已拒绝，流程正在结束')
-      onChanged?.()
-      onClose()
-    } catch (caught: unknown) {
-      message.error(caught instanceof Error ? caught.message : '签核失败，可重试')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const footer = hasTask ? (
     <>
-      <Button variant="secondary" onClick={() => openDecision('reject')}>
+      <Button variant="secondary" onClick={() => decision.openDecision('reject')}>
         <X className="h-4 w-4"/>不同意
       </Button>
-      <Button onClick={() => openDecision('approve')}>
+      <Button onClick={() => decision.openDecision('approve')}>
         <Check className="h-4 w-4"/>同意
       </Button>
     </>
@@ -150,30 +102,14 @@ export function ApprovalTaskDrawer({item, onClose, onChanged}: {
           onSaved={() => onChanged?.()}
         />
       )}
-      <BizDialog
-        open={!!decision}
-        onOpenChange={open => !open && closeDecision()}
-        title={decision === 'approve' ? '同意审批' : '不同意审批'}
-        footer={
-          <>
-            <Button variant="secondary" disabled={busy} onClick={closeDecision}>取消</Button>
-            <Button disabled={busy} onClick={() => void confirm()}>
-              {busy ? '提交中…' : decision === 'approve' ? '确认同意' : '确认不同意'}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground">审批意见（选填）</label>
-          <Textarea
-            aria-label="审批意见"
-            placeholder="填写审批意见"
-            value={comment}
-            maxLength={2000}
-            onChange={event => setComment(event.target.value)}
-          />
-        </div>
-      </BizDialog>
+      <ApprovalDecisionDialog
+        pending={decision.pending}
+        comment={decision.comment}
+        busy={decision.busy}
+        onCommentChange={decision.setComment}
+        onClose={decision.closeDecision}
+        onConfirm={() => void decision.confirmDecision(item?.taskId)}
+      />
     </>
   )
 }

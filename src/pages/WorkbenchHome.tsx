@@ -37,11 +37,7 @@ import {
   type WorkbenchLayout,
   type WorkbenchSummary,
 } from '@/services/workbenches'
-import {cn} from '@/lib/utils'
-
-function flattenMenus(menus: AppMenu[]): AppMenu[] {
-  return menus.flatMap((menu) => [menu, ...flattenMenus(menu.children ?? [])])
-}
+import {cn, flattenTree, toErrorMessage} from '@/lib/utils'
 
 function componentId() {
   return `component_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -159,7 +155,7 @@ function WorkbenchComponentCard({
       .catch((caught: unknown) => {
         if (cancelled) return
         setData(null)
-        setDataError(caught instanceof Error ? caught.message : '加载组件数据失败')
+        setDataError(toErrorMessage(caught, '加载组件数据失败'))
       })
       .finally(() => {
         if (!cancelled) setIsLoadingData(false)
@@ -223,7 +219,7 @@ export default function WorkbenchHome() {
       })
       .catch((caught: unknown) => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : '加载工作台失败，请稍后重试。')
+        setError(toErrorMessage(caught, '加载工作台失败，请稍后重试。'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -240,7 +236,7 @@ export default function WorkbenchHome() {
       .then((loadedWorkbench) => !cancelled && setWorkbench(loadedWorkbench))
       .catch((caught: unknown) => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : '加载工作台布局失败。')
+        setError(toErrorMessage(caught, '加载工作台布局失败。'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -331,7 +327,7 @@ export default function WorkbenchHome() {
       setWorkbench(updated)
       return true
     } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : '保存工作台布局失败。')
+      setActionError(toErrorMessage(caught, '保存工作台布局失败。'))
       return false
     } finally {
       setIsSaving(false)
@@ -445,7 +441,7 @@ export default function WorkbenchHome() {
       setCreateOpen(false)
       setNewWorkbenchName('')
     } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : '新建工作台失败。')
+      setActionError(toErrorMessage(caught, '新建工作台失败。'))
     } finally {
       setIsSaving(false)
     }
@@ -478,7 +474,7 @@ export default function WorkbenchHome() {
       } : item))
       setEditOpen(false)
     } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : '保存工作台信息失败。')
+      setActionError(toErrorMessage(caught, '保存工作台信息失败。'))
     } finally {
       setIsSaving(false)
     }
@@ -495,14 +491,14 @@ export default function WorkbenchHome() {
       setSelectedWorkbenchId(remainingWorkbenches[0]?.id)
       setWorkbench(null)
     } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : '删除工作台失败。')
+      setActionError(toErrorMessage(caught, '删除工作台失败。'))
     } finally {
       setIsSaving(false)
     }
   }
 
   const displayLayout = editable && draftLayout ? draftLayout : workbench?.layout
-  const formMenus = flattenMenus(menus).filter(
+  const formMenus = flattenTree(menus).filter(
     (menu) => menu.type === 'ITEM' && menu.target?.type === 'FORM',
   )
   const shortcutTargets = formMenus.map((menu) => ({

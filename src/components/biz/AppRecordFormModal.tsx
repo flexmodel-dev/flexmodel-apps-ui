@@ -1,18 +1,10 @@
 import * as React from 'react'
 import {useNavigate} from 'react-router-dom'
 import {Info, Send, Settings} from 'lucide-react'
-import {BizDialog} from '@/components/ui/dialog'
 import {BizDrawer} from '@/components/ui/drawer'
 import {Button} from '@/components/ui/button'
 import {message} from '@/components/ui/message'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
 import {
   formItemWidthTypeClasses,
@@ -28,6 +20,7 @@ import {
   toEditValues,
 } from '@/components/biz/form/recordPayload'
 import {useReferenceOptions} from '@/components/biz/form/useReferenceOptions'
+import {FlowStartDialog, useFormApprovalFlows} from '@/components/biz/form/flowLaunch'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {
   type AppForm,
@@ -40,8 +33,7 @@ import {
   type AppRecord,
   type AppRecordContext,
 } from '@/services/appRecords'
-import {getApprovalFlows, submitApproval} from '@/services/approvals'
-import type {ApprovalFlow} from '@/types/approval'
+import {submitApproval} from '@/services/approvals'
 
 export type {ReferenceOption}
 
@@ -87,13 +79,17 @@ export function AppRecordFormModal({
   const [error, setError] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [savedRecordId, setSavedRecordId] = React.useState<string | null>(null)
-  const [flows, setFlows] = React.useState<ApprovalFlow[]>([])
   const [flowOpen, setFlowOpen] = React.useState(false)
   const [flowId, setFlowId] = React.useState('')
   const [isStarting, setIsStarting] = React.useState(false)
   const requestKey = React.useRef(crypto.randomUUID())
 
   const effectiveRecordId = savedRecordId ?? recordId ?? null
+  const flows = useFormApprovalFlows({
+    appId,
+    formName: form.name,
+    enabled: open && !recordId && !form.builtin,
+  })
   const {entries, renderableFieldNames} = parseFormLayout(form, {
     excludeField: recordContext?.referenceField,
   })
@@ -134,28 +130,12 @@ export function AppRecordFormModal({
         setValues(toEditValues(form, loadedRecord, recordContext?.referenceField))
       })
       .catch((caught: unknown) => {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : '加载记录失败')
+        if (!cancelled) setError(toErrorMessage(caught, '加载记录失败'))
       })
     return () => {
       cancelled = true
     }
   }, [appId, form, open, recordContext, recordId, loadRecord])
-
-  React.useEffect(() => {
-    if (!open || recordId || form.builtin) return
-    let cancelled = false
-    getApprovalFlows(appId)
-      .then((definitions) => {
-        if (!cancelled) setFlows(definitions.filter((flow) =>
-          flow.status === 'enabled' && flow.form.kind === 'app' && flow.form.name === form.name))
-      })
-      .catch(() => {
-        if (!cancelled) setFlows([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [appId, form, open, recordId])
 
   React.useEffect(() => {
     if (!open) setFlowOpen(false)
@@ -181,7 +161,7 @@ export function AppRecordFormModal({
       onOpenChange(false)
       onSaved?.(String(saved.id ?? ''))
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '保存记录失败')
+      setError(toErrorMessage(caught, '保存记录失败'))
     } finally {
       setIsSubmitting(false)
     }
@@ -201,7 +181,7 @@ export function AppRecordFormModal({
       }
       return id || null
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '保存记录失败')
+      setError(toErrorMessage(caught, '保存记录失败'))
       return null
     } finally {
       setIsSubmitting(false)
@@ -245,7 +225,7 @@ export function AppRecordFormModal({
       message.success('已提交，流程正在启动')
     } catch (caught: unknown) {
       setFlowOpen(false)
-      setError(caught instanceof Error ? caught.message : '发起流程失败')
+      setError(toErrorMessage(caught, '发起流程失败'))
     } finally {
       setIsStarting(false)
     }
@@ -337,38 +317,15 @@ export function AppRecordFormModal({
           })}
         </div>
       </BizDrawer>
-      <BizDialog
+      <FlowStartDialog
         open={flowOpen}
         onOpenChange={setFlowOpen}
-        title="发起流程"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setFlowOpen(false)} disabled={isStarting}>取消</Button>
-            <Button onClick={startFlow} disabled={isStarting || !flowId}>
-              {isStarting ? '提交中…' : '确认发起'}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">选择审批流程</label>
-            <Select value={flowId} onValueChange={setFlowId}>
-              <SelectTrigger>
-                <SelectValue placeholder="请选择审批流程"/>
-              </SelectTrigger>
-              <SelectContent>
-                {flows.map((flow) => (
-                  <SelectItem key={flow.id} value={flow.id}>{flow.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            提交时会保存记录快照。审批结束前，人工编辑和删除将被锁定，流程配置的数据操作继续执行。
-          </p>
-      </div>
-    </BizDialog>
+        flows={flows}
+        flowId={flowId}
+        onFlowIdChange={setFlowId}
+        isStarting={isStarting}
+        onConfirm={() => void startFlow()}
+      />
     </>
   )
 }

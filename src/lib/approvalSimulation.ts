@@ -19,6 +19,7 @@ import {
   uid,
   validateFlow,
 } from './approval'
+import {toErrorMessage} from '@/lib/utils'
 
 export class ApprovalSimulation {
   readonly events: SimulationEvent[] = []
@@ -210,7 +211,7 @@ export class ApprovalSimulation {
       if (next.done) this.status = 'completed'
     } catch (error) {
       this.status = 'failed'
-      this.error = error instanceof Error ? error.message : '模拟失败'
+      this.error = toErrorMessage(error, '模拟失败')
       this.events
         .filter((event) => event.status === 'waiting')
         .forEach((event) => {

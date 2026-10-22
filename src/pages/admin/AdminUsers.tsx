@@ -5,12 +5,13 @@ import {Input} from '@/components/ui/input'
 import {Empty} from '@/components/ui/empty'
 import {Pagination} from '@/components/biz/Pagination'
 import {UserAvatar} from '@/components/ui/avatar'
-import {BizDialog} from '@/components/ui/dialog'
+import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {message} from '@/components/ui/message'
 import {SystemRecordFormModal} from '@/components/biz/SystemRecordFormModal'
-import {cn} from '@/lib/utils'
-import {Building2, ChevronRight, CirclePlus, MoreVertical, Pencil, Power, Search, Trash2, Users} from 'lucide-react'
+import {SearchInput} from '@/components/biz/SearchInput'
+import {cn, toErrorMessage} from '@/lib/utils'
+import {Building2, ChevronRight, CirclePlus, MoreVertical, Pencil, Power, Trash2, Users} from 'lucide-react'
 import {
   createSystemRecord,
   deleteSystemRecord,
@@ -101,7 +102,7 @@ export function AdminUsers() {
       setUserOptions(userOptionList.map(user => ({id: user.id, name: user.name})))
       setUserFormDefinition(formDefinition)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '加载失败')
+      setError(toErrorMessage(caught, '加载失败'))
     } finally {
       setLoading(false)
     }
@@ -138,7 +139,7 @@ export function AdminUsers() {
       })
       .catch(caught => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : '加载用户失败')
+        setError(toErrorMessage(caught, '加载用户失败'))
       })
       .finally(() => {
         if (!cancelled) setUsersLoading(false)
@@ -177,7 +178,7 @@ export function AdminUsers() {
       setDeptOpen(false)
       load()
     } catch (caught) {
-      setDeptError(caught instanceof Error ? caught.message : '保存失败')
+      setDeptError(toErrorMessage(caught, '保存失败'))
     } finally {
       setSavingDept(false)
     }
@@ -192,7 +193,7 @@ export function AdminUsers() {
       setDeletingDept(null)
       load()
     } catch (caught) {
-      setDeptError(caught instanceof Error ? caught.message : '删除失败')
+      setDeptError(toErrorMessage(caught, '删除失败'))
     } finally {
       setSavingDept(false)
     }
@@ -211,7 +212,7 @@ export function AdminUsers() {
       setDeletingUser(null)
       load()
     } catch (caught) {
-      message.error(caught instanceof Error ? caught.message : '删除失败')
+      message.error(toErrorMessage(caught, '删除失败'))
     } finally {
       setSavingUser(false)
     }
@@ -225,7 +226,7 @@ export function AdminUsers() {
       await updateSystemRecord('f_user', user.id, {status: nextStatus})
       load()
     } catch (caught) {
-      message.error(caught instanceof Error ? caught.message : '操作失败')
+      message.error(toErrorMessage(caught, '操作失败'))
     } finally {
       setSavingUser(false)
     }
@@ -333,18 +334,15 @@ export function AdminUsers() {
                 {userFormDefinition?.page?.description ?? '维护用户基础信息、任职与角色'}
               </p>
             </div>
-            <div className="relative ml-auto min-w-0 sm:max-w-[320px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
-              <Input
-                value={query}
-                onChange={event => {
-                  setQuery(event.target.value)
-                  setPage(1)
-                }}
-                placeholder="搜索用户或邮箱"
-                className="pl-9"
-              />
-            </div>
+            <SearchInput
+              className="ml-auto sm:max-w-[320px]"
+              value={query}
+              onChange={event => {
+                setQuery(event.target.value)
+                setPage(1)
+              }}
+              placeholder="搜索用户或邮箱"
+            />
             <div className="flex gap-2">
               <Button variant="secondary" onClick={load} disabled={loading}>
                 {loading ? '刷新中…' : '刷新'}
@@ -431,19 +429,15 @@ export function AdminUsers() {
         </div>
       </BizDialog>
 
-      <BizDialog
+      <ConfirmDialog
         open={Boolean(deletingDept)}
         onOpenChange={open => !open && setDeletingDept(null)}
         title="删除部门"
-        footer={(
-          <>
-            <Button variant="secondary" onClick={() => setDeletingDept(null)}>取消</Button>
-            <Button variant="danger" onClick={removeDept} disabled={savingDept}>删除</Button>
-          </>
-        )}
-      >
-        确认删除“{deletingDept?.name}”吗？存在子部门或成员时无法删除。
-      </BizDialog>
+        message={`确认删除“${deletingDept?.name}”吗？存在子部门或成员时无法删除。`}
+        busy={savingDept}
+        confirmText="删除"
+        onConfirm={removeDept}
+      />
 
       <SystemRecordFormModal
         open={userOpen}
@@ -459,19 +453,15 @@ export function AdminUsers() {
         }}
       />
 
-      <BizDialog
+      <ConfirmDialog
         open={Boolean(deletingUser)}
         onOpenChange={open => !open && setDeletingUser(null)}
         title="删除用户"
-        footer={(
-          <>
-            <Button variant="secondary" onClick={() => setDeletingUser(null)}>取消</Button>
-            <Button variant="danger" onClick={removeUser} disabled={savingUser}>删除</Button>
-          </>
-        )}
-      >
-        确认删除“{text(deletingUser?.name)}”吗？用户角色和部门关系会同时删除。
-      </BizDialog>
+        message={`确认删除“${text(deletingUser?.name)}”吗？用户角色和部门关系会同时删除。`}
+        busy={savingUser}
+        confirmText="删除"
+        onConfirm={removeUser}
+      />
     </AdminLayout>
   )
 }

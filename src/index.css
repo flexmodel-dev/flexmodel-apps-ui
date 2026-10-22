@@ -150,10 +150,6 @@
 }
 
 @layer components {
-  .app-scroller {
-    @apply overflow-y-auto;
-  }
-
   .app-table {
     @apply w-full border-collapse text-sm leading-6;
   }
@@ -182,24 +178,8 @@
     z-index: 10;
   }
 
-  .badge-primary {
-    @apply inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground;
-  }
-
   .badge-secondary {
     @apply inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary;
-  }
-
-  .view-form dl {
-    @apply m-0 flex border-b border-border py-3;
-  }
-
-  .view-form dt {
-    @apply w-32 shrink-0 text-sm text-muted-foreground;
-  }
-
-  .view-form dd {
-    @apply m-0 flex-1 break-all text-sm;
   }
 
   .app-card {

@@ -11,7 +11,6 @@ import {
   MoreHorizontal,
   Pencil,
   Play,
-  Search,
   Sparkles,
   Trash2,
   Workflow,
@@ -19,6 +18,7 @@ import {
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
+import {SearchInput} from '@/components/biz/SearchInput'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +38,7 @@ import {
 import {flattenNodes, formKey, validateFlow} from '@/lib/approval'
 import type {ApprovalFlow} from '@/types/approval'
 import {Choice, Field, useApprovalForms} from './controls'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 
 export const statusLabels = {
   draft: '草稿',
@@ -102,7 +102,7 @@ export default function ApprovalList({appId}: { appId?: string }) {
       await action()
       await load()
     } catch (cause) {
-      message.error(cause instanceof Error ? cause.message : '操作失败')
+      message.error(toErrorMessage(cause, '操作失败'))
     }
   }
   const filtered = flows.filter(
@@ -217,20 +217,17 @@ export default function ApprovalList({appId}: { appId?: string }) {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/>
-            <Input
-              aria-label="搜索流程"
-              className="h-9 w-44 pl-9"
-              placeholder="搜索流程名称"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-                setSelected([])
-              }}
-            />
-          </div>
+          <SearchInput
+            aria-label="搜索流程"
+            className="w-44"
+            placeholder="搜索流程名称"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              setPage(1)
+              setSelected([])
+            }}
+          />
           <Button size="sm" onClick={() => openCreate(false)}>
             <CirclePlus className="h-4 w-4"/>
             新建流程

@@ -24,7 +24,7 @@ import {
   uid,
   upstreamNodes,
 } from '@/lib/approval'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 
 export const inputClass =
   'h-9 w-full min-w-0 rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50'
@@ -215,7 +215,7 @@ export function useApprovalForms(appId: string) {
       })
       .catch((cause) => {
         if (active)
-          setError(cause instanceof Error ? cause.message : '读取应用表单失败')
+          setError(toErrorMessage(cause, '读取应用表单失败'))
       })
       .finally(() => {
         if (active) setLoading(false)

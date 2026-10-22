@@ -1,54 +1,24 @@
 // Invoked by NotificationResourceTest against an isolated real backend; credentials stay in the environment.
-import {chromium, expect} from '@playwright/test'
-import {spawn} from 'node:child_process'
-import {resolve, dirname} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {expect} from '@playwright/test'
 import {mkdir} from 'node:fs/promises'
+import {resolve} from 'node:path'
+import {projectRoot, startFrontend, apiRequest, launchContext} from './harness.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const api = process.env.NOTIFICATION_TEST_API, token = process.env.NOTIFICATION_TEST_TOKEN
 if (!api || !token) throw Error('需要隔离后端与登录会话')
-const frontend = 'http://127.0.0.1:5184'
-const server = spawn(process.execPath, [resolve(root, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', '5184', '--strictPort'], {
-  cwd: root,
-  env: {...process.env, VITE_API_TARGET: api},
-  stdio: 'ignore',
-  windowsHide: true
-})
+const {server, frontend} = await startFrontend(api, 5184)
+const request = (path, body, method) => apiRequest(api, token, path, body, method)
 let browser
 
-async function request(path, body, method = body ? 'POST' : 'GET') {
-  const response = await fetch(api + '/api' + path, {
-    method,
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json'
-    }, ...(body ? {body: JSON.stringify(body)} : {})
-  })
-  const result = await response.json().catch(() => null)
-  if (!response.ok) throw Error(path + ': ' + response.status + ' ' + JSON.stringify(result))
-  return result
-}
-
 try {
-  for (let i = 0; i < 100; i++) {
-    try {
-      if ((await fetch(frontend)).ok) break
-    } catch {
-    }
-    await new Promise(resolve => setTimeout(resolve, 200))
-  }
-  browser = await chromium.launch({headless: true})
-  const context = await browser.newContext({
+  const launched = await launchContext(token, {
     viewport: {width: 1440, height: 1000},
-    locale: 'zh-CN',
-    permissions: ['notifications']
+    permissions: ['notifications'],
   })
+  browser = launched.browser
+  const context = launched.context
   const errors = [], streams = new Set()
-  await context.addInitScript(({token}) => {
-    if (location.origin === 'null') return
-    localStorage.setItem('flexmodel-apps.auth.token', token);
-    localStorage.setItem('flexmodel-apps.auth.user', JSON.stringify({id: 'admin', name: 'Admin'}))
+  await context.addInitScript(() => {
     window.__focus = false;
     window.__alerts = [];
     window.__notificationErrors = []
@@ -74,7 +44,7 @@ try {
       close() {
       }
     }
-  }, {token})
+  })
   context.on('page', page => {
     page.on('pageerror', error => errors.push(error.message))
     page.on('request', request => {
@@ -221,10 +191,10 @@ try {
   await expect(remaining.getByText('浏览器已禁用提醒，请在站点设置中开启')).toBeVisible()
   await expect(remaining.getByText('实时连接已建立')).toBeVisible()
   await expect(remaining.getByText('正在加载通知…')).not.toBeVisible()
-  await mkdir(resolve(root, 'artifacts'), {recursive: true})
-  await remaining.screenshot({path: resolve(root, 'artifacts/notifications-light.png'), fullPage: true})
+  await mkdir(resolve(projectRoot, 'artifacts'), {recursive: true})
+  await remaining.screenshot({path: resolve(projectRoot, 'artifacts/notifications-light.png'), fullPage: true})
   await remaining.getByTitle('切换到夜间模式').click()
-  await remaining.screenshot({path: resolve(root, 'artifacts/notifications-dark.png'), fullPage: true})
+  await remaining.screenshot({path: resolve(projectRoot, 'artifacts/notifications-dark.png'), fullPage: true})
   expect(errors).toEqual([])
   console.log('PASS: real approval/notification/SSE, foreground and background reminders, read sync, one tab stream, reconnect and screenshots')
 } finally {

@@ -37,7 +37,7 @@ import {
   type WorkbenchChartType,
   type WorkbenchPaletteType,
 } from '@/services/workbenches'
-import {cn} from '@/lib/utils'
+import {cn, flattenTree, toErrorMessage} from '@/lib/utils'
 
 const componentTypeIcons: Record<string, LucideIcon> = {
   metric: Gauge,
@@ -114,10 +114,6 @@ const dataComponentTypes = new Set<WorkbenchComponentType>([
 
 function isMeasureField(field: AppFormField) {
   return field.type === 'NUMBER' || field.type === 'DECIMAL'
-}
-
-function flattenMenus(menus: AppMenu[]): AppMenu[] {
-  return menus.flatMap((menu) => [menu, ...flattenMenus(menu.children ?? [])])
 }
 
 function baseConfig(form: AppForm | undefined): DesignerConfig {
@@ -304,7 +300,7 @@ export function ComponentDesigner({
       })
       .catch((caught: unknown) => {
         if (cancelled) return
-        setLoadError(caught instanceof Error ? caught.message : '加载配置失败。')
+        setLoadError(toErrorMessage(caught, '加载配置失败。'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -372,7 +368,7 @@ export function ComponentDesigner({
   }
 
   const selectedForm = forms.find((form) => form.name === result.config.formName)
-  const formMenus = flattenMenus(menus).filter(
+  const formMenus = flattenTree(menus).filter(
     (menu) => menu.type === 'ITEM' && menu.target?.type === 'FORM',
   )
   const shortcutTargets = formMenus.map((menu) => ({

@@ -9,6 +9,7 @@ import {
   type AppNotification,
   type NotificationSummary
 } from '@/services/notifications'
+import {toErrorMessage} from '@/lib/utils'
 
 interface NotificationState {
   summary: NotificationSummary | null;
@@ -51,7 +52,7 @@ export function NotificationProvider({children}: { children: React.ReactNode }) 
         setRecent(list.list);
         setError('')
       } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : '通知加载失败')
+        if (active) setError(toErrorMessage(cause, '通知加载失败'))
       }
     }
     const refresh = () => {

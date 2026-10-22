@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {RecordApprovalPanel} from '@/pages/Approvals/RecordApprovalPanel'
 import {ChevronDown, Pencil, Trash2} from 'lucide-react'
-import {BizDialog} from '@/components/ui/dialog'
+import {ConfirmDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
@@ -11,21 +11,11 @@ import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {parseFormLayout} from '@/components/biz/form/parseFormLayout'
 import {renderFormValue} from '@/components/biz/form/FormReadonlyValue'
 import {Empty} from '@/components/ui/empty'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 import {formItemWidthTypeClasses} from '@/lib/form-items'
+import {recordTitle} from '@/lib/recordValue'
 import {getAppForm, type AppForm} from '@/services/appForms'
 import {deleteAppRecord, getAppRecord, type AppRecord} from '@/services/appRecords'
-
-function recordTitle(value: unknown, recordId: string) {
-  if (Array.isArray(value) && value.length > 0) {
-    return recordTitle(value[0], recordId)
-  }
-  if (value && typeof value === 'object' && 'displayValue' in value) {
-    const reference = value as { displayValue?: unknown }
-    return String(reference.displayValue ?? recordId)
-  }
-  return String(value ?? recordId)
-}
 
 export function AppRecordDetail({
                                   appId,
@@ -61,7 +51,7 @@ export function AppRecordDetail({
         setRecord(loadedRecord)
       })
       .catch((caught: unknown) => {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : '加载记录失败')
+        if (!cancelled) setError(toErrorMessage(caught, '加载记录失败'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -78,7 +68,7 @@ export function AppRecordDetail({
       setDeleteOpen(false)
       onDeleted?.()
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '删除记录失败')
+      setError(toErrorMessage(caught, '删除记录失败'))
     } finally {
       setIsDeleting(false)
     }
@@ -184,25 +174,15 @@ export function AppRecordDetail({
         onSaved={() => load()}
       />
 
-      <BizDialog
+      <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="删除记录"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteOpen(false)} disabled={isDeleting}>
-              取消
-            </Button>
-            <Button variant="danger" onClick={removeRecord} disabled={isDeleting}>
-              {isDeleting ? '删除中' : '删除'}
-            </Button>
-          </>
-        }
-      >
-        <div className="text-sm text-muted-foreground">
-          确认删除这条「{form.label}」记录吗？删除后不可恢复。
-        </div>
-      </BizDialog>
+        message={`确认删除这条「${form.label}」记录吗？删除后不可恢复。`}
+        busy={isDeleting}
+        confirmText="删除"
+        onConfirm={removeRecord}
+      />
     </div>
   )
 }

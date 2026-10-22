@@ -12,6 +12,7 @@ import {
   type AppRecord,
   type AppRecordPage,
 } from '@/services/appRecords'
+import {toErrorMessage} from '@/lib/utils'
 
 
 interface AppSubform {
@@ -72,7 +73,7 @@ export function AppSubformRecords({
         if (!cancelled) setRecords(result)
       })
       .catch((caught: unknown) => {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : '加载子表单记录失败')
+        if (!cancelled) setError(toErrorMessage(caught, '加载子表单记录失败'))
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)
@@ -104,7 +105,7 @@ export function AppSubformRecords({
         if (!cancelled) setForm(loadedForm)
       })
       .catch((caught: unknown) => {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : '加载子表单失败')
+        if (!cancelled) setError(toErrorMessage(caught, '加载子表单失败'))
       })
     return () => {
       cancelled = true
@@ -125,7 +126,7 @@ export function AppSubformRecords({
       })
       load()
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '删除子表单记录失败')
+      setError(toErrorMessage(caught, '删除子表单记录失败'))
     } finally {
       setDeletingId(null)
     }

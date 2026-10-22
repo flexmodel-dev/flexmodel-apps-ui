@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {BizDialog} from '@/components/ui/dialog'
 import { Globe, Smartphone } from 'lucide-react'
 import {login} from '@/services/auth'
+import {toErrorMessage} from '@/lib/utils'
 
 /** 用户登录页（复刻 signup/login.html） */
 export default function Login() {
@@ -29,7 +30,7 @@ export default function Login() {
       const from = requestedFrom && requestedFrom !== '/workbench/home' ? requestedFrom : '/admin/apps'
       navigate(from, {replace: true})
     } catch (err) {
-      setError(err instanceof Error ? err.message : '登录失败，请稍后重试')
+      setError(toErrorMessage(err, '登录失败，请稍后重试'))
     } finally {
       setLoading(false)
     }

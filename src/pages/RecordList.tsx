@@ -21,7 +21,7 @@ import {AppLayout} from '@/components/layout/AppLayout'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
-import {BizDialog} from '@/components/ui/dialog'
+import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {Checkbox} from '@/components/ui/checkbox'
 import {
   Select,
@@ -48,7 +48,7 @@ import {
   getAppRecords,
   type AppRecord,
 } from '@/services/appRecords'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 
 const compactButtonClass = 'h-8 px-2.5 text-xs'
 const ALL_VIEW_TAB = {id: 'all', label: '全部'}
@@ -236,7 +236,7 @@ export default function RecordList({formName}: { formName?: string }) {
       .catch((caught: unknown) => {
         if (cancelled) return
         setForm(null)
-        setError(caught instanceof Error ? caught.message : '加载表单失败')
+        setError(toErrorMessage(caught, '加载表单失败'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -271,7 +271,7 @@ export default function RecordList({formName}: { formName?: string }) {
       })
       .catch((caught: unknown) => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : '加载记录失败')
+        setError(toErrorMessage(caught, '加载记录失败'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -388,7 +388,7 @@ export default function RecordList({formName}: { formName?: string }) {
       if (!updatedForm.viewTabs.some((tab) => tab.id === activeTabId)) setActiveTabId('all')
       setTabsConfigOpen(false)
     } catch (caught: unknown) {
-      setTabsError(caught instanceof Error ? caught.message : '保存页签失败')
+      setTabsError(toErrorMessage(caught, '保存页签失败'))
     } finally {
       setIsSavingTabs(false)
     }
@@ -424,7 +424,7 @@ export default function RecordList({formName}: { formName?: string }) {
       if (deleteIds.length > 1) setPage(1)
       refresh()
     } catch (caught: unknown) {
-      setDeleteError(caught instanceof Error ? caught.message : '删除记录失败')
+      setDeleteError(toErrorMessage(caught, '删除记录失败'))
     } finally {
       setIsDeleting(false)
       setDeletingId(null)
@@ -826,7 +826,7 @@ export default function RecordList({formName}: { formName?: string }) {
         }}
       />
 
-      <BizDialog
+      <ConfirmDialog
         open={Boolean(deleteIds)}
         onOpenChange={(open) => {
           if (!open) {
@@ -835,26 +835,18 @@ export default function RecordList({formName}: { formName?: string }) {
           }
         }}
         title={deleteIds?.length === 1 ? '删除记录' : '批量删除记录'}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setDeleteIds(null)} disabled={isDeleting}>
-              取消
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => void confirmDelete()} disabled={isDeleting}>
-              {isDeleting ? '删除中' : '删除'}
-            </Button>
-          </>
-        }
-      >
-        <div className="text-sm text-muted-foreground">
+        message={<>
           {deleteIds?.length === 1
             ? `确认删除这条「${form.label}」记录吗？删除后不可恢复。`
             : `确认删除选中的 ${deleteIds?.length ?? 0} 条「${form.label}」记录吗？删除后不可恢复。`}
           {deleteError ? (
             <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
           ) : null}
-        </div>
-      </BizDialog>
+        </>}
+        busy={isDeleting}
+        confirmText="删除"
+        onConfirm={() => void confirmDelete()}
+      />
 
       <BizDialog
         open={tabsConfigOpen}

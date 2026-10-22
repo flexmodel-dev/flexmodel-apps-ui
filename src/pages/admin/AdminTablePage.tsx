@@ -1,10 +1,9 @@
 import * as React from 'react'
-import { Search, X } from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
-import { Button } from '@/components/ui/button'
 import {Pagination} from '@/components/biz/Pagination'
+import {SearchInput} from '@/components/biz/SearchInput'
 import {Empty} from '@/components/ui/empty'
-import { cn, paginate } from '@/lib/utils'
+import {paginate} from '@/lib/utils'
 
 export interface AdminColumn<T> {
   key: keyof T & string
@@ -45,31 +44,19 @@ export function AdminTablePage<T extends { id: string }>({
             {desc && <p className="mb-0 mt-0.5 text-xs text-muted-foreground">{desc}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 w-full md:w-64">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                className="h-9 w-full rounded-full border border-input bg-background pl-9 pr-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
-                placeholder="搜索"
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value)
-                  setPage(1)
-                }}
-              />
-              {q && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQ('')
-                    setPage(1)
-                  }}
-                  className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  title="清空搜索"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+            <SearchInput
+              className="w-full md:w-64"
+              placeholder="搜索"
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value)
+                setPage(1)
+              }}
+              onClear={() => {
+                setQ('')
+                setPage(1)
+              }}
+            />
             {toolbar && (
               <div className="flex shrink-0 items-center gap-2 [&>button]:h-9">
                 {toolbar}
@@ -116,5 +103,3 @@ export function AdminTablePage<T extends { id: string }>({
     </AdminLayout>
   )
 }
-
-export { Button, cn }

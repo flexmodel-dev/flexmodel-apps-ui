@@ -1,4 +1,4 @@
-import {requestJson} from '@/services/http'
+import {normalizePage, requestJson} from '@/services/http'
 
 export type SystemFormFieldType =
   | 'TEXT'
@@ -163,13 +163,6 @@ export async function saveSystemForm(formName: string, input: SystemFormSave): P
 
 function recordsPath(formName: string) {
   return `${API_BASE}/forms/${encodeURIComponent(formName)}/records`
-}
-
-function normalizePage(page: SystemRecordPage): SystemRecordPage {
-  return {
-    list: Array.isArray(page.list) ? page.list : [],
-    total: Number.isFinite(page.total) ? Number(page.total) : 0,
-  }
 }
 
 export async function getSystemRecords(

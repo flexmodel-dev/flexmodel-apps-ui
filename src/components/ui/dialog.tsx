@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-react'
+import {Button} from '@/components/ui/button'
 
 const Dialog = DialogPrimitive.Root
 const DialogTrigger = DialogPrimitive.Trigger
@@ -82,6 +83,35 @@ export function BizDialog({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** 确认操作对话框：危险操作按钮与进行中状态 */
+export function ConfirmDialog({open, onOpenChange, title, message, busy, confirmText = '确认', onConfirm}: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  title: React.ReactNode
+  message: React.ReactNode
+  busy?: boolean
+  confirmText?: string
+  onConfirm: () => void
+}) {
+  return (
+    <BizDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      footer={
+        <>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={busy}>取消</Button>
+          <Button variant="danger" onClick={onConfirm} disabled={busy}>
+            {busy ? confirmText + '中…' : confirmText}
+          </Button>
+        </>
+      }
+    >
+      <div className="text-sm text-muted-foreground">{message}</div>
+    </BizDialog>
   )
 }
 

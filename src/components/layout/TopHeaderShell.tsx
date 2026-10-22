@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type {NavItem, TopNavItem} from '@/data/mock'
 import {clearAuthSession, getAuthSession} from '@/services/auth'
+import {useDarkMode} from '@/lib/useDarkMode'
 import {MobileNavDrawer} from './MobileNavDrawer'
 
 export const headerActionClass =
@@ -44,18 +45,7 @@ function TopHeaderShell({
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
   const [authUser, setAuthUser] = React.useState(() => getAuthSession()?.user ?? null)
   const LogoIcon = logoIcon
-  const [isDark, setIsDark] = React.useState(() => {
-    const stored = window.localStorage.getItem('night')
-    if (stored === 'true' || stored === 'false') return stored === 'true'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  })
-
-  React.useEffect(() => {
-    const root = document.documentElement
-    root.classList.toggle('dark', isDark)
-    root.style.colorScheme = isDark ? 'dark' : 'light'
-    window.localStorage.setItem('night', String(isDark))
-  }, [isDark])
+  const [isDark, setIsDark] = useDarkMode()
 
   const logout = () => {
     clearAuthSession()

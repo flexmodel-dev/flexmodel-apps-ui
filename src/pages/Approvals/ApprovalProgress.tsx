@@ -1,5 +1,5 @@
-import * as React from 'react'
-import {approvalStatus, getApprovalDetail, getApprovalDirectory, type ApprovalDetail} from '@/services/approvals'
+import {approvalStatus, type ApprovalDetail} from '@/services/approvals'
+import {useApprovalDetail} from './useApprovalDetail'
 
 /** 签核进度时间线：InstanceDrawer 与抽屉右侧流程进度面板共用 */
 export function ApprovalTimeline({detail, names}: {
@@ -43,36 +43,7 @@ export function ApprovalProgressPanel({appId, instanceId}: {
   appId: string
   instanceId: string
 }) {
-  const [detail, setDetail] = React.useState<ApprovalDetail | null>(null)
-  const [names, setNames] = React.useState<Record<string, string>>({})
-  const [error, setError] = React.useState('')
-
-  React.useEffect(() => {
-    let active = true
-    setDetail(null)
-    setError('')
-    const load = async () => {
-      try {
-        const loaded = await getApprovalDetail(appId, instanceId)
-        if (active) {
-          setDetail(loaded)
-          setError('')
-        }
-      } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : '读取审批失败')
-      }
-    }
-    void load()
-    getApprovalDirectory(appId).then((value) => {
-      if (active) setNames(Object.fromEntries(value.members.map((member) => [member.id, member.name])))
-    }).catch(() => {
-    })
-    const timer = window.setInterval(load, 3000)
-    return () => {
-      active = false
-      window.clearInterval(timer)
-    }
-  }, [appId, instanceId])
+  const {detail, names, error} = useApprovalDetail(appId, instanceId)
 
   return (
     <div className="space-y-4">

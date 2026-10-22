@@ -1,5 +1,5 @@
 import {requestJson} from '@/services/http'
-import {createAppDataCache} from '@/services/appDataCache'
+import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
 
 export type AppMenuType = 'GROUP' | 'ITEM'
 export type AppMenuTargetType = 'BUILTIN' | 'FORM' | 'LINK'
@@ -68,31 +68,14 @@ function normalizeMenus(menus: AppMenu[]): AppMenu[] {
   }))
 }
 
-export async function getAppMenus(appId: string): Promise<AppMenu[]> {
-  let menuRequest = menuCache.get(appId)
-  if (!menuRequest) {
-    menuRequest = requestJson<AppMenu[]>(`${API_BASE}/${appId}/menus`)
-      .then(normalizeMenus)
-      .catch((caught: unknown) => {
-        menuCache.delete(appId)
-        throw caught
-      })
-    menuCache.set(appId, menuRequest)
-  }
-  return menuRequest
+export function getAppMenus(appId: string): Promise<AppMenu[]> {
+  return cachedFetch(menuCache, appId, () =>
+    requestJson<AppMenu[]>(`${API_BASE}/${appId}/menus`).then(normalizeMenus))
 }
 
-export async function getAppMenuTargets(appId: string): Promise<AppMenuTargets> {
-  let menuTargetRequest = menuTargetCache.get(appId)
-  if (!menuTargetRequest) {
-    menuTargetRequest = requestJson<AppMenuTargets>(`${API_BASE}/${appId}/menus/targets`)
-      .catch((caught: unknown) => {
-        menuTargetCache.delete(appId)
-        throw caught
-      })
-    menuTargetCache.set(appId, menuTargetRequest)
-  }
-  return menuTargetRequest
+export function getAppMenuTargets(appId: string): Promise<AppMenuTargets> {
+  return cachedFetch(menuTargetCache, appId, () =>
+    requestJson<AppMenuTargets>(`${API_BASE}/${appId}/menus/targets`))
 }
 
 export async function createAppMenu(appId: string, input: AppMenuInput): Promise<AppMenu> {

@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable'
 import {CSS} from '@dnd-kit/utilities'
 import {GripVertical, Pencil, Plus, Trash2} from 'lucide-react'
-import {BizDialog} from '@/components/ui/dialog'
+import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {OptionalIconPicker} from '@/components/biz/IconPicker'
@@ -48,7 +48,7 @@ import {
   type AppMenuType,
 } from '@/services/appMenus'
 import {menuOrderInput} from '@/services/appMenuNavigation'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 
 interface MenuForm {
   id?: string
@@ -172,7 +172,7 @@ export function AppMenuManager({
       setTargets(loadedTargets)
       return loadedMenus
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '加载菜单失败，请稍后重试。')
+      setError(toErrorMessage(caught, '加载菜单失败，请稍后重试。'))
       return []
     } finally {
       setIsLoading(false)
@@ -236,7 +236,7 @@ export function AppMenuManager({
       setForm(null)
       onMenusChange?.(await loadMenus())
     } catch (caught) {
-      setFormError(caught instanceof Error ? caught.message : '保存菜单失败，请稍后重试。')
+      setFormError(toErrorMessage(caught, '保存菜单失败，请稍后重试。'))
     } finally {
       setIsSaving(false)
     }
@@ -250,7 +250,7 @@ export function AppMenuManager({
       setDeleteTarget(null)
       onMenusChange?.(await loadMenus())
     } catch (caught) {
-      setFormError(caught instanceof Error ? caught.message : '删除菜单失败，请稍后重试。')
+      setFormError(toErrorMessage(caught, '删除菜单失败，请稍后重试。'))
     } finally {
       setIsDeleting(false)
     }
@@ -265,7 +265,7 @@ export function AppMenuManager({
       setMenus(savedMenus)
       onMenusChange?.(savedMenus)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '保存菜单顺序失败，请稍后重试。')
+      setError(toErrorMessage(caught, '保存菜单顺序失败，请稍后重试。'))
       onMenusChange?.(await loadMenus())
     }
   }
@@ -498,24 +498,18 @@ export function AppMenuManager({
         ) : null}
       </BizDialog>
 
-      <BizDialog
+      <ConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="删除菜单"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>取消</Button>
-            <Button variant="danger" onClick={confirmDelete} disabled={isDeleting}>
-              {isDeleting ? '删除中...' : '删除'}
-            </Button>
-          </>
-        }
-      >
-        <div className="pt-1">
+        message={<>
           确认删除「{deleteTarget?.name}」吗？
           {deleteTarget?.type === 'GROUP' ? '分组内的菜单将同时删除。' : ''}
-        </div>
-      </BizDialog>
+        </>}
+        busy={isDeleting}
+        confirmText="删除"
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }

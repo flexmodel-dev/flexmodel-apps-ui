@@ -1,4 +1,5 @@
 import {navIcons, type NavIconName, type NavItem, type TopNavItem} from '@/data/mock'
+import {findInTree, flattenTree} from '@/lib/utils'
 import type {AppMenu, AppMenuOrderInput} from '@/services/appMenus'
 
 export function menuIcon(iconName?: string | null) {
@@ -31,12 +32,7 @@ function containsMenu(menu: AppMenu, menuId: string): boolean {
 }
 
 export function findMenuById(menus: AppMenu[], menuId: string): AppMenu | undefined {
-  for (const menu of menus) {
-    if (menu.id === menuId) return menu
-    const child = findMenuById(menu.children, menuId)
-    if (child) return child
-  }
-  return undefined
+  return findInTree(menus, menuId)
 }
 
 export function findTopMenuIdForMenu(menus: AppMenu[], menuId?: string): string | undefined {
@@ -96,15 +92,11 @@ export function moveMenuNode(
   targetParentId: string,
   targetIndex: number,
 ): AppMenu[] {
-  const movedMenu = menus.flatMap((menu) => flattenMenus(menu)).find((menu) => menu.id === menuId)
+  const movedMenu = flattenTree(menus).find((menu) => menu.id === menuId)
   if (!movedMenu) return menus
 
   const remainingMenus = removeMenuNode(menus, menuId)
   return insertMenuNode(remainingMenus, movedMenu, targetParentId, targetIndex)
-}
-
-function flattenMenus(menu: AppMenu): AppMenu[] {
-  return [menu, ...menu.children.flatMap(flattenMenus)]
 }
 
 function removeMenuNode(menus: AppMenu[], menuId: string): AppMenu[] {

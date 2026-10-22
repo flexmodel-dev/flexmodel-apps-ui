@@ -1,5 +1,5 @@
 import {requestJson} from '@/services/http'
-import {createAppDataCache} from '@/services/appDataCache'
+import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
 import {invalidateAppMenuTargets} from '@/services/appMenus'
 
 export type AppFormFieldType =
@@ -164,33 +164,14 @@ function normalizeForm(form: AppForm): AppForm {
   }
 }
 
-export async function getAppForms(appId: string): Promise<AppForm[]> {
-  let formsRequest = formListCache.get(appId)
-  if (!formsRequest) {
-    formsRequest = requestJson<AppForm[]>(`${API_BASE}/${appId}/forms`)
-      .then((forms) => forms.map(normalizeForm))
-      .catch((caught: unknown) => {
-        formListCache.delete(appId)
-        throw caught
-      })
-    formListCache.set(appId, formsRequest)
-  }
-  return formsRequest
+export function getAppForms(appId: string): Promise<AppForm[]> {
+  return cachedFetch(formListCache, appId, () =>
+    requestJson<AppForm[]>(`${API_BASE}/${appId}/forms`).then((forms) => forms.map(normalizeForm)))
 }
 
-export async function getAppForm(appId: string, name: string): Promise<AppForm> {
-  const key = detailKey(appId, name)
-  let formRequest = formCache.get(key)
-  if (!formRequest) {
-    formRequest = requestJson<AppForm>(`${API_BASE}/${appId}/forms/${encodeURIComponent(name)}`)
-      .then(normalizeForm)
-      .catch((caught: unknown) => {
-        formCache.delete(key)
-        throw caught
-      })
-    formCache.set(key, formRequest)
-  }
-  return formRequest
+export function getAppForm(appId: string, name: string): Promise<AppForm> {
+  return cachedFetch(formCache, detailKey(appId, name), () =>
+    requestJson<AppForm>(`${API_BASE}/${appId}/forms/${encodeURIComponent(name)}`).then(normalizeForm))
 }
 
 function invalidateFormCaches(appId: string, name?: string) {

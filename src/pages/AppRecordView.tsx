@@ -4,15 +4,8 @@ import {AppLayout} from '@/components/layout/AppLayout'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppRecordDetail} from '@/components/biz/AppRecordDetail'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
-
-function findMenu(menus: AppMenu[], menuId?: string): AppMenu | undefined {
-  for (const menu of menus) {
-    if (menu.id === menuId) return menu
-    const child = findMenu(menu.children ?? [], menuId)
-    if (child) return child
-  }
-  return undefined
-}
+import {findMenuById} from '@/services/appMenuNavigation'
+import {toErrorMessage} from '@/lib/utils'
 
 export default function AppRecordView() {
   const {appId, menuId, recordId = ''} = useParams<{ appId: string; menuId: string; recordId: string }>()
@@ -29,7 +22,7 @@ export default function AppRecordView() {
       .then((loadedMenus) => !cancelled && setMenus(loadedMenus))
       .catch((caught: unknown) => {
         if (cancelled) return
-        setError(caught instanceof Error ? caught.message : '加载应用菜单失败')
+        setError(toErrorMessage(caught, '加载应用菜单失败'))
       })
       .finally(() => !cancelled && setIsLoading(false))
     return () => {
@@ -56,7 +49,7 @@ export default function AppRecordView() {
     )
   }
 
-  const menu = findMenu(menus, menuId)
+  const menu = findMenuById(menus, menuId)
   if (menu?.target?.type !== 'FORM') {
     return (
       <AppLayout>

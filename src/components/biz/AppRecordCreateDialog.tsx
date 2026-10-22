@@ -3,6 +3,7 @@ import {BizDialog} from '@/components/ui/dialog'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {getAppForm, type AppForm} from '@/services/appForms'
+import {toErrorMessage} from '@/lib/utils'
 
 export function AppRecordCreateDialog({
                                         open,
@@ -34,7 +35,7 @@ export function AppRecordCreateDialog({
       .catch((caught: unknown) => {
         if (cancelled) return
         setForm(null)
-        setError(caught instanceof Error ? caught.message : '加载表单失败，请稍后重试。')
+        setError(toErrorMessage(caught, '加载表单失败，请稍后重试。'))
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)

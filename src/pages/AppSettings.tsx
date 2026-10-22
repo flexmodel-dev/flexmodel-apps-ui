@@ -4,7 +4,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {BizDialog} from '@/components/ui/dialog'
+import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {IconPicker} from '@/components/biz/IconPicker'
 import {AppLoading} from '@/components/biz/AppLoading'
@@ -19,6 +19,7 @@ import {
   type AppPrimaryColor,
 } from '@/data/mock'
 import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
+import {toErrorMessage} from '@/lib/utils'
 
 const settingsNavs = [
   { key: 'basic', label: '基本设置' },
@@ -74,7 +75,7 @@ export default function AppSettings({ section }: { section: string }) {
       .catch((error) => {
         if (cancelled) return
         setApp(null)
-        setLoadError(error instanceof Error ? error.message : '加载应用失败，请稍后重试。')
+        setLoadError(toErrorMessage(error, '加载应用失败，请稍后重试。'))
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)
@@ -125,7 +126,7 @@ export default function AppSettings({ section }: { section: string }) {
       })
       setFormOpen(false)
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : '保存应用失败，请稍后重试。')
+      setFormError(toErrorMessage(error, '保存应用失败，请稍后重试。'))
     } finally {
       setIsSubmitting(false)
     }
@@ -139,7 +140,7 @@ export default function AppSettings({ section }: { section: string }) {
       setDeleteOpen(false)
       navigate('/admin/apps')
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : '删除应用失败，请稍后重试。')
+      setDeleteError(toErrorMessage(error, '删除应用失败，请稍后重试。'))
     } finally {
       setIsDeleting(false)
     }
@@ -275,30 +276,25 @@ export default function AppSettings({ section }: { section: string }) {
           ) : null}
         </BizDialog>
 
-        <BizDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          if (!open && !isDeleting) {
-            setDeleteOpen(false)
-            setDeleteError(null)
-          }
-        }}
-        title="删除应用"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteOpen(false)} disabled={isDeleting}>取消</Button>
-            <Button variant="danger" onClick={removeApp} disabled={isDeleting}>
-              {isDeleting ? '删除中...' : '删除'}
-            </Button>
-          </>
-        }
-      >
-          <div className="pt-1">确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占表单和记录。
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={(open) => {
+            if (!open && !isDeleting) {
+              setDeleteOpen(false)
+              setDeleteError(null)
+            }
+          }}
+          title="删除应用"
+          message={<>
+            确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占表单和记录。
             {deleteError ? (
               <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
             ) : null}
-          </div>
-        </BizDialog>
+          </>}
+          busy={isDeleting}
+          confirmText="删除"
+          onConfirm={removeApp}
+        />
       </AdminLayout>
   )
 }

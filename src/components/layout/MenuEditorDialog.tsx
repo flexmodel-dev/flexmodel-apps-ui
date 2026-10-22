@@ -25,7 +25,7 @@ import {Input} from '@/components/ui/input'
 import {Empty} from '@/components/ui/empty'
 import {OptionalIconPicker} from '@/components/biz/IconPicker'
 import {MenuLinkPicker} from '@/components/biz/MenuLinkPicker'
-import {cn} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 import {
   createAppMenu,
   deleteAppMenu,
@@ -407,7 +407,7 @@ function MenuEditorDialog({
       setApiMenus(loadedMenus)
       return loadedMenus
     } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : '加载应用菜单失败，请稍后重试。')
+      setActionError(toErrorMessage(caught, '加载应用菜单失败，请稍后重试。'))
       return []
     } finally {
       setIsLoading(false)
@@ -565,7 +565,7 @@ function MenuEditorDialog({
           })
         }
       } catch (caught) {
-        setActionError(caught instanceof Error ? caught.message : '保存菜单失败，请稍后重试。')
+        setActionError(toErrorMessage(caught, '保存菜单失败，请稍后重试。'))
       } finally {
         setIsSaving(false)
       }
@@ -633,7 +633,7 @@ function MenuEditorDialog({
         setDeleteTarget(null)
         onMenusChange(nextMenus)
       } catch (caught) {
-        setActionError(caught instanceof Error ? caught.message : '删除菜单失败，请稍后重试。')
+        setActionError(toErrorMessage(caught, '删除菜单失败，请稍后重试。'))
       } finally {
         setIsSaving(false)
       }
@@ -651,7 +651,7 @@ function MenuEditorDialog({
         setApiMenus(savedMenus)
         onMenusChange(savedMenus)
       } catch (caught) {
-        setActionError(caught instanceof Error ? caught.message : '保存菜单顺序失败，请稍后重试。')
+        setActionError(toErrorMessage(caught, '保存菜单顺序失败，请稍后重试。'))
         await loadMenus()
       } finally {
         setIsSaving(false)
@@ -743,7 +743,7 @@ function MenuEditorDialog({
           })
       }
     } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : '移动菜单失败，请稍后重试。')
+      setActionError(toErrorMessage(caught, '移动菜单失败，请稍后重试。'))
     } finally {
       setIsSaving(false)
     }
