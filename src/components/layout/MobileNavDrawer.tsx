@@ -55,6 +55,7 @@ export function MobileNavDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
         hideClose
+        stacked={false}
         className="right-auto border-r animate-in slide-in-from-left"
         aria-describedby={undefined}
       >

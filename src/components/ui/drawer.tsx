@@ -10,6 +10,50 @@ const DrawerTitle = DialogPrimitive.Title
 const DrawerDescription = DialogPrimitive.Description
 const DrawerClose = DialogPrimitive.Close
 
+// 抽屉既可能嵌套渲染，也可能是兄弟节点，按打开后的 Portal 顺序统一管理。
+let drawerStack: HTMLElement[] = []
+const drawerStackListeners = new Set<() => void>()
+const getDrawerStack = () => drawerStack
+const subscribeDrawerStack = (listener: () => void) => {
+  drawerStackListeners.add(listener)
+  return () => { drawerStackListeners.delete(listener) }
+}
+
+function useDrawerMaxWidth(content: HTMLElement | null, stacked: boolean) {
+  const stack = React.useSyncExternalStore(subscribeDrawerStack, getDrawerStack, getDrawerStack)
+  const index = content ? stack.indexOf(content) : -1
+  const previous = index > 0 ? stack[index - 1] : null
+  const [parentWidth, setParentWidth] = React.useState<number | null>(null)
+
+  React.useLayoutEffect(() => {
+    if (!content || !stacked) return
+    drawerStack = [...drawerStack, content].sort((a, b) =>
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+    )
+    drawerStackListeners.forEach(listener => listener())
+    return () => {
+      drawerStack = drawerStack.filter(item => item !== content)
+      drawerStackListeners.forEach(listener => listener())
+    }
+  }, [content, stacked])
+
+  React.useLayoutEffect(() => {
+    if (!previous) {
+      setParentWidth(null)
+      return
+    }
+    const measure = () => setParentWidth(previous.getBoundingClientRect().width)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(previous)
+    return () => observer.disconnect()
+  }, [previous])
+
+  return previous && parentWidth !== null
+    ? `max(0px, calc(${parentWidth}px - var(--drawer-stack-gap)))`
+    : undefined
+}
+
 const DrawerOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -24,32 +68,48 @@ DrawerOverlay.displayName = 'DrawerOverlay'
 
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean }
->(({ className, children, hideClose, ...props }, ref) => (
-  <DrawerPortal>
-    <DrawerOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        'fixed inset-y-0 right-0 z-[1040] flex w-[min(92vw,420px)] flex-col border-l bg-background shadow-2xl outline-none animate-in slide-in-from-right duration-300',
-        className,
-      )}
-      {...props}
-      onPointerDownOutside={event => {
-        props.onPointerDownOutside?.(event)
-        // 点击全局通知浮层不算点击抽屉外部，避免误关抽屉
-        if (isNotificationToastTarget(event.target)) event.preventDefault()
-      }}
-    >
-      {children}
-      {!hideClose && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-muted-foreground transition-colors hover:text-foreground">
-          <X className="h-4 w-4" />
-        </DialogPrimitive.Close>
-      )}
-    </DialogPrimitive.Content>
-  </DrawerPortal>
-))
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean; stacked?: boolean }
+>(({ className, children, hideClose, stacked = true, style, ...props }, ref) => {
+  const [content, setContent] = React.useState<HTMLDivElement | null>(null)
+  const maxWidth = useDrawerMaxWidth(content, stacked)
+  const configuredMaxWidth = typeof style?.maxWidth === 'number' ? `${style.maxWidth}px` : style?.maxWidth
+  const contentStyle = maxWidth
+    ? {...style, maxWidth: configuredMaxWidth && configuredMaxWidth !== 'none'
+      ? `min(${configuredMaxWidth}, ${maxWidth})` : maxWidth}
+    : style
+  const contentRef = React.useCallback((node: HTMLDivElement | null) => {
+    setContent(node)
+    if (typeof ref === 'function') ref(node)
+    else if (ref) ref.current = node
+  }, [ref])
+
+  return (
+    <DrawerPortal>
+      <DrawerOverlay />
+      <DialogPrimitive.Content
+        ref={contentRef}
+        className={cn(
+          'fixed inset-y-0 right-0 z-[1040] flex w-[min(92vw,420px)] flex-col border-l bg-background shadow-2xl outline-none animate-in slide-in-from-right duration-300 [--drawer-stack-gap:1rem] md:[--drawer-stack-gap:3rem]',
+          className,
+        )}
+        {...props}
+        style={contentStyle}
+        onPointerDownOutside={event => {
+          props.onPointerDownOutside?.(event)
+          // 点击全局通知浮层不算点击抽屉外部，避免误关抽屉
+          if (isNotificationToastTarget(event.target)) event.preventDefault()
+        }}
+      >
+        {children}
+        {!hideClose && (
+          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-muted-foreground transition-colors hover:text-foreground">
+            <X className="h-4 w-4" />
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </DrawerPortal>
+  )
+})
 DrawerContent.displayName = 'DrawerContent'
 
 /** 带标题和底部的右侧抽屉，与详情页抽屉宽度保持一致；aside 提供时右侧内嵌面板，右上角按钮展开/折叠 */
