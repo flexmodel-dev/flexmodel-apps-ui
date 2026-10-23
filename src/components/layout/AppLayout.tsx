@@ -21,6 +21,8 @@ export function AppLayout({
   contentClassName,
   noOuterScroll,
   hideHeader,
+                            hideNavigation,
+                            showBack,
                             menuEditorOpen: menuEditorOpenProp,
                             onMenuEditorOpenChange,
 }: {
@@ -29,6 +31,8 @@ export function AppLayout({
   contentClassName?: string
   noOuterScroll?: boolean
   hideHeader?: boolean
+  hideNavigation?: boolean
+  showBack?: boolean
   menuEditorOpen?: boolean
   onMenuEditorOpenChange?: (open: boolean) => void
 }) {
@@ -37,7 +41,7 @@ export function AppLayout({
   const routeTopId = appId ? new URLSearchParams(location.search).get('top') : null
   const routeMenuId = appId ? location.pathname.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1] : null
   const [collapsed, setCollapsed] = React.useState(false)
-  const [activeTopId, setActiveTopId] = React.useState(() => appId ? routeTopId ?? '' : getTopNavIdByPath(location.pathname))
+  const [activeTopId, setActiveTopId] = React.useState(() => appId ? routeTopId ?? '' : hideNavigation ? '' : getTopNavIdByPath(location.pathname))
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
   const [menuEditorDraft, setMenuEditorDraft] = React.useState<MenuEditorDraft | null>(null)
   const [menuVersion, setMenuVersion] = React.useState(0)
@@ -74,9 +78,10 @@ export function AppLayout({
       }
       return
     }
+    if (hideNavigation) return
     const nextTopId = getTopNavIdByPath(location.pathname, activeTopId)
     if (nextTopId !== activeTopId) setActiveTopId(nextTopId)
-  }, [appId, routeTopId, appMenus, location.pathname, activeTopId, menuVersion])
+  }, [appId, routeTopId, appMenus, location.pathname, activeTopId, menuVersion, hideNavigation])
 
   React.useEffect(() => {
     document.documentElement.dataset.primary = app?.primaryColor ?? 'blue'
@@ -162,7 +167,9 @@ export function AppLayout({
 
   const topMenuItems = appId
     ? appMenus.map((menu) => toTopNavigationItem(menu, appId))
-    : topNavs
+    : hideNavigation
+      ? []
+      : topNavs
   const routeMenuTopId = findTopMenuIdForMenu(appMenus, routeMenuId ?? undefined)
   const resolvedActiveTopId = appId ? routeTopId ?? routeMenuTopId ?? activeTopId : activeTopId
   const activeTop = appId
@@ -184,9 +191,11 @@ export function AppLayout({
         <AppTopHeader
           activeTopId={activeTop?.id ?? ''}
           onTopNavChange={setActiveTopId}
-          mobileNavs={activeTop?.navs ?? []}
+          mobileNavs={hideNavigation ? [] : activeTop?.navs ?? []}
           app={app ?? undefined}
           topNavItems={topMenuItems}
+          showSearch={!hideNavigation}
+          showBack={showBack}
           isAppLoading={isAppLoading}
           isMenusLoading={isMenusLoading}
           createRecordItems={createRecordItems}
@@ -194,7 +203,7 @@ export function AppLayout({
         />
       )}
 
-      {!hideHeader && (
+      {!hideHeader && !hideNavigation && (
         <AppLeftSidebar
           collapsed={collapsed}
           navs={activeTop?.navs ?? []}
@@ -229,7 +238,7 @@ export function AppLayout({
           hideHeader ? 'mt-0 h-screen md:ml-0' : 'mt-16 h-[calc(100vh-4rem)]',
           noOuterScroll ? 'overflow-hidden' : 'overflow-y-auto',
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
-          hideHeader ? '' : collapsed ? 'md:ml-16' : 'md:ml-64',
+          hideHeader ? '' : hideNavigation ? 'md:ml-0' : collapsed ? 'md:ml-16' : 'md:ml-64',
         )}
       >
         <div className={cn('w-full pt-4 md:pt-6', contentClassName)}>{children}</div>

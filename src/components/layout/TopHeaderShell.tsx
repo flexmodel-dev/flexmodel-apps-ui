@@ -30,6 +30,7 @@ function TopHeaderShell({
                           topNavs,
                           activeTopId,
                           onTopNavChange,
+                          leading,
                           extraActions,
                         }: {
   brand: string
@@ -39,6 +40,7 @@ function TopHeaderShell({
   topNavs?: TopNavItem[]
   activeTopId?: string
   onTopNavChange?: (id: string) => void
+  leading?: React.ReactNode
   extraActions?: React.ReactNode
   logoIcon?: LucideIcon
 }) {
@@ -51,6 +53,7 @@ function TopHeaderShell({
     clearAuthSession()
     setAuthUser(null)
   }
+  const hasNavigation = mobileNavs.length > 0 || (topNavs?.length ?? 0) > 0
 
   React.useEffect(() => {
     document.documentElement.dataset.primary = 'blue'
@@ -66,15 +69,18 @@ function TopHeaderShell({
       )}
     >
       <div className="flex h-16 min-w-0 items-center gap-2 px-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          title="打开导航菜单"
-          className={cn('shrink-0 md:hidden', headerActionClass)}
-          onClick={() => setMobileNavOpen(true)}
-        >
-          <Menu className="h-5 w-5"/>
-        </Button>
+        {hasNavigation && (
+          <Button
+            variant="ghost"
+            size="icon"
+            title="打开导航菜单"
+            className={cn('shrink-0 md:hidden', headerActionClass)}
+            onClick={() => setMobileNavOpen(true)}
+          >
+            <Menu className="h-5 w-5"/>
+          </Button>
+        )}
+        {leading}
         {brandTo ? (
           <Link to={brandTo} className="mr-2 flex min-w-0 items-center gap-2">
             <span
@@ -101,7 +107,7 @@ function TopHeaderShell({
           </div>
         )}
 
-        {topNavs && (
+        {topNavs && topNavs.length > 0 && (
           <nav className="ml-2 hidden h-16 items-stretch md:flex">
             {topNavs.map((nav) => (
               <Link

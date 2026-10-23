@@ -99,7 +99,7 @@ export default function Notifications() {
     setter(value);
     setPage(1)
   }
-  return <AppLayout noOuterScroll contentClassName="h-full">
+  return <AppLayout hideNavigation showBack noOuterScroll contentClassName="h-full">
     <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-xl font-semibold">通知中心</h1><p
@@ -144,7 +144,7 @@ export default function Notifications() {
             key={item.id}
             className={cn('flex items-start gap-3 border-b p-4', !item.readAt && 'border-l-2 border-l-primary')}><Bell
             className="mt-1 h-4 w-4 shrink-0 text-muted-foreground"/>
-            <button className="min-w-0 flex-1 text-left" onClick={() => setParams({open: item.id})}><p
+            <button className="min-w-0 flex-1 text-left" onClick={() => setParams({open: item.id}, {replace: true})}><p
               className="text-sm font-medium">{item.title}</p><p
               className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.content}</p><p
               className="mt-2 text-xs text-muted-foreground">{item.appName} · {new Date(item.receivedAt).toLocaleString()}{!item.readAt && ' · 未读'}</p>
@@ -154,7 +154,7 @@ export default function Notifications() {
           </div>)}</div>
       <Pagination page={page} pages={Math.max(1, Math.ceil(total / 30))} size={30} total={total} onChange={setPage}/>
       <Drawer open={!!open} onOpenChange={value => {
-        if (!value) setParams({})
+        if (!value) setParams({}, {replace: true})
       }}><DrawerContent className="w-[min(96vw,600px)]">
         <div className="border-b p-6 pr-12"><DrawerTitle>{detail?.title ?? '通知详情'}</DrawerTitle><DrawerDescription
           className="mt-2">{detail ? `${detail.appName} · ${new Date(detail.receivedAt).toLocaleString()}` : '查看消息内容'}</DrawerDescription>

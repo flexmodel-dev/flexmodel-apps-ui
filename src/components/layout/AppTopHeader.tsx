@@ -1,8 +1,9 @@
 import * as React from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
-import {Plus, Search, Settings} from 'lucide-react'
+import {ArrowLeft, Plus, Search, Settings} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {cn} from '@/lib/utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +15,6 @@ import {
   appIcons,
   businessObjects,
   getAppMenuForBusinessObject,
-  topNavs,
   type NavItem,
   type TopNavItem,
 } from '@/data/mock'
@@ -38,7 +38,9 @@ export function AppTopHeader({
                                onTopNavChange,
                                mobileNavs,
                                app,
-                               topNavItems = topNavs,
+                               topNavItems,
+                               showSearch = true,
+                               showBack = false,
                                isAppLoading = false,
                                isMenusLoading = false,
                                createRecordItems,
@@ -49,6 +51,8 @@ export function AppTopHeader({
   mobileNavs: NavItem[]
   app?: App
   topNavItems?: TopNavItem[]
+  showSearch?: boolean
+  showBack?: boolean
   isAppLoading?: boolean
   isMenusLoading?: boolean
   createRecordItems: Array<{ id: string; label: string }>
@@ -84,6 +88,14 @@ export function AppTopHeader({
     setSearchValue('')
   }
 
+  const goBack = () => {
+    if (location.key === 'default') {
+      navigate('/admin/apps')
+      return
+    }
+    navigate(-1)
+  }
+
   const currentApp = app
   const brand = currentApp?.name ?? (isAppLoading ? '…' : '应用')
   const LogoIcon = appIcons[currentApp?.iconName ?? 'Boxes'] ?? appIcons.Boxes
@@ -101,9 +113,20 @@ export function AppTopHeader({
       topNavs={topNavItems}
       activeTopId={activeTopId}
       onTopNavChange={onTopNavChange}
+      leading={showBack ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          title="返回上一页"
+          className={cn('shrink-0', headerActionClass)}
+          onClick={goBack}
+        >
+          <ArrowLeft className="h-5 w-5"/>
+        </Button>
+      ) : undefined}
       extraActions={
         <>
-          {searchOpen && (
+          {showSearch && searchOpen && (
             <div ref={searchWrapperRef} className="relative mr-1 w-[min(18rem,46vw)]">
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"/>
               <Input
@@ -164,7 +187,7 @@ export function AppTopHeader({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {!searchOpen && (
+          {showSearch && !searchOpen && (
             <Button
               variant="ghost"
               size="icon"

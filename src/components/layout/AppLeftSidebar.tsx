@@ -5,7 +5,7 @@ import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {Popover, PopoverAnchor, PopoverContent} from '@/components/ui/popover'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
-import {userNavs, type NavItem} from '@/data/mock'
+import type {NavItem} from '@/data/mock'
 import {AppLauncher} from './AppLauncher'
 
 function getActiveMenuIds(navs: NavItem[], pathname: string) {
@@ -96,14 +96,14 @@ function CollapsedGroupMenu({
 }
 
 export function AppLeftSidebar({
-                                 navs = userNavs,
+                                 navs,
                                  sectionKey,
                                  collapsed,
                                  headerHidden,
                                  onToggleCollapsed,
                                  onEditMenus,
                                }: {
-  navs?: NavItem[]
+  navs: NavItem[]
   sectionKey?: string
   collapsed?: boolean
   headerHidden?: boolean
