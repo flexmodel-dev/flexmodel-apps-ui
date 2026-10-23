@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {useNavigate} from 'react-router-dom'
-import {Info, Send, Settings} from 'lucide-react'
+import {Info} from 'lucide-react'
 import {BizDrawer} from '@/components/ui/drawer'
 import {Button} from '@/components/ui/button'
 import {message} from '@/components/ui/message'
@@ -22,6 +22,7 @@ import {
 import {useReferenceOptions} from '@/components/biz/form/useReferenceOptions'
 import {FlowStartDialog, useFormApprovalFlows} from '@/components/biz/form/flowLaunch'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
+import {FormMoreMenu} from '@/components/biz/FormMoreMenu'
 import {
   type AppForm,
   type AppFormItem,
@@ -226,20 +227,13 @@ export function AppRecordFormModal({
       open={open}
       onOpenChange={onOpenChange}
       title={effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`}
-      headerExtra={
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-primary"
-          title="表单设计"
-          aria-label="表单设计"
-          onClick={() => {
+      moreMenu={
+        <FormMoreMenu
+          onOpenDesign={() => {
             onOpenChange(false)
             navigate(designPath ?? `/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/form-design`)
           }}
-        >
-          <Settings className="h-4 w-4"/>
-        </Button>
+        />
       }
       footer={
         <>

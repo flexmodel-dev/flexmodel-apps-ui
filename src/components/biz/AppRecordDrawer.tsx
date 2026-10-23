@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {useNavigate} from 'react-router-dom'
-import {Check, Info, LockKeyhole, Pencil, Send, Settings, Trash2, X} from 'lucide-react'
+import {Check, Info, LockKeyhole, Pencil, Send, Trash2, X} from 'lucide-react'
 import {BizDrawer} from '@/components/ui/drawer'
 import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
@@ -9,6 +9,7 @@ import {AppLoading} from '@/components/biz/AppLoading'
 import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
+import {FormMoreMenu} from '@/components/biz/FormMoreMenu'
 import {ApprovalProgressPanel} from '@/pages/Approvals/ApprovalProgress'
 import {useRecordApproval} from '@/components/biz/useRecordApproval'
 import {ApprovalDecisionDialog, useApprovalDecision} from '@/components/biz/approvalDecision'
@@ -420,20 +421,13 @@ export function AppRecordDrawer({
           else onOpenChange(next)
         }}
         title={title}
-        headerExtra={form ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            title="表单设计"
-            aria-label="表单设计"
-            onClick={() => {
+        moreMenu={form ? (
+          <FormMoreMenu
+            onOpenDesign={() => {
               onOpenChange(false)
               navigate(`/admin/apps/${appId}/forms/${encodeURIComponent(formName)}/form-design`)
             }}
-          >
-            <Settings className="h-4 w-4"/>
-          </Button>
+          />
         ) : undefined}
         footer={footer}
         aside={mode === 'view' && !form?.builtin && approval.progressInstanceId ? (

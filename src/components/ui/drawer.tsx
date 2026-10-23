@@ -60,7 +60,7 @@ export function BizDrawer({
                             width,
                             children,
                             footer,
-                            headerExtra,
+                            moreMenu,
                             aside,
                             asideLabel = '流程进度',
                           }: {
@@ -70,7 +70,7 @@ export function BizDrawer({
   width?: string
   children: React.ReactNode
   footer?: React.ReactNode
-  headerExtra?: React.ReactNode
+  moreMenu?: React.ReactNode
   aside?: React.ReactNode
   asideLabel?: string
 }) {
@@ -88,7 +88,6 @@ export function BizDrawer({
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <DrawerTitle className="text-lg font-semibold">{title}</DrawerTitle>
           <div className="flex items-center gap-1">
-            {headerExtra}
             {aside && (
               <button
                 type="button"
@@ -100,6 +99,7 @@ export function BizDrawer({
                 {asideOpen ? <PanelRightClose className="h-4 w-4"/> : <PanelRightOpen className="h-4 w-4"/>}
               </button>
             )}
+            {moreMenu}
             <DrawerClose className="rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground">
               <X className="h-4 w-4"/>
             </DrawerClose>
