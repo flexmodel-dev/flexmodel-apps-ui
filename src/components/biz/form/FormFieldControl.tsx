@@ -41,7 +41,7 @@ export function FieldControl({
 }) {
   if (['PICKLIST', 'SELECT', 'CLASSIFICATION', 'MULTISELECT'].includes(field.type)) {
     return (
-      <Select value={String(value)} onValueChange={onChange} disabled={disabled}>
+      <Select value={String(value ?? '')} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger>
           <SelectValue placeholder={`请选择${field.label}`}/>
         </SelectTrigger>
@@ -83,7 +83,7 @@ export function FieldControl({
 
   if (field.type === 'REFERENCE') {
     return (
-      <Select value={String(value)} onValueChange={onChange} disabled={disabled}>
+      <Select value={String(value ?? '')} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger>
           <SelectValue placeholder={`请选择${field.label}`}/>
         </SelectTrigger>
@@ -112,7 +112,7 @@ export function FieldControl({
   if (field.type === 'NTEXT') {
     return (
       <Textarea
-        value={String(value)}
+        value={String(value ?? '')}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -138,7 +138,7 @@ export function FieldControl({
   return (
     <Input
       type={inputType}
-      value={String(value)}
+      value={String(value ?? '')}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
       placeholder={`请输入${field.label}`}

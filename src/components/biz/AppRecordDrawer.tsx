@@ -96,6 +96,7 @@ export function AppRecordDrawer({
   initialModeRef.current = initialMode
 
   const isCreate = mode === 'create'
+  const recordPending = !!activeRecordId && !record
   const approval = useRecordApproval({
     appId,
     formName,
@@ -154,7 +155,7 @@ export function AppRecordDrawer({
     setDeleteOpen(false)
     setFlowOpen(false)
     setDiscardKind(null)
-  }, [open, recordId])
+  }, [open, appId, formName, recordId])
 
   React.useEffect(() => {
     if (!open || !form || !isCreate || dirty) return
@@ -181,8 +182,15 @@ export function AppRecordDrawer({
     return loadRecord()
   }, [open, activeRecordId, loadRecord])
 
+  React.useEffect(() => {
+    if (!open || mode !== 'edit' || !form || !record || dirty) return
+    setValues(toEditValues(form, record))
+  }, [open, mode, form, record, dirty])
+
   const buildPayload = (): AppRecord | null =>
-    form ? buildRecordPayload(form, parseFormLayout(form).renderableFieldNames, values, setError) : null
+    form && !recordPending
+      ? buildRecordPayload(form, parseFormLayout(form).renderableFieldNames, values, setError)
+      : null
 
   const persistRecord = (payload: AppRecord) =>
     activeRecordId
@@ -233,6 +241,7 @@ export function AppRecordDrawer({
       const saved = await persistRecord(payload)
       const id = String(saved.id ?? '')
       if (!recordId && id) setActiveRecordId(id)
+      setRecord(saved)
       setDirty(false)
       setMode('view')
       message.success('保存成功')
@@ -320,7 +329,7 @@ export function AppRecordDrawer({
 
   const renderSubform = (item: AppFormItem) => {
     if (!form || !item.formName || !item.referenceField) return null
-    const interactive = mode !== 'view'
+    const interactive = mode !== 'view' && !recordPending
     return (
       <AppSubformRecords
         appId={appId}
@@ -358,7 +367,7 @@ export function AppRecordDrawer({
       <Button variant="secondary" disabled={approvalLocked} onClick={() => setDeleteOpen(true)}>
         <Trash2 className="h-4 w-4"/>删除
       </Button>
-      <Button disabled={approvalLocked} onClick={startEdit}>
+      <Button disabled={approvalLocked || recordPending} onClick={startEdit}>
         <Pencil className="h-4 w-4"/>编辑
       </Button>
       {approval.myTask && (
@@ -401,7 +410,7 @@ export function AppRecordDrawer({
       >
         取消
       </Button>
-      <Button onClick={save} disabled={isSubmitting || isStarting || approvalLocked}>
+      <Button onClick={save} disabled={isSubmitting || isStarting || approvalLocked || recordPending}>
         {isSubmitting ? '保存中…' : '保存'}
       </Button>
       {isCreate && flows.length > 0 && (
@@ -490,7 +499,7 @@ export function AppRecordDrawer({
                           value={values[field.name]}
                           options={field.options ?? []}
                           referenceOptions={referenceOptionsMap[field.name] ?? ([] as ReferenceOption[])}
-                          disabled={item.readonly || field.builtin}
+                          disabled={item.readonly || field.builtin || recordPending}
                           onChange={(value) => {
                             setValues((previous) => ({...previous, [field.name]: value}))
                             setDirty(true)
