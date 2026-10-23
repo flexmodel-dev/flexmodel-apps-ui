@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { cn } from '@/lib/utils'
+import {cn, isNotificationToastTarget} from '@/lib/utils'
 import { X } from 'lucide-react'
 import {Button} from '@/components/ui/button'
 
@@ -20,6 +20,11 @@ const DialogContent = React.forwardRef<
         className
       )}
       {...props}
+      onPointerDownOutside={event => {
+        props.onPointerDownOutside?.(event)
+        // 点击全局通知浮层不算点击对话框外部，避免误关对话框
+        if (isNotificationToastTarget(event.target)) event.preventDefault()
+      }}
     >
       {children}
       {!hideClose && (

@@ -41,3 +41,8 @@ export function findInTree<T extends { id: string; children?: T[] }>(nodes: T[],
   }
   return undefined
 }
+
+/** 判断事件目标是否位于全局通知浮层内，避免弹层将其误判为外部点击 */
+export function isNotificationToastTarget(target: EventTarget | null) {
+  return target instanceof Element && target.closest('[data-app-toast]') !== null
+}

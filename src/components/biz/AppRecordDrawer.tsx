@@ -56,6 +56,7 @@ export function AppRecordDrawer({
                                   formName,
                                   recordId,
                                   initialMode,
+                                  approvalInstanceId,
                                   onSaved,
                                   onDeleted,
                                   onOpenRecord,
@@ -66,6 +67,7 @@ export function AppRecordDrawer({
   formName: string
   recordId?: string | null
   initialMode?: 'view' | 'edit'
+  approvalInstanceId?: string | null
   onSaved?: (id: string) => void
   onDeleted?: () => void
   onOpenRecord?: (formName: string, recordId: string) => void
@@ -97,6 +99,7 @@ export function AppRecordDrawer({
     appId,
     formName,
     recordId: activeRecordId,
+    instanceId: approvalInstanceId,
     enabled: open && !isCreate && !!form && !form.builtin,
   })
   const decision = useApprovalDecision(appId, () => {
@@ -433,8 +436,8 @@ export function AppRecordDrawer({
           </Button>
         ) : undefined}
         footer={footer}
-        aside={mode === 'view' && !isCreate && !form?.builtin && approval.latestInstance ? (
-          <ApprovalProgressPanel appId={appId} instanceId={approval.latestInstance.id}/>
+        aside={mode === 'view' && !form?.builtin && approval.progressInstanceId ? (
+          <ApprovalProgressPanel appId={appId} instanceId={approval.progressInstanceId}/>
         ) : undefined}
         asideLabel="审批"
       >

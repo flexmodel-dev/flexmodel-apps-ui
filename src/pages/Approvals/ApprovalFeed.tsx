@@ -5,7 +5,7 @@ import {Button} from '@/components/ui/button'
 import {Pagination} from '@/components/biz/Pagination'
 import {SearchInput} from '@/components/biz/SearchInput'
 import {approvalStatus, getApprovalMemberNames, listPersonalApprovals, type ApprovalItem} from '@/services/approvals'
-import {ApprovalTaskDrawer} from './ApprovalTaskDrawer'
+import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
 import {cn, toErrorMessage} from '@/lib/utils'
 
 export function ApprovalFeed({appId, compact = false}: { appId?: string; compact?: boolean }) {
@@ -100,8 +100,17 @@ export function ApprovalFeed({appId, compact = false}: { appId?: string; compact
     {!compact &&
       <div className="border-t py-3"><Pagination page={page} pages={Math.max(1, Math.ceil(total / 30))} total={total}
                                                  size={30} onChange={setPage}/></div>}
-    {selected
-      ? <ApprovalTaskDrawer item={selected} onClose={() => setSelected(null)} onChanged={refresh}/>
-      : null}
+    {selected &&
+      <AppRecordDrawer
+        open
+        onOpenChange={(open) => {
+          if (!open) setSelected(null)
+        }}
+        appId={selected.appId}
+        formName={selected.formName}
+        recordId={selected.recordId}
+        approvalInstanceId={selected.id}
+        onSaved={refresh}
+      />}
   </div>
 }

@@ -50,11 +50,6 @@ export function AppRecordFormModal({
                                      renderSubform,
                                      designPath,
                                      onSaved,
-                                     title,
-                                     readOnly,
-                                     footer,
-                                     footerExtra,
-                                     aside,
                                    }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -68,11 +63,6 @@ export function AppRecordFormModal({
   renderSubform?: (item: AppFormItem) => React.ReactNode
   designPath?: string
   onSaved?: (id: string) => void
-  title?: React.ReactNode
-  readOnly?: boolean
-  footer?: React.ReactNode
-  footerExtra?: React.ReactNode
-  aside?: React.ReactNode
 }) {
   const navigate = useNavigate()
   const [values, setValues] = React.useState<AppRecord>({})
@@ -198,7 +188,6 @@ export function AppRecordFormModal({
         mainRecordId={effectiveRecordId}
         subform={{formName: item.formName, referenceField: item.referenceField}}
         onBeforeCreate={persistForSubform}
-        readOnly={readOnly}
       />
     )
   }
@@ -236,8 +225,8 @@ export function AppRecordFormModal({
       <BizDrawer
       open={open}
       onOpenChange={onOpenChange}
-      title={title ?? (effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`)}
-      headerExtra={!readOnly ? (
+      title={effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`}
+      headerExtra={
         <Button
           variant="ghost"
           size="icon"
@@ -251,10 +240,9 @@ export function AppRecordFormModal({
         >
           <Settings className="h-4 w-4"/>
         </Button>
-      ) : undefined}
-      footer={footer ?? (
+      }
+      footer={
         <>
-          {footerExtra && <div className="mr-auto flex items-center">{footerExtra}</div>}
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting || isStarting}>
             取消
           </Button>
@@ -265,8 +253,7 @@ export function AppRecordFormModal({
             </Button>
           )}
         </>
-      )}
-      aside={aside}
+      }
     >
         <div className="space-y-4">
         {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
@@ -297,7 +284,7 @@ export function AppRecordFormModal({
                         value={values[field.name]}
                         options={field.options ?? []}
                         referenceOptions={referenceOptionsMap[field.name] ?? []}
-                        disabled={readOnly || item.readonly || field.builtin}
+                        disabled={item.readonly || field.builtin}
                         onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
                       />
                     </div>

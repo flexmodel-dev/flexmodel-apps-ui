@@ -85,15 +85,16 @@ try {
   await page.goto(frontend + '/#/approval/home')
   await expect(page.getByRole('button').filter({hasText: flow.flow_name})).toBeVisible({timeout: 20000})
   await page.getByRole('button').filter({hasText: flow.flow_name}).click()
-  await expect(page.getByText('浏览器完整审批记录', {exact: true})).toBeVisible()
+  await expect(page.getByRole('heading', {name: '浏览器完整审批记录', exact: true})).toBeVisible()
+  await page.getByRole('button', {name: '同意', exact: true}).click()
   await page.getByRole('textbox', {name: '审批意见', exact: true}).fill('浏览器实际后端验收')
   await page.getByRole('dialog').evaluate(async element => {
     await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {
     })))
   })
   await page.screenshot({animations: 'disabled', path: resolve(projectRoot, 'artifacts/approvals-backend-signing.png')})
-  await page.getByRole('button', {name: '同意', exact: true}).click()
-  await expect(page.getByText('已通过', {exact: true})).toBeVisible({timeout: 20000})
+  await page.getByRole('button', {name: '确认同意', exact: true}).click()
+  await expect(page.getByRole('dialog').getByText('已通过', {exact: true}).first()).toBeVisible({timeout: 20000})
   await page.getByRole('button', {name: 'Close', exact: true}).count().then(async count => {
     if (count) await page.getByRole('button', {name: 'Close', exact: true}).click()
   })

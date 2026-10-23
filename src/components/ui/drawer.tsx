@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { cn } from '@/lib/utils'
+import {cn, isNotificationToastTarget} from '@/lib/utils'
 import {PanelRightClose, PanelRightOpen, X} from 'lucide-react'
 
 const Drawer = DialogPrimitive.Root
@@ -35,6 +35,11 @@ const DrawerContent = React.forwardRef<
         className,
       )}
       {...props}
+      onPointerDownOutside={event => {
+        props.onPointerDownOutside?.(event)
+        // 点击全局通知浮层不算点击抽屉外部，避免误关抽屉
+        if (isNotificationToastTarget(event.target)) event.preventDefault()
+      }}
     >
       {children}
       {!hideClose && (

@@ -13,8 +13,7 @@ import {
   readAllNotifications,
   type AppNotification
 } from '@/services/notifications'
-import {ApprovalTaskDrawer} from './Approvals/ApprovalTaskDrawer'
-import {getAuthSession} from '@/services/auth'
+import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
 import {message} from '@/components/ui/message'
 import {cn, toErrorMessage} from '@/lib/utils'
 
@@ -168,15 +167,18 @@ export default function Notifications() {
           <Button onClick={() => setShowApproval(true)}>查看审批</Button> : detail.instanceId ?
             <p className="text-xs text-muted-foreground">关联审批已不可用或暂无查看权限</p> : null}</div>}
       </DrawerContent></Drawer>
-      {showApproval && detail?.approval && (() => {
-        const actor = getAuthSession()?.user.id
-        const myTask = detail.approval.tasks.find(task => task.user_id === actor && task.status === 'PENDING')
-        return <ApprovalTaskDrawer
-          item={myTask ? {...detail.approval, taskId: myTask.id} : detail.approval}
-          onClose={() => setShowApproval(false)}
-          onChanged={reload}
-        />
-      })()}
+      {showApproval && detail?.approval &&
+        <AppRecordDrawer
+          open
+          onOpenChange={(open) => {
+            if (!open) setShowApproval(false)
+          }}
+          appId={detail.approval.appId}
+          formName={detail.approval.formName}
+          recordId={detail.approval.recordId}
+          approvalInstanceId={detail.approval.id}
+          onSaved={reload}
+        />}
     </div>
   </AppLayout>
 }

@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {createPortal} from 'react-dom'
 import {useNavigate} from 'react-router-dom'
 import {Bell, X} from 'lucide-react'
 import {clearAuthSession, getAuthSession} from '@/services/auth'
@@ -95,10 +96,13 @@ export function NotificationProvider({children}: { children: React.ReactNode }) 
     const timer = setTimeout(() => setToasts(current => current.slice(1)), 6000);
     return () => clearTimeout(timer)
   }, [toasts])
-  return <Context.Provider
-    value={{summary, recent, revision, status, error, refresh: () => refreshRef.current()}}>{children}
-    <div className="fixed right-4 top-20 z-[1200] flex w-[min(92vw,360px)] flex-col gap-2">{toasts.map(toast => <div
-      key={toast.id} role="status" className="flex items-start gap-3 rounded-lg border bg-card p-4 shadow-lg">
+  // 弹层（Drawer/Dialog）打开时 Radix 会给 body 设置 pointer-events: none，
+  // 因此浮层需通过 Portal 挂到 body 并显式恢复 pointer-events，才能保持可点击。
+  const toastLayer = <div
+    className="pointer-events-none fixed right-4 top-20 z-[1200] flex w-[min(92vw,360px)] flex-col gap-2">{toasts.map(toast =>
+    <div
+      key={toast.id} role="status" data-app-toast
+      className="pointer-events-auto flex items-start gap-3 rounded-lg border bg-card p-4 shadow-lg">
       <Bell className="mt-1 h-4 w-4 shrink-0 text-primary"/>
       <button className="min-w-0 flex-1 text-left" onClick={() => {
         navigate(`/notifications?open=${encodeURIComponent(toast.id)}`);
@@ -108,5 +112,8 @@ export function NotificationProvider({children}: { children: React.ReactNode }) 
       <button aria-label="关闭提醒" onClick={() => setToasts(current => current.filter(item => item.id !== toast.id))}>
         <X className="h-4 w-4 text-muted-foreground"/></button>
     </div>)}</div>
+  return <Context.Provider
+    value={{summary, recent, revision, status, error, refresh: () => refreshRef.current()}}>{children}
+    {createPortal(toastLayer, document.body)}
   </Context.Provider>
 }
