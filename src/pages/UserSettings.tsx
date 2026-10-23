@@ -120,7 +120,7 @@ export default function UserSettings() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout hideNavigation showBack>
       <div className="mx-auto w-full max-w-[960px]">
         <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
           <div className="p-4 md:p-6">
