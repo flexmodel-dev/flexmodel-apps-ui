@@ -37,6 +37,24 @@ export interface AppFormFieldOption {
   defaultSelected?: boolean
 }
 
+export interface AppFieldConfig {
+  defaultValue?: string | number | boolean | null
+  defaultNow?: boolean
+  creatable?: boolean
+  updatable?: boolean
+  commonValues?: string[]
+  maxLength?: number
+  pattern?: string
+  validationMessage?: string
+  allowNegative?: boolean
+  decimalPlaces?: number
+  thousandsSeparator?: boolean
+  prefix?: string
+  suffix?: string
+  dateFormat?: string
+  displayStyle?: 'DROPDOWN' | 'RADIO' | 'CHECKBOX'
+}
+
 export interface AppFormField {
   name: string
   label: string
@@ -47,6 +65,7 @@ export interface AppFormField {
   referenceForm?: string | null
   locked?: boolean
   extension?: boolean
+  config?: AppFieldConfig | null
 }
 
 export type AppViewFilterOperator =
@@ -130,6 +149,7 @@ export interface AppFormFieldInput {
   required: boolean
   options?: AppFormFieldOption[]
   referenceForm?: string
+  config?: AppFieldConfig
 }
 
 export interface AppFormFieldUpdateInput {
@@ -137,6 +157,7 @@ export interface AppFormFieldUpdateInput {
   required: boolean
   options?: AppFormFieldOption[]
   referenceForm?: string
+  config?: AppFieldConfig
 }
 
 export interface AppFormLayout {

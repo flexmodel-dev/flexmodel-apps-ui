@@ -28,6 +28,8 @@ import {
   type AppForm,
 } from '@/services/appForms'
 import {toErrorMessage} from '@/lib/utils'
+import {FieldConfigEditor} from '@/components/biz/FieldConfigEditor'
+import type {AppFieldConfig, AppFormFieldOption} from '@/services/appForms'
 
 const sections = {
   base: '基本信息',
@@ -70,6 +72,8 @@ interface FieldDraft {
   type: AppFormFieldType
   required: boolean
   referenceForm?: string
+  config?: AppFieldConfig
+  options?: AppFormFieldOption[]
 }
 
 export type FormSettingsSection = keyof typeof sections
@@ -191,6 +195,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
   const saveField = async () => {
     if (!fieldDraft || !fieldDraft.label.trim()) return
     if (fieldDraft.type === 'REFERENCE' && !fieldDraft.referenceForm) return
+    setError(null)
     setIsSubmitting(true)
     try {
       if (fieldDraft.name) {
@@ -198,6 +203,8 @@ export default function FormSettings({section}: { section: FormSettingsSection }
           label: fieldDraft.label.trim(),
           required: fieldDraft.required,
           referenceForm: fieldDraft.referenceForm,
+          config: fieldDraft.config ?? {},
+          options: fieldDraft.options,
         })
         setForm({
           ...form,
@@ -209,6 +216,8 @@ export default function FormSettings({section}: { section: FormSettingsSection }
           type: fieldDraft.type,
           required: fieldDraft.required,
           referenceForm: fieldDraft.referenceForm,
+          config: fieldDraft.config ?? {},
+          options: fieldDraft.options,
         })
         setForm({...form, fields: [...form.fields, createdField]})
       }
@@ -317,6 +326,8 @@ export default function FormSettings({section}: { section: FormSettingsSection }
                             type: field.type,
                             required: field.required,
                             referenceForm: field.referenceForm ?? undefined,
+                            config: field.config ?? {},
+                            options: field.options ?? undefined,
                           })}
                         >
                           编辑
@@ -428,6 +439,8 @@ export default function FormSettings({section}: { section: FormSettingsSection }
                   ...fieldDraft,
                   type: type as AppFormFieldType,
                   referenceForm: type === 'REFERENCE' ? fieldDraft.referenceForm : undefined,
+                  config: {},
+                  options: undefined,
                 })}
                 disabled={Boolean(fieldDraft.name)}
               >
@@ -473,6 +486,10 @@ export default function FormSettings({section}: { section: FormSettingsSection }
               />
               必填
             </label>
+            <FieldConfigEditor type={fieldDraft.type} config={fieldDraft.config} options={fieldDraft.options}
+              onChange={config => setFieldDraft({...fieldDraft, config})}
+              onOptionsChange={options => setFieldDraft({...fieldDraft, options})}/>
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           </div>
         )}
       </BizDialog>

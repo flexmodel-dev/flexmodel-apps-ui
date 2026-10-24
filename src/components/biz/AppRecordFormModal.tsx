@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {isFieldWritable} from '@/lib/fieldConfig'
 import {useNavigate} from 'react-router-dom'
 import {Info} from 'lucide-react'
 import {BizDrawer} from '@/components/ui/drawer'
@@ -133,7 +134,7 @@ export function AppRecordFormModal({
   }, [open])
 
   const buildPayload = (): AppRecord | null =>
-    buildRecordPayload(form, renderableFieldNames, values, setError)
+    buildRecordPayload(form, renderableFieldNames, values, setError, !recordId)
 
   const persistRecord = (payload: AppRecord) =>
     saveRecord
@@ -278,7 +279,7 @@ export function AppRecordFormModal({
                         value={values[field.name]}
                         options={field.options ?? []}
                         referenceOptions={referenceOptionsMap[field.name] ?? []}
-                        disabled={item.readonly || field.builtin}
+                        disabled={item.readonly || !isFieldWritable(field, !recordId)}
                         onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
                       />
                     </div>

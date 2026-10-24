@@ -1,4 +1,5 @@
 import {normalizePage, requestJson} from '@/services/http'
+import type {AppFieldConfig} from '@/services/appForms'
 
 export type SystemFormFieldType =
   | 'TEXT'
@@ -35,6 +36,7 @@ export interface SystemFormField {
   readonly: boolean
   options?: SystemFormFieldOption[] | null
   referenceForm?: string | null
+  config?: AppFieldConfig | null
 }
 
 export interface SystemFormItem {

@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {isFieldWritable} from '@/lib/fieldConfig'
 import {useNavigate} from 'react-router-dom'
 import {Check, Info, LockKeyhole, Pencil, Send, Trash2, X} from 'lucide-react'
 import {BizDrawer} from '@/components/ui/drawer'
@@ -189,7 +190,7 @@ export function AppRecordDrawer({
 
   const buildPayload = (): AppRecord | null =>
     form && !recordPending
-      ? buildRecordPayload(form, parseFormLayout(form).renderableFieldNames, values, setError)
+      ? buildRecordPayload(form, parseFormLayout(form).renderableFieldNames, values, setError, !activeRecordId)
       : null
 
   const persistRecord = (payload: AppRecord) =>
@@ -499,7 +500,7 @@ export function AppRecordDrawer({
                           value={values[field.name]}
                           options={field.options ?? []}
                           referenceOptions={referenceOptionsMap[field.name] ?? ([] as ReferenceOption[])}
-                          disabled={item.readonly || field.builtin || recordPending}
+                          disabled={item.readonly || !isFieldWritable(field, !activeRecordId) || recordPending}
                           onChange={(value) => {
                             setValues((previous) => ({...previous, [field.name]: value}))
                             setDirty(true)

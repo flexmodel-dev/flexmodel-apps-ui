@@ -1,4 +1,6 @@
 import * as React from 'react'
+import {FieldConfigEditor} from '@/components/biz/FieldConfigEditor'
+import type {AppFieldConfig, AppFormFieldOption} from '@/services/appForms'
 import {
   ArrowLeft,
   Check,
@@ -205,6 +207,10 @@ type FieldCreateDraft = {
   defaultLabel: string
   label: string
   remark: string
+  required?: boolean
+  config?: AppFieldConfig
+  options?: AppFormFieldOption[]
+  referenceForm?: string
 }
 
 type SubformDraft = {
@@ -477,7 +483,10 @@ export function FormDesigner({
       const createdField = await createAppFormField(appId, form.name, {
         label,
         type: creatingField.type as AppFormFieldType,
-        required: false,
+        required: creatingField.required ?? false,
+        config: creatingField.config ?? {},
+        options: creatingField.options,
+        referenceForm: creatingField.referenceForm,
       })
       const designField = {...createdField}
       const nextItems: AppFormItem[] = [
@@ -1213,6 +1222,20 @@ export function FormDesigner({
                   : previous)}
               />
             </div>
+            {creatingField.type === 'REFERENCE' && <label className="grid gap-1.5 text-sm text-foreground">
+              引用表单
+              <Select value={creatingField.referenceForm} onValueChange={referenceForm => setCreatingField({...creatingField, referenceForm})}>
+                <SelectTrigger><SelectValue placeholder="请选择引用表单"/></SelectTrigger>
+                <SelectContent>{availableForms.map(item => <SelectItem key={item.name} value={item.name}>{item.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </label>}
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <Checkbox checked={creatingField.required ?? false} onCheckedChange={required => setCreatingField({...creatingField, required: required === true})}/>必填
+            </label>
+            <FieldConfigEditor type={creatingField.type} config={creatingField.config} options={creatingField.options}
+              onChange={config => setCreatingField({...creatingField, config})}
+              onOptionsChange={options => setCreatingField({...creatingField, options})}/>
+            {fieldError && <p role="alert" className="text-sm text-destructive">{fieldError}</p>}
           </div>
         )}
       </BizDialog>

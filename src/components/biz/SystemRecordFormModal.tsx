@@ -59,6 +59,7 @@ function toAppForm(form: SystemForm): AppForm {
       referenceForm: field.referenceForm,
       locked: field.locked,
       extension: field.extension,
+      config: field.config,
     })),
     layout: {items: form.layout.items as AppForm['layout']['items']},
     viewTabs: [],

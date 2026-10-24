@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {formatFieldValue} from '@/lib/fieldConfig'
 import {useParams} from 'react-router-dom'
 import {
   ArrowDown,
@@ -501,21 +502,19 @@ export default function RecordList({formName}: { formName?: string }) {
       return <span className="text-muted-foreground">-</span>
     }
     if (['PICKLIST', 'SELECT', 'CLASSIFICATION'].includes(field.type)) {
-      const option = field.options?.find((item) => item.text === value)
+      const option = field.options?.find((item) => item.id === value || item.text === value)
       return (
         <span className="inline-flex items-center gap-1">
           <i
             className="inline-block h-2 w-2 rounded-full"
             style={{backgroundColor: option?.color ?? '#999'}}
           />
-          {String(value)}
+          {option?.text ?? String(value)}
         </span>
       )
     }
-    if (field.type === 'BOOL') return value === true ? '是' : '否'
-    if (field.type === 'NUMBER' || field.type === 'DECIMAL') return Number(value).toLocaleString()
     if (field.type === 'EMAIL') return <span className="text-primary">{String(value)}</span>
-    return String(value)
+    return formatFieldValue(field, value)
   }
 
   return (
