@@ -20,6 +20,7 @@ import {
 } from '@/data/mock'
 import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
 import {toErrorMessage} from '@/lib/utils'
+import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
 
 const settingsNavs = [
   { key: 'basic', label: '基本设置' },
@@ -28,6 +29,14 @@ const settingsNavs = [
   { key: 'approvals', label: '审批流程' },
   { key: 'triggers', label: '触发器' },
 ]
+
+const sectionDescriptions: Record<string, string> = {
+  basic: '管理应用信息、图标与主题。',
+  menus: '配置应用导航与页面入口。',
+  forms: '管理业务表单、字段及布局。',
+  approvals: '管理审批流程与流转规则。',
+  triggers: '管理数据自动化处理规则。',
+}
 
 export default function AppSettings({ section }: { section: string }) {
   const navigate = useNavigate()
@@ -85,21 +94,14 @@ export default function AppSettings({ section }: { section: string }) {
     }
   }, [appId])
 
-  if (isLoading) {
+  if (isLoading || !app) {
     return (
-      <AdminLayout>
-        <AppLoading center className="min-h-[400px]"/>
-      </AdminLayout>
-    )
-  }
-
-  if (!app) {
-    return (
-      <AdminLayout>
-        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-          应用不存在或已被删除。
-          {loadError ? <div className="mt-1 text-destructive" role="alert">{loadError}</div> : null}
-          <Link className="ml-1 text-primary hover:underline" to="/admin/apps">返回应用管理</Link>
+      <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
+          <SettingsPageHeader title="应用设置" onBack={() => navigate('/admin/apps')} backLabel="返回应用管理"/>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {isLoading ? <AppLoading center className="min-h-[240px]"/> : <Empty description={loadError ?? '应用不存在或已被删除。'}/>}
+          </div>
         </div>
       </AdminLayout>
     )
@@ -149,7 +151,7 @@ export default function AppSettings({ section }: { section: string }) {
   return (
       <AdminLayout noOuterScroll contentClassName="h-full">
       <div className="flex h-full min-h-0 flex-col gap-4 lg:flex-row">
-        <aside className="w-full shrink-0 rounded-xl border bg-card lg:w-56">
+        <aside className="w-full shrink-0 overflow-hidden rounded-xl border bg-card lg:w-56">
           <div className="border-b p-4">
             <div className="flex items-center gap-2">
               <Icon className="h-5 w-5 text-primary" />
@@ -162,6 +164,7 @@ export default function AppSettings({ section }: { section: string }) {
               <Link
                 key={item.key}
                 to={`/admin/apps/${app.id}/settings/${item.key}`}
+                aria-current={activeSection === item.key ? 'page' : undefined}
                 className={
                   activeSection === item.key
                     ? 'block whitespace-nowrap rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
@@ -175,16 +178,13 @@ export default function AppSettings({ section }: { section: string }) {
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-            <h4 className="m-0 text-base font-medium">
-              {settingsNavs.find((item) => item.key === activeSection)?.label}
-            </h4>
-            {activeSection === 'basic' && (
+          <SettingsPageHeader title={`${app.name} · ${settingsNavs.find(item => item.key === activeSection)?.label}`}
+            description={sectionDescriptions[activeSection]} onBack={() => navigate('/admin/apps')} backLabel="返回应用管理"
+            actions={activeSection === 'basic' && (
               <Button onClick={() => setFormOpen(true)}>
                 <Pencil className="h-4 w-4" /> 编辑应用
               </Button>
-            )}
-          </div>
+            )}/>
 
           <div
             className={activeSection === 'approvals' ? 'min-h-0 flex-1 overflow-hidden p-4' : 'min-h-0 flex-1 overflow-y-auto p-4'}

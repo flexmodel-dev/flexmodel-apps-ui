@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {Link, useNavigate, useParams} from 'react-router-dom'
+import {useNavigate, useParams} from 'react-router-dom'
 import {Pencil, Plus, Trash2} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import {Button} from '@/components/ui/button'
@@ -30,6 +30,9 @@ import {
 import {toErrorMessage} from '@/lib/utils'
 import {FieldConfigEditor} from '@/components/biz/FieldConfigEditor'
 import type {AppFieldConfig, AppFormFieldOption} from '@/services/appForms'
+import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
+import {FormSettingsNav, formSettingsBackPath} from '@/components/biz/FormSettingsNav'
+import {Checkbox} from '@/components/ui/checkbox'
 
 const sections = {
   base: '基本信息',
@@ -81,6 +84,8 @@ export type FormSettingsSection = keyof typeof sections
 export default function FormSettings({section}: { section: FormSettingsSection }) {
   const {appId = '', formName = ''} = useParams<{ appId: string; formName: string }>()
   const navigate = useNavigate()
+  const backPath = formSettingsBackPath(appId, formName)
+  const backLabel = appId === 'system' ? '返回系统管理' : '返回表单列表'
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -143,17 +148,16 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     }
   }, [appId])
 
-  if (isLoading) {
-    return <AdminLayout><AppLoading center className="min-h-[400px]"/></AdminLayout>
-  }
-
-  if (!form) {
+  if (isLoading || !form) {
     return (
-      <AdminLayout>
-        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-          {error ?? '表单不存在。'}
-          <Link className="ml-1 text-primary hover:underline"
-                to={`/admin/apps/${appId}/settings/forms`}>返回表单管理</Link>
+      <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
+          <SettingsPageHeader title={sections[section]} onBack={() => navigate(backPath)} backLabel={backLabel}>
+            <FormSettingsNav appId={appId} formName={formName} mobile/>
+          </SettingsPageHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {isLoading ? <AppLoading center className="min-h-[240px]"/> : <Empty description={error ?? '表单不存在。'}/>}
+          </div>
         </div>
       </AdminLayout>
     )
@@ -184,7 +188,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     try {
       await deleteAppForm(appId, form.name)
       setDeleteOpen(false)
-      navigate(`/admin/apps/${appId}/settings/forms`)
+      navigate(backPath)
     } catch (caught) {
       setError(toErrorMessage(caught, '删除表单失败'))
     } finally {
@@ -250,77 +254,70 @@ export default function FormSettings({section}: { section: FormSettingsSection }
   }
 
   return (
-    <AdminLayout>
-      <div className="mx-auto w-full max-w-5xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="m-0 text-xl font-semibold text-foreground">{form.label}</h1>
-              {form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">{sections[section]}</p>
-          </div>
-          <div className="flex gap-2">
+    <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
+        <SettingsPageHeader title={`${form.label} · ${sections[section]}`}
+          description={section === 'base' ? '管理表单信息与主显字段。' : '管理字段类型、默认值与校验规则。'}
+          onBack={() => navigate(backPath)} backLabel={backLabel}
+          badge={form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
+          actions={<>
             {section === 'base' && (
-              <>
-                <Button variant="secondary" onClick={() => setBaseOpen(true)}>
-                  <Pencil className="h-4 w-4"/> 编辑
-                </Button>
-                <Button variant="danger" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 className="h-4 w-4"/> 删除
-                </Button>
-              </>
+              <Button onClick={() => { setError(null); setBaseOpen(true) }}>
+                <Pencil className="h-4 w-4"/> 编辑信息
+              </Button>
             )}
             {section === 'fields' && (
-              <Button onClick={() => setFieldDraft({label: '', type: 'TEXT', required: false})}>
+              <Button onClick={() => { setError(null); setFieldDraft({label: '', type: 'TEXT', required: false}) }}>
                 <Plus className="h-4 w-4"/> 新建字段
               </Button>
             )}
-          </div>
-        </div>
-        <div className="mt-6 rounded-xl border bg-card">
+          </>}>
+          <FormSettingsNav appId={appId} formName={formName} mobile/>
+        </SettingsPageHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {section === 'base' ? (
-            <div className="grid gap-4 p-6 md:grid-cols-2">
-              <div>
-                <div className="text-xs text-muted-foreground">表单名称</div>
-                <div className="mt-1 text-sm font-medium">{form.label}</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">内部标识</div>
-                <div className="mt-1 text-sm font-medium">{form.name}</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">主显字段</div>
-                <div className="mt-1 text-sm font-medium">{form.displayField ?? '未设置'}</div>
-              </div>
-              <div className="md:col-span-2">
-                <div className="text-xs text-muted-foreground">描述</div>
-                <div className="mt-1 text-sm">{form.description || '暂无描述'}</div>
-              </div>
+            <div className="space-y-8 p-4 sm:p-6">
+              <section>
+                <h2 className="mb-5 text-sm font-semibold">表单信息</h2>
+                <dl className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+                  <div><dt className="text-xs text-muted-foreground">表单名称</dt><dd className="mt-2 break-words text-sm font-medium">{form.label}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">内部标识</dt><dd className="mt-2 break-all font-mono text-sm">{form.name}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">主显字段</dt><dd className="mt-2 text-sm">{form.fields.find(field => field.name === form.displayField)?.label ?? form.displayField ?? '未设置'}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">字段数量</dt><dd className="mt-2 text-sm">{form.fields.length} 个</dd></div>
+                  <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">描述</dt><dd className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{form.description || '暂无描述'}</dd></div>
+                </dl>
+              </section>
+              <section className="flex flex-wrap items-center justify-between gap-3 border-t pt-6">
+                <div><h2 className="text-sm font-medium">删除表单</h2><p className="mb-0 mt-1 text-xs text-muted-foreground">删除后，表单及其字段和记录将无法恢复。</p></div>
+                <Button variant="outline" className="text-destructive dark:text-destructive-foreground" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4"/>删除表单</Button>
+              </section>
             </div>
           ) : section === 'fields' ? (
-            form.fields.length ? (
-              <div className="divide-y">
+            <>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 border-b bg-muted/30 px-4 py-3 text-xs text-muted-foreground sm:px-6">
+                <span>{form.fields.length} 个字段</span><span>{form.fields.filter(field => !field.builtin).length} 个业务字段</span><span>{form.fields.filter(field => field.builtin).length} 个内置字段</span>
+              </div>
+              {form.fields.length ? <ul aria-label="字段列表" className="divide-y">
                 {[...form.fields].reverse().map((field) => (
-                  <div key={field.name} className="flex flex-wrap items-center gap-3 p-4">
+                  <li key={field.name} className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="truncate font-medium">{field.label}</span>
-                        {field.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
-                        {field.name === form.displayField && <Badge className="bg-primary/10 text-primary">名称</Badge>}
+                        <span className="truncate text-sm font-medium">{field.label}</span>
+                        {field.builtin && <Badge className="shrink-0 whitespace-nowrap bg-muted text-muted-foreground">内置</Badge>}
+                        {field.name === form.displayField && <Badge className="shrink-0 whitespace-nowrap bg-primary/10 text-primary">名称</Badge>}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {field.name} · {fieldTypeLabels[field.type] ?? field.type}
                         {field.referenceForm ? ` · 引用表单：${field.referenceForm}` : ''}
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">{field.required ? '必填' : '选填'}</span>
+                    <Badge className="shrink-0 whitespace-nowrap bg-muted text-muted-foreground">{field.required ? '必填' : '选填'}</Badge>
                     {!field.builtin && (
                       <div className="flex gap-2">
                         <Button
-                          variant="secondary"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => setFieldDraft({
+                          onClick={() => { setError(null); setFieldDraft({
                             name: field.name,
                             label: field.label,
                             type: field.type,
@@ -328,21 +325,19 @@ export default function FormSettings({section}: { section: FormSettingsSection }
                             referenceForm: field.referenceForm ?? undefined,
                             config: field.config ?? {},
                             options: field.options ?? undefined,
-                          })}
+                          }) }}
                         >
-                          编辑
+                          <Pencil className="h-3.5 w-3.5"/><span className="sr-only sm:not-sr-only">编辑</span>
                         </Button>
-                        <Button variant="danger" size="sm" onClick={() => setFieldDelete(field)}>
-                          删除
+                        <Button variant="ghost" size="sm" className="text-destructive dark:text-destructive-foreground" onClick={() => setFieldDelete(field)}>
+                          <Trash2 className="h-3.5 w-3.5"/><span className="sr-only sm:not-sr-only">删除</span>
                         </Button>
                       </div>
                     )}
-                  </div>
+                  </li>
                 ))}
-              </div>
-            ) : (
-              <Empty description="暂无字段"/>
-            )
+              </ul> : <Empty description="暂无字段，点击右上角新建字段开始配置。"/>}
+            </>
           ) : (
             <Empty description={`${sections[section]}功能开发中`}/>
           )}
@@ -479,10 +474,9 @@ export default function FormSettings({section}: { section: FormSettingsSection }
               </div>
             )}
             <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={fieldDraft.required}
-                onChange={(event) => setFieldDraft({...fieldDraft, required: event.target.checked})}
+                onCheckedChange={checked => setFieldDraft({...fieldDraft, required: checked === true})}
               />
               必填
             </label>

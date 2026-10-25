@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from 'react-router-dom'
-import { CirclePlus } from 'lucide-react'
+import {ChevronRight, Plus, Table2} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {BizDialog} from '@/components/ui/dialog'
@@ -9,6 +9,7 @@ import {AppLoading} from '@/components/biz/AppLoading'
 import {Empty} from '@/components/ui/empty'
 import {createAppForm, getAppForms, type AppForm} from '@/services/appForms'
 import {toErrorMessage} from '@/lib/utils'
+import {Checkbox} from '@/components/ui/checkbox'
 
 interface FormCreateDraft {
   label: string
@@ -76,42 +77,41 @@ export function FormManagementContent({appId}: { appId?: string }) {
   }
 
   return (
-    <div className="row -mx-2.5" id="businessObjectList">
-      <div className="new-business-object mb-5 w-full px-2.5">
-        <h3 className="mb-4 text-base font-normal text-muted-foreground">表单管理</h3>
+    <div className="space-y-4" id="businessObjectList">
+      <div>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="mb-0 text-xs text-muted-foreground">{isLoading ? '正在加载表单…' : `共 ${forms.length} 个表单`}</p>
+          <Button onClick={() => { setError(null); setCreateOpen(true) }}><Plus className="h-4 w-4"/>新建表单</Button>
+        </div>
         {isLoading ? (
           <AppLoading className="min-h-[160px]"/>
         ) : error ? (
           <Empty description={error}/>
         ) : (
-          <div className="grid grid-cols-2 gap-5 md:grid-cols-4 xl:grid-cols-6">
+          forms.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {forms.map((form) => (
               <Link
                 key={form.name}
                 to={`/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/${form.builtin ? 'form-design' : 'base'}`}
-                className="block rounded-md border bg-card transition-colors hover:bg-accent"
+                aria-label={form.label}
+                className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <div className="card-body p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{form.label}</span>
-                    {form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
+                <div className="flex items-start gap-3">
+                  <div className="rounded-md bg-muted p-2 text-muted-foreground"><Table2 className="h-5 w-5"/></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium">{form.label}</span>
+                      {form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
+                    </div>
+                    <p className="mb-0 mt-1 truncate font-mono text-xs text-muted-foreground">{form.name}</p>
                   </div>
-                  <p className="mb-0 mt-0.5 truncate text-xs text-muted-foreground">
-                    {form.description || form.name}
-                  </p>
+                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground"/>
                 </div>
+                <p className="mb-0 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">{form.description || '暂无描述'}</p>
+                <div className="mt-auto border-t pt-3 text-xs text-muted-foreground">{form.fields.length} 个字段</div>
               </Link>
             ))}
-            <a
-              className="block cursor-pointer rounded-md border border-dashed border-input transition-colors hover:border-primary"
-              onClick={() => setCreateOpen(true)}
-            >
-              <div className="card-body p-3 pt-1 text-center">
-                <CirclePlus className="h-6 w-6 text-primary"/>
-                <span className="mt-1 block text-xs text-muted-foreground">新建表单</span>
-              </div>
-            </a>
-          </div>
+          </div> : <Empty description="暂无表单，点击新建表单开始配置。"/>
         )}
       </div>
       <BizDialog
@@ -158,13 +158,13 @@ export function FormManagementContent({appId}: { appId?: string }) {
             />
           </div>
           <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={createDraft.createDisplayField}
-              onChange={(event) => setCreateDraft({...createDraft, createDisplayField: event.target.checked})}
+              onCheckedChange={checked => setCreateDraft({...createDraft, createDisplayField: checked === true})}
             />
             创建主显字段
           </label>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </div>
       </BizDialog>
     </div>

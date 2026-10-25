@@ -1,8 +1,9 @@
 import * as React from 'react'
 import {FieldConfigEditor} from '@/components/biz/FieldConfigEditor'
 import type {AppFieldConfig, AppFormFieldOption} from '@/services/appForms'
+import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
+import {FormSettingsNav} from '@/components/biz/FormSettingsNav'
 import {
-  ArrowLeft,
   Check,
   Columns2,
   Columns3,
@@ -173,6 +174,7 @@ interface FormDesignerProps {
   appId: string
   initialForm: AppForm
   onBack: () => void
+  backLabel?: string
   onFormChange: (form: AppForm) => void
 }
 
@@ -302,6 +304,7 @@ export function FormDesigner({
                                appId,
                                initialForm,
                                onBack,
+                               backLabel = '返回表单列表',
                                onFormChange,
                              }: FormDesignerProps) {
   const [form, setForm] = React.useState<DesignForm>(() => toDesignForm(initialForm))
@@ -828,30 +831,11 @@ export function FormDesigner({
   const subformReferenceFields = selectedSubformForm?.fields.filter((field) => !field.builtin) ?? []
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card text-card-foreground shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={onBack}
-            title="返回"
-          >
-            <ArrowLeft className="h-4 w-4"/>
-          </Button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="m-0 truncate text-lg font-semibold">
-                {form.label} · 表单设计
-              </h1>
-            </div>
-            <p className="mb-0 mt-0.5 truncate text-xs text-muted-foreground">
-              {form.description || `${form.label} 的表单布局配置`}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
+      <SettingsPageHeader title={`${form.label} · 表单设计`}
+        description="调整字段布局、填写提示与显示方式。"
+        onBack={onBack} backLabel={backLabel}
+        actions={<>
           {saved && (
             <span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
                 <Check className="h-4 w-4"/> 已保存
@@ -883,8 +867,9 @@ export function FormDesigner({
           {layoutError && (
             <span className="text-sm text-destructive">{layoutError}</span>
           )}
-        </div>
-      </div>
+        </>}>
+        <FormSettingsNav appId={appId} formName={form.name} mobile/>
+      </SettingsPageHeader>
 
       <Tabs defaultValue="layout" className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between px-4 pt-3">
@@ -892,13 +877,13 @@ export function FormDesigner({
             <TabsTrigger value="layout">表单布局</TabsTrigger>
             <TabsTrigger value="display-controls">显示控制</TabsTrigger>
           </TabsList>
-          <span className="hidden text-xs text-muted-foreground md:block">
+          <span className="hidden text-xs text-muted-foreground xl:block">
               拖动字段调整顺序和位置，点击右侧字段添加到布局
             </span>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 xl:flex-row xl:overflow-hidden">
+          <div className="flex h-72 min-w-0 shrink-0 flex-col xl:h-auto xl:min-h-0 xl:flex-1">
             <TabsContent
               value="layout"
               data-form-designer-canvas
@@ -1111,7 +1096,7 @@ export function FormDesigner({
           </div>
 
           <aside
-            className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-xl border bg-card lg:w-[320px]">
+            className="flex h-64 w-full shrink-0 flex-col overflow-hidden rounded-lg border bg-card xl:h-auto xl:w-[280px]">
             <Tabs defaultValue="field-list" className="flex min-h-0 flex-1 flex-col">
               <div className="border-b px-3 pt-3">
                 <TabsList className="grid h-9 w-full grid-cols-2 bg-muted/70">

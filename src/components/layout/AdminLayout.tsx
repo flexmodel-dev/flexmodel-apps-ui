@@ -1,11 +1,12 @@
 import * as React from 'react'
-import {Link, useLocation} from 'react-router-dom'
+import {useLocation, useParams} from 'react-router-dom'
 import {cn} from '@/lib/utils'
 import {topNavs} from '@/data/mock'
 import {AdminTopHeader} from './AdminTopHeader'
 import {AdminLeftSidebar, adminNavs} from './AdminLeftSidebar'
 import {MenuEditorDialog} from './MenuEditorDialog'
 import {getAppForm} from '@/services/appForms'
+import {FormSettingsNav} from '@/components/biz/FormSettingsNav'
 
 export function AdminLayout({
                               children,
@@ -21,14 +22,15 @@ export function AdminLayout({
   hideHeader?: boolean
 }) {
   const location = useLocation()
+  const params = useParams<{appId: string; formName: string}>()
   const [collapsed, setCollapsed] = React.useState(false)
   const [activeTopId, setActiveTopId] = React.useState(topNavs[0].id)
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
 
   const showFormSidebar = /^\/admin\/apps\/[^/]+\/forms\//.test(location.pathname)
   const currentFormMatch = location.pathname.match(/^\/admin\/apps\/([^/]+)\/forms\/([^/]+)/)
-  const currentAppId = currentFormMatch?.[1] ?? ''
-  const currentFormName = currentFormMatch?.[2] ?? ''
+  const currentAppId = currentFormMatch ? params.appId ?? currentFormMatch[1] : ''
+  const currentFormName = currentFormMatch ? params.formName ?? currentFormMatch[2] : ''
   const [currentFormLabel, setCurrentFormLabel] = React.useState(currentFormName)
 
   React.useEffect(() => {
@@ -100,43 +102,19 @@ export function AdminLayout({
       {showFormSidebar && (
         <aside
           className={cn(
-            'fixed top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 border-r bg-background md:block',
-            collapsed ? 'left-16' : 'left-64',
+            'fixed bottom-6 top-[5.5rem] z-30 hidden w-56 overflow-hidden rounded-xl border bg-card lg:block',
+            collapsed ? 'left-[5.5rem]' : 'left-[17.5rem]',
           )}
         >
           <div className="flex h-full flex-col">
-            <div className="border-b px-4 py-4">
-              <div className="text-xl font-semibold text-foreground">
+            <div className="border-b p-4">
+              <p className="mb-1 text-xs text-muted-foreground">表单设置</p>
+              <div className="truncate text-base font-semibold text-foreground" title={currentFormLabel}>
                 {currentFormLabel}
               </div>
+              <p className="mb-0 mt-1 truncate font-mono text-xs text-muted-foreground">{currentFormName}</p>
             </div>
-            <nav className="min-h-0 flex-1 overflow-y-auto p-3">
-              <ul className="space-y-1">
-                {[
-                  {key: 'base', label: '基本信息', to: `/admin/apps/${currentAppId}/forms/${currentFormName}/base`},
-                  {
-                    key: 'form-design',
-                    label: '表单设计',
-                    to: `/admin/apps/${currentAppId}/forms/${currentFormName}/form-design`
-                  },
-                  {key: 'fields', label: '字段管理', to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`},
-                ].map((item) => (
-                  <li key={item.key}>
-                    <Link
-                      to={item.to}
-                      className={cn(
-                        'block rounded-md px-3 py-2 text-sm transition-colors',
-                        location.pathname === item.to
-                          ? 'bg-primary/10 font-medium text-primary'
-                          : 'text-muted-foreground hover:bg-primary/10 hover:text-primary',
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+            <FormSettingsNav appId={currentAppId} formName={currentFormName}/>
           </div>
         </aside>
       )}
@@ -150,8 +128,8 @@ export function AdminLayout({
             ? ''
             : showFormSidebar
               ? collapsed
-                ? 'md:ml-[20rem]'
-                : 'md:ml-[32rem]'
+                ? 'md:ml-16 lg:ml-[19rem]'
+                : 'md:ml-64 lg:ml-[31rem]'
               : collapsed
                 ? 'md:ml-16'
                 : 'md:ml-64',
