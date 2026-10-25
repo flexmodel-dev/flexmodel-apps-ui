@@ -59,11 +59,13 @@ import {
   getAppForms,
   getAppForm,
   saveAppFormLayout,
+  updateAppFormField,
   type AppFormField,
   type AppFormFieldType,
   type AppForm,
   type AppFormLayout,
   type AppFormItem,
+  type AppFormFieldUpdateInput,
 } from '@/services/appForms'
 import {
   formItemWidthTypeClasses,
@@ -194,13 +196,12 @@ function toDesignForm(form: AppForm): DesignForm {
 }
 
 type EditingItem = {
-  kind: 'field' | 'section'
   index: number
   label: string
   tip: string
   readonly: boolean
   hidden: boolean
-}
+} & ({kind: 'section'} | {kind: 'field'; field: AppFormField; properties: AppFormFieldUpdateInput})
 
 type FieldCreateDraft = {
   type: string
@@ -318,6 +319,8 @@ export function FormDesigner({
   const [subformError, setSubformError] = React.useState<string | null>(null)
   const [isSavingSubform, setIsSavingSubform] = React.useState(false)
   const [editingItem, setEditingItem] = React.useState<EditingItem | null>(null)
+  const [isSavingItem, setIsSavingItem] = React.useState(false)
+  const [editError, setEditError] = React.useState<string | null>(null)
   const [creatingField, setCreatingField] = React.useState<FieldCreateDraft | null>(null)
   const [fieldError, setFieldError] = React.useState<string | null>(null)
   const [resizing, setResizing] = React.useState<{
@@ -632,18 +635,28 @@ export function FormDesigner({
     )
     if (!entry) return
     const item = entry.item
+    setEditError(null)
     setEditingItem({
       kind: 'field',
       index,
-      label: item.label?.trim() || entry.field.label,
+      label: item.label || '',
       tip: item.tip || '',
       readonly: item.readonly ?? false,
       hidden: item.hidden ?? false,
+      field: entry.field,
+      properties: {
+        label: entry.field.label,
+        required: entry.field.required,
+        options: entry.field.options ?? undefined,
+        referenceForm: entry.field.referenceForm ?? undefined,
+        config: entry.field.config ?? {},
+      },
     })
   }
   const openSectionEdit = (index: number) => {
     const item = items[index]
     if (!item || item.type !== 'SECTION') return
+    setEditError(null)
     setEditingItem({
       kind: 'section',
       index,
@@ -653,10 +666,15 @@ export function FormDesigner({
       hidden: false,
     })
   }
-  const saveEditingItem = () => {
-    if (!editingItem) return
+  const updateEditingProperties = (properties: Partial<AppFormFieldUpdateInput>) => {
+    setEditingItem(previous => previous?.kind === 'field'
+      ? {...previous, properties: {...previous.properties, ...properties}}
+      : previous)
+  }
+  const saveEditingItem = async () => {
+    if (!editingItem || isSavingItem) return
     const label = editingItem.label.trim()
-    setItems((previous) => previous.map((item, index) => index === editingItem.index
+    const nextItems = items.map((item, index) => index === editingItem.index
       ? editingItem.kind === 'section'
         ? {...item, label: label || undefined}
         : {
@@ -666,8 +684,44 @@ export function FormDesigner({
           readonly: editingItem.readonly,
           hidden: editingItem.hidden,
         }
-      : item))
-    setEditingItem(null)
+      : item)
+    if (editingItem.kind === 'section') {
+      setItems(nextItems)
+      setSaved(false)
+      setEditingItem(null)
+      return
+    }
+    const {field, properties} = editingItem
+    if (!properties.label.trim()) {
+      setEditError('字段名称不能为空')
+      return
+    }
+    const changed = properties.label.trim() !== field.label || properties.required !== field.required
+      || properties.referenceForm !== (field.referenceForm ?? undefined)
+      || JSON.stringify(properties.options ?? []) !== JSON.stringify(field.options ?? [])
+      || JSON.stringify(properties.config ?? {}) !== JSON.stringify(field.config ?? {})
+    setIsSavingItem(true)
+    setEditError(null)
+    try {
+      const updatedField = changed && !field.builtin && !field.locked
+        ? await updateAppFormField(appId, form.name, field.name, {...properties, label: properties.label.trim()})
+        : field
+      // 父组件会将结果作为 initialForm 回传，携带当前草稿可避免其重置未保存的布局。
+      const nextForm: AppForm = {
+        ...initialForm,
+        fields: form.fields.map(item => item.name === field.name ? updatedField : item),
+        layout: {items: nextItems},
+      }
+      setForm(toDesignForm(nextForm))
+      setItems(nextItems)
+      onFormChange(nextForm)
+      setSaved(false)
+      setEditingItem(null)
+    } catch (caught) {
+      setEditError(toErrorMessage(caught, '保存字段失败'))
+    } finally {
+      setIsSavingItem(false)
+    }
   }
   const startResize = (event: React.PointerEvent<HTMLElement>, index: number) => {
     const grid = event.currentTarget.closest('.grid') as HTMLElement | null
@@ -1126,35 +1180,50 @@ export function FormDesigner({
 
       <BizDialog
         open={Boolean(editingItem)}
-        onOpenChange={(open) => !open && setEditingItem(null)}
-        width={420}
+        onOpenChange={(open) => !open && !isSavingItem && setEditingItem(null)}
+        width={520}
         title={editingItem?.kind === 'section' ? '修改分栏' : '修改字段'}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditingItem(null)}>取消</Button>
-            <Button onClick={saveEditingItem}>保存</Button>
+            <Button variant="secondary" disabled={isSavingItem} onClick={() => setEditingItem(null)}>取消</Button>
+            <Button disabled={isSavingItem} onClick={saveEditingItem}>{isSavingItem ? '保存中…' : '保存'}</Button>
           </>
         }
       >
         {editingItem && (
-          <div className="space-y-4">
+          <fieldset disabled={isSavingItem} className="min-w-0 space-y-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
                 {editingItem.kind === 'section' ? '分栏名称' : '字段名称'}
               </label>
               <Input
-                value={editingItem.label}
+                aria-label={editingItem.kind === 'section' ? '分栏名称' : '字段名称'}
+                value={editingItem.kind === 'field' ? editingItem.properties.label : editingItem.label}
+                disabled={editingItem.kind === 'field' && (editingItem.field.builtin || editingItem.field.locked)}
                 maxLength={100}
-                onChange={(event) => setEditingItem((previous) => previous
-                  ? {...previous, label: event.target.value}
-                  : previous)}
+                onChange={(event) => editingItem.kind === 'field'
+                  ? updateEditingProperties({label: event.target.value})
+                  : setEditingItem(previous => previous ? {...previous, label: event.target.value} : previous)}
               />
             </div>
             {editingItem.kind === 'field' && (
               <>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="grid gap-1.5 text-sm text-foreground">字段类型
+                    <Input value={typeLabels[editingItem.field.type] ?? editingItem.field.type} disabled/>
+                  </label>
+                  <label className="grid gap-1.5 text-sm text-foreground">内部标识
+                    <Input value={editingItem.field.name} disabled/>
+                  </label>
+                </div>
+                <label className="grid gap-1.5 text-sm text-foreground">布局显示名称（可选）
+                  <Input value={editingItem.label} maxLength={100} placeholder={editingItem.properties.label}
+                    onChange={event => setEditingItem(previous => previous ? {...previous, label: event.target.value} : previous)}/>
+                </label>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">填写提示</label>
                   <Input
+                    aria-label="填写提示"
                     value={editingItem.tip}
                     maxLength={200}
                     placeholder="无"
@@ -1179,9 +1248,28 @@ export function FormDesigner({
                     </label>
                   ))}
                 </div>
+                {editingItem.field.builtin || editingItem.field.locked ? (
+                  <p className="text-xs text-muted-foreground">内置字段仅可调整布局显示名称、填写提示、只读和隐藏。</p>
+                ) : <>
+                  {editingItem.field.type === 'REFERENCE' && <label className="grid gap-1.5 text-sm text-foreground">引用表单
+                    <Select value={editingItem.properties.referenceForm} onValueChange={referenceForm => updateEditingProperties({referenceForm})}>
+                      <SelectTrigger><SelectValue placeholder="请选择引用表单"/></SelectTrigger>
+                      <SelectContent>{availableForms.map(item => <SelectItem key={item.name} value={item.name}>{item.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </label>}
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <Checkbox checked={editingItem.properties.required} onCheckedChange={required => updateEditingProperties({required: required === true})}/>必填
+                  </label>
+                  <FieldConfigEditor type={editingItem.field.type} config={editingItem.properties.config}
+                    options={editingItem.properties.options}
+                    onChange={config => updateEditingProperties({config})}
+                    onOptionsChange={options => updateEditingProperties({options})}/>
+                  <p className="text-xs text-muted-foreground">字段属性保存后立即生效；布局设置需点击设计器右上角“保存”。</p>
+                </>}
               </>
             )}
-          </div>
+            {editError && <p role="alert" className="text-sm text-destructive">{editError}</p>}
+          </fieldset>
         )}
       </BizDialog>
 

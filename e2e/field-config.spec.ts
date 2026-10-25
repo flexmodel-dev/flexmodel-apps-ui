@@ -4,7 +4,7 @@ const root = '/api/apps/field-config'
 const recordsPath = `${root}/forms/orders/records`
 const app = {id: 'field-config', name: '字段属性验证', enabled: true, primaryColor: 'blue'}
 
-async function setup(page: Page) {
+async function setup(page: Page, {failFirstFieldUpdate = false, builtin = false} = {}) {
   const pageErrors: string[] = []
   page.on('pageerror', error => pageErrors.push(error.message))
   const fields = [
@@ -18,7 +18,10 @@ async function setup(page: Page) {
   ]
   const form = {name: 'orders', label: '订单', displayField: 'title', builtin: false, managed: true,
     fields, layout: {items: fields.map(field => ({type: 'FIELD', name: field.name, width: 'HALF'}))}, viewTabs: []}
+  if (builtin) fields[1].builtin = true
   const writes: Record<string, unknown>[] = []
+  const fieldWrites: Record<string, unknown>[] = []
+  const layoutWrites: Record<string, unknown>[] = []
   let record: Record<string, unknown> = {id: 'order1', title: '已有订单', amount: 1234.5, tags: ['a'], day: '2026-10-24', approved: false}
   await page.addInitScript(() => {
     localStorage.setItem('flexmodel-apps.auth.token', 'field-config-test')
@@ -32,8 +35,19 @@ async function setup(page: Page) {
       const name = pathname.split('/').pop()
       const field = fields.find(field => field.name === name)!
       const input = route.request().postDataJSON()
+      fieldWrites.push(input)
+      if (failFirstFieldUpdate) {
+        failFirstFieldUpdate = false
+        return route.fulfill({status: 400, json: {message: '字段属性校验失败'}})
+      }
       Object.assign(field, input)
       return route.fulfill({json: field})
+    }
+    if (pathname === `${root}/forms/orders/layout` && method === 'PUT') {
+      const layout = route.request().postDataJSON()
+      layoutWrites.push(layout)
+      form.layout = layout
+      return route.fulfill({json: form})
     }
     if (pathname.startsWith(recordsPath)) {
       if (method === 'POST' || method === 'PUT') {
@@ -53,7 +67,7 @@ async function setup(page: Page) {
                 : pathname === '/api/notifications' ? {list: [], total: 0} : []
     return route.fulfill({json})
   })
-  return {form, writes, pageErrors}
+  return {form, writes, fieldWrites, layoutWrites, pageErrors}
 }
 
 test('字段管理保存并重新回填数值属性', async ({page}) => {
@@ -74,6 +88,87 @@ test('字段管理保存并重新回填数值属性', async ({page}) => {
   await expect(dialog.getByLabel('显示后缀')).toHaveValue('USD')
   await page.evaluate(() => document.documentElement.classList.add('dark'))
   await page.screenshot({path: 'artifacts/field-config-editor-dark.png', animations: 'disabled'})
+  expect(pageErrors).toEqual([])
+})
+
+async function editLayoutField(page: Page, index: number) {
+  const item = page.locator(`[data-layout-index="${index}"]`)
+  await item.hover()
+  await item.getByTitle('修改', {exact: true}).click()
+  return page.getByRole('dialog')
+}
+
+test('布局字段编辑保存完整属性并保留未保存分栏、显示名称和填写提示', async ({page}) => {
+  const {form, fieldWrites, layoutWrites, pageErrors} = await setup(page)
+  await page.goto('/#/admin/apps/field-config/forms/orders/form-design')
+  await page.getByRole('button', {name: '添加', exact: true}).click()
+  await page.getByRole('menuitem', {name: '分栏', exact: true}).click()
+  let dialog = await editLayoutField(page, 1)
+  await expect(dialog.getByLabel('默认值', {exact: true})).toHaveValue('0')
+  await expect(dialog.getByLabel('内部标识')).toHaveValue('amount')
+  await dialog.getByLabel('字段名称', {exact: true}).fill('订单金额')
+  await dialog.getByLabel('布局显示名称（可选）').fill('含税金额')
+  await dialog.getByLabel('填写提示', {exact: true}).fill('请核对发票')
+  await dialog.getByLabel('小数位数（0–6，留空不限制）').fill('4')
+  await dialog.getByRole('checkbox', {name: '必填', exact: true}).uncheck()
+  await dialog.getByRole('checkbox', {name: '只读', exact: true}).check()
+  await page.screenshot({path: 'artifacts/layout-field-config.png', animations: 'disabled'})
+  await dialog.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(dialog).not.toBeVisible()
+  expect(fieldWrites).toHaveLength(1)
+  expect(fieldWrites[0]).toMatchObject({label: '订单金额', required: false, config: {decimalPlaces: 4}})
+  expect(layoutWrites).toHaveLength(0)
+  await expect(page.locator('[data-layout-index]')).toHaveCount(6)
+  await expect(page.locator('[data-layout-index="1"]')).toContainText('含税金额')
+  dialog = await editLayoutField(page, 1)
+  await expect(dialog.getByLabel('字段名称', {exact: true})).toHaveValue('订单金额')
+  await expect(dialog.getByLabel('小数位数（0–6，留空不限制）')).toHaveValue('4')
+  await expect(dialog.getByLabel('填写提示', {exact: true})).toHaveValue('请核对发票')
+  await expect(dialog.getByRole('checkbox', {name: '只读', exact: true})).toBeChecked()
+  await dialog.getByLabel('小数位数（0–6，留空不限制）').fill('6')
+  await dialog.getByRole('button', {name: '取消', exact: true}).click()
+  expect(fieldWrites).toHaveLength(1)
+  await page.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(page.getByText('已保存', {exact: true})).toBeVisible()
+  expect(form.layout.items).toHaveLength(6)
+  expect(form.layout.items[1]).toMatchObject({label: '含税金额', tip: '请核对发票', readonly: true})
+  await page.reload()
+  dialog = await editLayoutField(page, 1)
+  await expect(dialog.getByLabel('小数位数（0–6，留空不限制）')).toHaveValue('4')
+  await page.evaluate(() => document.documentElement.classList.add('dark'))
+  await page.screenshot({path: 'artifacts/layout-field-config-dark.png', animations: 'disabled'})
+  expect(pageErrors).toEqual([])
+})
+
+test('布局字段保存失败保留草稿并允许重试，多选属性不会丢失', async ({page}) => {
+  const {form, fieldWrites, pageErrors} = await setup(page, {failFirstFieldUpdate: true})
+  await page.goto('/#/admin/apps/field-config/forms/orders/form-design')
+  const dialog = await editLayoutField(page, 2)
+  await expect(dialog.getByLabel('选项2文本')).toHaveValue('乙')
+  await dialog.getByLabel('选项2文本').fill('乙类')
+  await dialog.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(dialog.getByRole('alert')).toHaveText('字段属性校验失败')
+  await expect(dialog.getByLabel('选项2文本')).toHaveValue('乙类')
+  expect(form.fields[2].options?.[1].text).toBe('乙')
+  await dialog.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(dialog).not.toBeVisible()
+  expect(fieldWrites).toHaveLength(2)
+  expect(form.fields[2].options?.[1]).toMatchObject({id: 'b', text: '乙类', defaultSelected: true})
+  expect(form.fields[2].config).toMatchObject({displayStyle: 'DROPDOWN'})
+  expect(pageErrors).toEqual([])
+})
+
+test('内置字段仅编辑布局，不调用字段更新接口', async ({page}) => {
+  const {fieldWrites, pageErrors} = await setup(page, {builtin: true})
+  await page.goto('/#/admin/apps/field-config/forms/orders/form-design')
+  const dialog = await editLayoutField(page, 1)
+  await expect(dialog.getByLabel('字段名称', {exact: true})).toBeDisabled()
+  await expect(dialog.getByText('字段属性', {exact: true})).toHaveCount(0)
+  await dialog.getByLabel('布局显示名称（可选）').fill('内置金额')
+  await dialog.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(dialog).not.toBeVisible()
+  await expect(page.locator('[data-layout-index="1"]')).toContainText('内置金额')
+  expect(fieldWrites).toHaveLength(0)
   expect(pageErrors).toEqual([])
 })
 
