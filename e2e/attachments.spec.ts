@@ -226,7 +226,7 @@ test('子表新增复用上传控件，使用子表标识作为上传目录', as
   expect(errors).toEqual([])
 })
 
-test('列表附件展示缩略图、文件名和数量，按需预览下载且不误开记录', async ({page}) => {
+test('列表附件以气泡框展示文件，支持预览下载、关闭和键盘操作且不误开记录', async ({page}) => {
   const urls = [image.name, pdf.name, zip.name, '业务附件.docx'].map(name =>
     `${objectPrefix}12345678-1234-1234-1234-123456789abc_${encodeURIComponent(name)}?version=existing`)
   const {reads, errors} = await setup(page, {initialFiles: urls.join(',')})
@@ -244,12 +244,22 @@ test('列表附件展示缩略图、文件名和数量，按需预览下载且�
   const files = page.getByRole('dialog', {name: '附件（4）', exact: true})
   await expect(files).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(1)
+  await expect(page.getByRole('heading', {name: '订单', exact: true})).toBeVisible()
+  const position = (await files.boundingBox())!
+  const anchor = (await cell.boundingBox())!
+  expect(position.x).toBeCloseTo(anchor.x, 0)
+  expect(position.y).toBeGreaterThanOrEqual(anchor.y + anchor.height)
+  await page.screenshot({path: 'artifacts/attachment-popover-light.png', animations: 'disabled'})
   await expect(files.getByText('业务附件.docx', {exact: true})).toBeVisible()
   await expect(files.getByRole('button', {name: /^移除 /})).toHaveCount(0)
   await files.getByRole('button', {name: '预览 图,片.png', exact: true}).click()
   await expect(page.getByRole('dialog', {name: '图,片.png', exact: true}).getByRole('img')).toHaveJSProperty('naturalWidth', 100)
-  await expect(page.getByRole('dialog', {includeHidden: true})).toHaveCount(2)
+  await expect(files).not.toBeVisible()
+  await expect(page.getByRole('dialog', {includeHidden: true})).toHaveCount(1)
   await page.keyboard.press('Escape')
+  await expect(cell).toBeFocused()
+  await cell.click()
+  await expect(files).toBeVisible()
   const downloadEvent = page.waitForEvent('download')
   await files.getByRole('button', {name: '下载 资料.zip', exact: true}).click()
   const download = await downloadEvent
@@ -258,15 +268,25 @@ test('列表附件展示缩略图、文件名和数量，按需预览下载且�
   await expect(page.getByRole('dialog')).toHaveCount(1)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(cell).toBeFocused()
+  await cell.click()
+  await files.getByRole('button', {name: '关闭附件列表', exact: true}).click()
+  await expect(files).not.toBeVisible()
+  await cell.click()
+  await page.getByRole('heading', {name: '订单', exact: true}).click()
+  await expect(files).not.toBeVisible()
   await page.evaluate(() => document.documentElement.classList.add('dark'))
-  await page.screenshot({path: 'artifacts/attachment-list-dark.png', animations: 'disabled'})
+  await cell.click()
+  await expect(files).toBeVisible()
+  await page.screenshot({path: 'artifacts/attachment-popover-dark.png', animations: 'disabled'})
+  await page.keyboard.press('Escape')
   await row.getByText('附件订单', {exact: true}).click()
   await expect(page.getByRole('dialog', {name: '附件订单', exact: true})).toBeVisible()
   expect(reads.every(read => read.auth === 'Bearer attachment-test')).toBe(true)
   expect(errors).toEqual([])
 })
 
-test('子表列表附件同样紧凑，长文件名和手机视口不撑宽页面', async ({page}) => {
+test('子表附件气泡框显示在抽屉之上，长文件名和手机视口不撑宽页面', async ({page}) => {
   const filename = `项目附件_${'long_filename_'.repeat(12)}.png`
   const urls = [filename, pdf.name].map(name => `${objectPrefix}12345678-1234-1234-1234-123456789abc_${encodeURIComponent(name)}`)
   const {errors} = await setup(page, {subform: true, initialFiles: urls.join(',')})
@@ -285,7 +305,11 @@ test('子表列表附件同样紧凑，长文件名和手机视口不撑宽页�
   await expect(page.getByRole('dialog', {includeHidden: true})).toHaveCount(2)
   await page.setViewportSize({width: 375, height: 900})
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
-  await page.screenshot({path: 'artifacts/attachment-list-mobile.png', animations: 'disabled'})
+  const popup = (await page.getByRole('dialog', {name: '附件（2）', exact: true}).boundingBox())!
+  expect(popup.x).toBeGreaterThanOrEqual(16)
+  expect(popup.x + popup.width).toBeLessThanOrEqual(359)
+  expect(popup.y + popup.height).toBeLessThanOrEqual(900)
+  await page.screenshot({path: 'artifacts/attachment-popover-mobile.png', animations: 'disabled'})
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog', {name: '编辑订单', exact: true})).toBeVisible()
   expect(errors).toEqual([])

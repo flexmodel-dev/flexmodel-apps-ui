@@ -2,6 +2,7 @@ import * as React from 'react'
 import {Download, FileIcon, Loader2, Paperclip, X} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {BizDialog} from '@/components/ui/dialog'
+import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {attachmentName, attachmentPreviewType, attachmentUrls, isAttachmentUrl} from '@/lib/attachments'
 import {toErrorMessage} from '@/lib/utils'
 import {loadAttachment, uploadAttachment} from '@/services/attachments'
@@ -51,7 +52,11 @@ function AttachmentPreview({url, onClose}: {url: string; onClose: () => void}) {
   </BizDialog>
 }
 
-export function AttachmentList({value, onRemove}: {value: unknown; onRemove?: (url: string) => void}) {
+export function AttachmentList({value, onRemove, onPreview}: {
+  value: unknown;
+  onRemove?: (url: string) => void;
+  onPreview?: (url: string) => void
+}) {
   const urls = attachmentUrls(value)
   const [preview, setPreview] = React.useState<string | null>(null)
   const [downloading, setDownloading] = React.useState<string | null>(null)
@@ -76,7 +81,10 @@ export function AttachmentList({value, onRemove}: {value: unknown; onRemove?: (u
       <AttachmentThumbnail url={url}/>
       <span className="min-w-0 flex-1 truncate" title={attachmentName(url)}>{attachmentName(url)}</span>
       {isAttachmentUrl(url) && <>
-        {attachmentPreviewType(url) && <Button type="button" size="sm" variant="ghost" onClick={() => {setError(''); setPreview(url)}} aria-label={`预览 ${attachmentName(url)}`}>预览</Button>}
+        {attachmentPreviewType(url) && <Button type="button" size="sm" variant="ghost" onClick={() => {
+          setError('');
+          if (onPreview) onPreview(url); else setPreview(url)
+        }} aria-label={`预览 ${attachmentName(url)}`}>预览</Button>}
         <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0" disabled={!!downloading}
                 aria-label={`下载 ${attachmentName(url)}`} onClick={() => void download(url)}>
           {downloading === url ? <Loader2 className="h-4 w-4 animate-spin"/> : <Download className="h-4 w-4"/>}
@@ -94,20 +102,43 @@ export function AttachmentList({value, onRemove}: {value: unknown; onRemove?: (u
 export function AttachmentCell({value}: {value: unknown}) {
   const urls = attachmentUrls(value)
   const [open, setOpen] = React.useState(false)
+  const [preview, setPreview] = React.useState<string | null>(null)
+  const trigger = React.useRef<HTMLButtonElement>(null)
   if (!urls.length) return <span className="text-muted-foreground">-</span>
   const name = attachmentName(urls[0])
   return <div onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
-    <button type="button" onClick={() => setOpen(true)}
-            className="flex h-7 w-full min-w-0 max-w-60 items-center gap-2 rounded-sm text-left text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`查看附件：${name}${urls.length > 1 ? `等${urls.length}个文件` : ''}`}
-            title={urls.map(attachmentName).join('\n')}>
-      <AttachmentThumbnail url={urls[0]} compact/>
-      <span className="min-w-0 flex-1 truncate">{name}</span>
-      {urls.length > 1 && <span className="shrink-0 rounded bg-muted px-1.5 text-xs text-muted-foreground">+{urls.length - 1}</span>}
-    </button>
-    <BizDialog open={open} onOpenChange={setOpen} title={`附件（${urls.length}）`} width={640}>
-      <AttachmentList value={value}/>
-    </BizDialog>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button ref={trigger} type="button"
+                className="flex h-7 w-full min-w-0 max-w-60 items-center gap-2 rounded-sm text-left text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`查看附件：${name}${urls.length > 1 ? `等${urls.length}个文件` : ''}`}
+                title={urls.map(attachmentName).join('\n')}>
+          <AttachmentThumbnail url={urls[0]} compact/>
+          <span className="min-w-0 flex-1 truncate">{name}</span>
+          {urls.length > 1 &&
+            <span className="shrink-0 rounded bg-muted px-1.5 text-xs text-muted-foreground">+{urls.length - 1}</span>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" sideOffset={6} collisionPadding={16} aria-label={`附件（${urls.length}）`}
+                      className="z-[1100] w-[360px] max-w-[calc(100vw-2rem)] max-h-[min(24rem,var(--radix-popover-content-available-height))] overflow-y-auto p-3"
+                      onCloseAutoFocus={event => {
+                        if (preview) event.preventDefault()
+                      }}>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-sm font-medium">附件（{urls.length}）</span>
+          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" aria-label="关闭附件列表"
+                  onClick={() => setOpen(false)}><X className="h-4 w-4"/></Button>
+        </div>
+        <AttachmentList value={value} onPreview={url => {
+          setOpen(false);
+          setPreview(url)
+        }}/>
+      </PopoverContent>
+    </Popover>
+    {preview && <AttachmentPreview url={preview} onClose={() => {
+      setPreview(null)
+      requestAnimationFrame(() => trigger.current?.focus())
+    }}/>}
   </div>
 }
 
