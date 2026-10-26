@@ -305,6 +305,10 @@ test('子表附件气泡框显示在抽屉之上，长文件名和手机视口�
   await expect(page.getByRole('dialog', {includeHidden: true})).toHaveCount(2)
   await page.setViewportSize({width: 375, height: 900})
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
+  await expect.poll(async () => {
+    const bounds = await page.getByRole('dialog', {name: '附件（2）', exact: true}).boundingBox()
+    return !!bounds && bounds.x >= 16 && bounds.x + bounds.width <= 359 && bounds.y + bounds.height <= 900
+  }).toBe(true)
   const popup = (await page.getByRole('dialog', {name: '附件（2）', exact: true}).boundingBox())!
   expect(popup.x).toBeGreaterThanOrEqual(16)
   expect(popup.x + popup.width).toBeLessThanOrEqual(359)
