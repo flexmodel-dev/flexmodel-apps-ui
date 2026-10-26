@@ -25,7 +25,7 @@ export function InstanceDrawer({item, onClose, onChanged}: {
   const [child, setChild] = React.useState<ApprovalItem | null>(null)
   const [busy, setBusy] = React.useState(false)
   const actor = getAuthSession()?.user.id
-  const {detail, names, error, load} = useApprovalDetail(item?.appId ?? '', item?.id, 2500)
+  const {detail, names, avatars, error, load} = useApprovalDetail(item?.appId ?? '', item?.id, 2500)
   const decision = useApprovalDecision(item?.appId ?? '', async () => {
     await load()
     onChanged?.()
@@ -97,7 +97,8 @@ export function InstanceDrawer({item, onClose, onChanged}: {
             </div>)}</div>
         </section>
         <section className="space-y-3"><h3 className="text-sm font-medium">签核进度</h3>
-          <ApprovalTimeline detail={detail} names={names} upcoming={detail.upcoming ?? []} ending={detail.ending}/>
+          <ApprovalTimeline detail={detail} names={names} avatars={avatars} upcoming={detail.upcoming ?? []}
+                            ending={detail.ending}/>
         </section>
         {!!detail.children.length &&
           <section className="space-y-2"><h3 className="text-sm font-medium">子流程</h3>{detail.children.map(child =>

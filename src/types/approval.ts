@@ -114,6 +114,7 @@ export interface ApprovalFlow {
 }
 
 export interface ApprovalMember {
+  avatar?: string | null
   roleIds?: string[]
   organizationIds?: string[]
   id: string

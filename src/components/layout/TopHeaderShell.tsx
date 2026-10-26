@@ -46,6 +46,15 @@ function TopHeaderShell({
 }) {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
   const [authUser, setAuthUser] = React.useState(() => getAuthSession()?.user ?? null)
+  React.useEffect(() => {
+    const syncUser = () => setAuthUser(getAuthSession()?.user ?? null)
+    window.addEventListener('auth-user-updated', syncUser)
+    window.addEventListener('storage', syncUser)
+    return () => {
+      window.removeEventListener('auth-user-updated', syncUser)
+      window.removeEventListener('storage', syncUser)
+    }
+  }, [])
   const LogoIcon = logoIcon
   const [isDark, setIsDark] = useDarkMode()
 
@@ -161,7 +170,7 @@ function TopHeaderShell({
                   'dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white',
                 )}
               >
-                <UserAvatar name={authUser?.name ?? '未登录'} size={30}/>
+                <UserAvatar name={authUser?.name ?? '未登录'} src={authUser?.avatar} size={30}/>
                 <span className="hidden text-sm md:inline">{authUser?.name ?? '未登录'}</span>
               </button>
             </DropdownMenuTrigger>

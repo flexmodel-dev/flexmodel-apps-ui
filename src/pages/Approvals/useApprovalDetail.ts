@@ -1,5 +1,6 @@
 import * as React from 'react'
-import {getApprovalDetail, getApprovalMemberNames, type ApprovalDetail} from '@/services/approvals'
+import {getApprovalDetail, getApprovalMembers, type ApprovalDetail} from '@/services/approvals'
+import type {ApprovalMember} from '@/types/approval'
 import {toErrorMessage} from '@/lib/utils'
 
 /**
@@ -8,7 +9,9 @@ import {toErrorMessage} from '@/lib/utils'
  */
 export function useApprovalDetail(appId: string, instanceId: string | undefined, intervalMs = 3000) {
   const [detail, setDetail] = React.useState<ApprovalDetail | null>(null)
-  const [names, setNames] = React.useState<Record<string, string>>({})
+  const [members, setMembers] = React.useState<Record<string, ApprovalMember>>({})
+  const names = React.useMemo(() => Object.fromEntries(Object.values(members).map(member => [member.id, member.name])), [members])
+  const avatars = React.useMemo(() => Object.fromEntries(Object.values(members).map(member => [member.id, member.avatar])), [members])
   const [error, setError] = React.useState('')
 
   const load = React.useCallback(async () => {
@@ -28,8 +31,9 @@ export function useApprovalDetail(appId: string, instanceId: string | undefined,
     setDetail(null)
     setError('')
     void load()
-    getApprovalMemberNames(appId).then((value) => {
-      if (active) setNames(value)
+    setMembers({})
+    getApprovalMembers(appId).then((value) => {
+      if (active) setMembers(value)
     }).catch(() => {
     })
     const timer = window.setInterval(() => void load(), intervalMs)
@@ -39,5 +43,5 @@ export function useApprovalDetail(appId: string, instanceId: string | undefined,
     }
   }, [appId, instanceId, intervalMs, load])
 
-  return {detail, setDetail, names, error, load}
+  return {detail, setDetail, names, avatars, error, load}
 }

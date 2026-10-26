@@ -7,6 +7,7 @@ import {
   type ApprovalTask,
   type ApprovalUpcomingNode,
 } from '@/services/approvals'
+import {UserAvatar} from '@/components/ui/avatar'
 import {cn} from '@/lib/utils'
 import {useApprovalDetail} from './useApprovalDetail'
 
@@ -70,9 +71,10 @@ function instanceTone(status: string): Tone {
 }
 
 /** 以节点为主轴的签核时间线，详情侧栏与实例详情共用；预测节点以灰色接在末尾。 */
-export function ApprovalTimeline({detail, names, upcoming = [], ending}: {
+export function ApprovalTimeline({detail, names, avatars = {}, upcoming = [], ending}: {
   detail: ApprovalDetail;
   names: Record<string, string>;
+  avatars?: Record<string, string | null | undefined>;
   upcoming?: ApprovalUpcomingNode[];
   ending?: ApprovalEndingNode | null
 }) {
@@ -115,10 +117,7 @@ export function ApprovalTimeline({detail, names, upcoming = [], ending}: {
               const decidedAt = formatTime(task.decided_at)
               return <div key={task.id} className="min-w-0">
                 <div className="flex items-start gap-2.5">
-                  <span aria-hidden="true"
-                        className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium', toneClass[state.tone])}>
-                    {name.trim().slice(0, 1).toUpperCase()}
-                  </span>
+                  <UserAvatar name={name} src={avatars[task.user_id]} size={28} className="shrink-0"/>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                       <span
@@ -157,7 +156,7 @@ export function ApprovalTimeline({detail, names, upcoming = [], ending}: {
           <div className="flex flex-wrap items-start justify-between gap-2">
             <h4
               className="min-w-0 flex-1 break-words text-sm font-semibold leading-6 text-muted-foreground [overflow-wrap:anywhere]">{item.title}</h4>
-            <StatusBadge tone="muted">{item.certain ? '预计' : '待定'}</StatusBadge>
+            <StatusBadge tone="muted">{item.certain ? '预测' : '待定'}</StatusBadge>
           </div>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             {kindLabel[item.kind] ?? item.kind}{item.sign_mode &&
@@ -193,7 +192,7 @@ export function ApprovalTimeline({detail, names, upcoming = [], ending}: {
 
 /** 流程状态和当前节点置顶，审批历史沿时间线依次展开。 */
 export function ApprovalProgressPanel({appId, instanceId}: { appId: string; instanceId: string }) {
-  const {detail, names, error} = useApprovalDetail(appId, instanceId)
+  const {detail, names, avatars, error} = useApprovalDetail(appId, instanceId)
   const current = detail?.status === 'RUNNING' ? detail.waits.filter(wait => wait.status === 'WAITING') : []
   const pendingNames = detail ? [...new Set(detail.tasks.filter(task => task.status === 'PENDING')
     .map(task => names[task.user_id] ?? task.user_id))] : []
@@ -215,8 +214,8 @@ export function ApprovalProgressPanel({appId, instanceId}: { appId: string; inst
       </div> : <>
         <div className="space-y-4 border-b pb-5">
           <div className="flex items-center gap-2.5">
-            <span aria-hidden="true"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">{(names[detail.initiator] ?? detail.initiator).trim().slice(0, 1).toUpperCase()}</span>
+            <UserAvatar name={names[detail.initiator] ?? detail.initiator} src={avatars[detail.initiator]} size={32}
+                        className="shrink-0"/>
             <div className="min-w-0">
               <p className="break-words text-sm font-medium [overflow-wrap:anywhere]"><span
                 className="mr-2 text-xs font-normal text-muted-foreground">发起人</span>{names[detail.initiator] ?? detail.initiator}
@@ -240,7 +239,8 @@ export function ApprovalProgressPanel({appId, instanceId}: { appId: string; inst
             <span
               className="text-xs text-muted-foreground">已通过 {detail.waits.filter(wait => wait.status === 'APPROVED').length} 个节点</span>
           </div>
-          <ApprovalTimeline detail={detail} names={names} upcoming={detail.upcoming ?? []} ending={detail.ending}/>
+          <ApprovalTimeline detail={detail} names={names} avatars={avatars} upcoming={detail.upcoming ?? []}
+                            ending={detail.ending}/>
         </div>
       </>}
   </section>

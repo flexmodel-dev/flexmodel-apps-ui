@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string
   name: string
   email: string
+  avatar?: string | null
 }
 
 export interface AuthSession {
@@ -78,6 +79,14 @@ export function saveAuthSession(session: AuthSession, remember: boolean) {
   storage.setItem(expiresInStorageKey, String(session.expiresIn))
 }
 
+export function updateAuthUser(user: Partial<AuthUser>) {
+  const session = getAuthSession()
+  if (!session) return
+  const storage = window.localStorage.getItem(tokenStorageKey) ? window.localStorage : window.sessionStorage
+  storage.setItem(userStorageKey, JSON.stringify({...session.user, ...user}))
+  window.dispatchEvent(new Event('auth-user-updated'))
+}
+
 export function clearAuthSession() {
   clearAppDataCache()
   ;[window.localStorage, window.sessionStorage].forEach((storage) => {
@@ -110,6 +119,7 @@ export async function login(username: string, password: string, remember: boolea
       id: payload.user.id,
       name: payload.user.name,
       email: payload.user.email ?? '',
+      avatar: payload.user.avatar ?? null,
     },
     permissions: payload.permissions ?? [],
   }
