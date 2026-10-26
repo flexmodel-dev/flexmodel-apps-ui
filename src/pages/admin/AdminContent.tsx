@@ -88,27 +88,27 @@ export function FormManagementContent({appId}: { appId?: string }) {
         ) : error ? (
           <Empty description={error}/>
         ) : (
-          forms.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          forms.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {forms.map((form) => (
               <Link
                 key={form.name}
                 to={`/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/${form.builtin ? 'form-design' : 'base'}`}
                 aria-label={form.label}
-                className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <div className="flex items-start gap-3">
-                  <div className="rounded-md bg-muted p-2 text-muted-foreground"><Table2 className="h-5 w-5"/></div>
+                <div className="flex items-start gap-2">
+                  <div className="rounded-md bg-muted p-2 text-muted-foreground"><Table2 className="h-4 w-4"/></div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-medium">{form.label}</span>
-                      {form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
+                      {form.builtin && <Badge className="shrink-0 whitespace-nowrap bg-muted text-muted-foreground">内置</Badge>}
                     </div>
                     <p className="mb-0 mt-1 truncate font-mono text-xs text-muted-foreground">{form.name}</p>
                   </div>
                   <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground"/>
                 </div>
-                <p className="mb-0 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">{form.description || '暂无描述'}</p>
-                <div className="mt-auto border-t pt-3 text-xs text-muted-foreground">{form.fields.length} 个字段</div>
+                <p className="mb-0 line-clamp-2 min-h-8 text-xs leading-4 text-muted-foreground">{form.description || '暂无描述'}</p>
+                <div className="mt-auto border-t pt-2 text-xs text-muted-foreground">{form.fields.length} 个字段</div>
               </Link>
             ))}
           </div> : <Empty description="暂无表单，点击新建表单开始配置。"/>
