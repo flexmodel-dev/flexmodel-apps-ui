@@ -6,6 +6,15 @@ import {attachmentPreviewType, isAttachmentUrl} from '@/lib/attachments'
 
 interface Bucket {name: string; maxFileSize?: number}
 interface UploadedObject {url: string; path: string; name: string}
+
+export interface StorageObject {
+  name: string
+  type: 'file' | 'folder'
+  size: number | null
+  lastModified: string | null
+  path: string
+}
+
 const bucketCache = createAppDataCache<Bucket>()
 
 function bucketBase(projectId: string) {
@@ -58,6 +67,55 @@ export async function uploadAttachment(appId: string, formId: string, file: File
   const uploaded = await response.json() as UploadedObject
   if (!uploaded.url || !isAttachmentUrl(uploaded.url)) throw new Error('上传接口未返回有效文件地址')
   return uploaded.url.replace(/,/g, '%2C')
+}
+
+export async function listStorageObjects(projectId: string, prefix = ''): Promise<StorageObject[]> {
+  const bucket = await ensureBucket(projectId)
+  const query = prefix ? `?prefix=${encodeURIComponent(prefix)}` : ''
+  const objects = await requestJson<StorageObject[]>(
+    `${bucketBase(projectId)}/${encodeURIComponent(bucket.name)}/objects${query}`)
+  return Array.isArray(objects) ? objects : []
+}
+
+export async function uploadStorageObject(projectId: string, path: string, file: File): Promise<UploadedObject> {
+  const bucket = await ensureBucket(projectId)
+  if (bucket.maxFileSize && file.size > bucket.maxFileSize) throw new Error('文件大小超过存储桶允许的上限')
+  const objectPath = path.split('/').map(encodeURIComponent).join('/')
+  const response = await fileRequest(
+    `${bucketBase(projectId)}/${encodeURIComponent(bucket.name)}/objects/${objectPath}`,
+    {method: 'PUT', headers: {'Content-Type': 'application/octet-stream'}, body: file})
+  return await response.json() as UploadedObject
+}
+
+export async function createStorageFolder(projectId: string, path: string): Promise<void> {
+  const bucket = await ensureBucket(projectId)
+  const objectPath = path.split('/').map(encodeURIComponent).join('/')
+  await fileRequest(
+    `${bucketBase(projectId)}/${encodeURIComponent(bucket.name)}/objects/${objectPath}?folder=true`,
+    {method: 'PUT', headers: {'Content-Type': 'application/octet-stream'}, body: new Blob([])})
+}
+
+export async function moveStorageObject(projectId: string, source: string, target: string): Promise<void> {
+  const bucket = await ensureBucket(projectId)
+  await requestJson<null>(`${bucketBase(projectId)}/${encodeURIComponent(bucket.name)}/move`, {
+    method: 'POST',
+    body: JSON.stringify({source, target}),
+  })
+}
+
+export async function deleteStorageObject(projectId: string, path: string): Promise<void> {
+  const bucket = await ensureBucket(projectId)
+  const objectPath = path.split('/').map(encodeURIComponent).join('/')
+  await fileRequest(`${bucketBase(projectId)}/${encodeURIComponent(bucket.name)}/objects/${objectPath}`,
+    {method: 'DELETE'})
+}
+
+export async function downloadStorageObject(projectId: string, path: string): Promise<Blob> {
+  const bucket = await ensureBucket(projectId)
+  const objectPath = path.split('/').map(encodeURIComponent).join('/')
+  const response = await fileRequest(
+    `${bucketBase(projectId)}/${encodeURIComponent(bucket.name)}/objects/${objectPath}`)
+  return await response.blob()
 }
 
 export async function loadAttachment(url: string, signal?: AbortSignal): Promise<Blob> {

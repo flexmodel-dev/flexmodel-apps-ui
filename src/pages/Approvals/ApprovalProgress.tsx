@@ -1,13 +1,18 @@
 import {AlertCircle, Check, CircleDashed, Clock3, GitBranch, Loader2, Minus, X} from 'lucide-react'
 import type {ReactNode} from 'react'
-import {approvalStatus, type ApprovalDetail, type ApprovalTask, type ApprovalUpcomingNode} from '@/services/approvals'
+import {
+  approvalStatus,
+  type ApprovalDetail,
+  type ApprovalEndingNode,
+  type ApprovalTask,
+  type ApprovalUpcomingNode,
+} from '@/services/approvals'
 import {cn} from '@/lib/utils'
 import {useApprovalDetail} from './useApprovalDetail'
 
 const signModeLabel: Record<string, string> = {all: '会签', any: '或签', sequential: '依次审批'}
 const kindLabel: Record<string, string> = {
-  approval: '审批', notification: '通知', create: '新增数据', update: '更新数据',
-  query: '查询数据', delete: '删除数据', subflow: '子流程', gateway: '条件分支', end: '流程结束',
+  approval: '审批', subflow: '子流程', gateway: '条件分支', end: '流程结束',
 }
 const waitStatusLabel: Record<string, string> = {
   WAITING: '进行中', APPROVED: '已通过', REJECTED: '已拒绝', TERMINATED: '已终止', CANCELLED: '已关闭',
@@ -65,19 +70,22 @@ function instanceTone(status: string): Tone {
 }
 
 /** 以节点为主轴的签核时间线，详情侧栏与实例详情共用；预测节点以灰色接在末尾。 */
-export function ApprovalTimeline({detail, names, upcoming = []}: {
+export function ApprovalTimeline({detail, names, upcoming = [], ending}: {
   detail: ApprovalDetail;
   names: Record<string, string>;
-  upcoming?: ApprovalUpcomingNode[]
+  upcoming?: ApprovalUpcomingNode[];
+  ending?: ApprovalEndingNode | null
 }) {
-  if (!detail.waits.length && !upcoming.length) return <div className="rounded-lg border border-dashed p-4 text-center">
+  if (!detail.waits.length && !upcoming.length && !ending) return <div
+    className="rounded-lg border border-dashed p-4 text-center">
     <GitBranch className="mx-auto mb-2 h-5 w-5 text-muted-foreground" aria-hidden="true"/>
     <p className="text-sm font-medium">{detail.status === 'APPROVED' ? '流程已完成' : '暂无审批节点'}</p>
     <p className="mt-1 text-xs leading-5 text-muted-foreground">{['RUNNING', 'SUBMITTING'].includes(detail.status)
       ? '流程正在流转，暂未进入人工审批节点。' : '当前流程没有人工审批记录。'}</p>
   </div>
 
-  const total = detail.waits.length + upcoming.length
+  const total = detail.waits.length + upcoming.length + (ending ? 1 : 0)
+  const endTone = instanceTone(detail.status)
   return <ol aria-label="审批节点" className="min-w-0">
     {detail.waits.map((wait, index) => {
       const tone = waitTone(wait.status)
@@ -161,11 +169,25 @@ export function ApprovalTimeline({detail, names, upcoming = []}: {
                                                          className="break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">
               · {candidate.title} · {candidate.sign_mode ? signModeLabel[candidate.sign_mode] ?? candidate.sign_mode : kindLabel[candidate.kind] ?? candidate.kind}
             </p>)}
-            {!item.candidates?.length && <p className="text-xs leading-5 text-muted-foreground">分支内暂无节点</p>}
+            {!item.candidates?.length && <p className="text-xs leading-5 text-muted-foreground">分支内暂无审批节点</p>}
           </div>}
         </section>
       </li>
     })}
+    {ending && <li className="relative min-w-0 pb-6 last:pb-0">
+      <span aria-hidden="true"
+            className={cn('absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full border', markerClass[endTone])}>
+        <StateIcon tone={endTone}/>
+      </span>
+      <section aria-label={ending.title} className="min-w-0 pl-10">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h4
+            className="min-w-0 flex-1 break-words text-sm font-semibold leading-6 [overflow-wrap:anywhere]">{ending.title}</h4>
+          <StatusBadge tone={endTone}>{approvalStatus[detail.status] ?? detail.status}</StatusBadge>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{kindLabel.end}</p>
+      </section>
+    </li>}
   </ol>
 }
 
@@ -218,7 +240,7 @@ export function ApprovalProgressPanel({appId, instanceId}: { appId: string; inst
             <span
               className="text-xs text-muted-foreground">已通过 {detail.waits.filter(wait => wait.status === 'APPROVED').length} 个节点</span>
           </div>
-          <ApprovalTimeline detail={detail} names={names} upcoming={detail.upcoming ?? []}/>
+          <ApprovalTimeline detail={detail} names={names} upcoming={detail.upcoming ?? []} ending={detail.ending}/>
         </div>
       </>}
   </section>
