@@ -872,7 +872,7 @@ export function FormDesigner({
       </SettingsPageHeader>
 
       <Tabs defaultValue="layout" className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between px-4 pt-3">
+        <div className="flex items-center justify-between px-3 pt-2">
           <TabsList>
             <TabsTrigger value="layout">表单布局</TabsTrigger>
             <TabsTrigger value="display-controls">显示控制</TabsTrigger>
@@ -882,12 +882,12 @@ export function FormDesigner({
             </span>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 xl:flex-row xl:overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 xl:flex-row xl:overflow-hidden">
           <div className="flex h-72 min-w-0 shrink-0 flex-col xl:h-auto xl:min-h-0 xl:flex-1">
             <TabsContent
               value="layout"
               data-form-designer-canvas
-              className="min-h-0 flex-1 overflow-y-auto rounded-xl border bg-card p-4"
+              className="min-h-0 flex-1 overflow-y-auto rounded-xl border bg-card p-3"
               onDragOver={(event) => {
                 if (draggingIndexRef.current === null) return
                 event.preventDefault()
@@ -901,9 +901,9 @@ export function FormDesigner({
                 finishDrag(nextIndex)
               }}
             >
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 {previewRows.map((row, rowIndex) => (
-                  <div key={`layout-row-${rowIndex}`} className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                  <div key={`layout-row-${rowIndex}`} className="grid grid-cols-1 gap-2 md:grid-cols-12">
                     {row.map((preview, previewIndex) => {
                       if (!preview.entry) {
                         const draggingItem = draggingIndex === null ? undefined : items[draggingIndex]
@@ -942,13 +942,13 @@ export function FormDesigner({
                           }}
                           onDragEnd={() => finishDrag()}
                           className={cn(
-                            'group relative flex cursor-grab items-center rounded-md px-3 transition-colors active:cursor-grabbing',
+                            'group relative flex cursor-grab items-center rounded-md px-2.5 transition-colors active:cursor-grabbing',
                             entry.kind === 'SECTION'
-                              ? 'h-9 border-y border-dashed border-primary/40 bg-primary/10 text-foreground hover:border-primary/60 md:col-span-12'
+                              ? 'h-8 border-y border-dashed border-primary/40 bg-primary/10 text-foreground hover:border-primary/60 md:col-span-12'
                               : entry.kind === 'SUBFORM'
-                                ? 'min-h-14 border border-primary/40 bg-primary/10 text-foreground hover:border-primary/60 md:col-span-12'
+                                ? 'min-h-11 border border-primary/40 bg-primary/10 text-foreground hover:border-primary/60 md:col-span-12'
                                 : cn(
-                                  'border bg-background py-2 hover:border-primary',
+                                  'border bg-background py-1.5 hover:border-primary',
                                   formItemWidthTypeClasses[getLayoutWidth(entry.index)],
                                 ),
                             draggingIndex === entry.index && 'opacity-30',

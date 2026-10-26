@@ -97,7 +97,7 @@ export function InstanceDrawer({item, onClose, onChanged}: {
             </div>)}</div>
         </section>
         <section className="space-y-3"><h3 className="text-sm font-medium">签核进度</h3>
-          <ApprovalTimeline detail={detail} names={names}/>
+          <ApprovalTimeline detail={detail} names={names} upcoming={detail.upcoming ?? []}/>
         </section>
         {!!detail.children.length &&
           <section className="space-y-2"><h3 className="text-sm font-medium">子流程</h3>{detail.children.map(child =>

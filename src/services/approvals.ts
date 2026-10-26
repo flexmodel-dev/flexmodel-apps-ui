@@ -109,6 +109,15 @@ export interface ApprovalTask {
   wait_id: string
 }
 
+export interface ApprovalUpcomingNode {
+  id: string;
+  title: string;
+  kind: string;
+  sign_mode?: string;
+  certain: boolean;
+  candidates?: Array<{ id: string; title: string; kind: string; sign_mode?: string }>
+}
+
 export interface ApprovalDetail extends ApprovalItem {
   canManage: boolean
   snapshot: Record<string, unknown>;
@@ -116,6 +125,7 @@ export interface ApprovalDetail extends ApprovalItem {
   error: string
   tasks: ApprovalTask[];
   waits: Array<{ id: string; title: string; members: string[]; status: string; sign_mode: string }>
+  upcoming: ApprovalUpcomingNode[]
   logs: Array<{ id: string; title: string; kind: string; input: unknown; output: unknown }>
   children: ApprovalItem[];
   notificationDelivery: Array<{ messageId: string; state: string; attempts: number; error: string }>

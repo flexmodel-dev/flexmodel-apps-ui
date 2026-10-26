@@ -177,6 +177,7 @@ export default function Notifications() {
           formName={detail.approval.formName}
           recordId={detail.approval.recordId}
           approvalInstanceId={detail.approval.id}
+          stacked={false}
           onSaved={reload}
         />}
     </div>

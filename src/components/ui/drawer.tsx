@@ -123,6 +123,7 @@ export function BizDrawer({
                             moreMenu,
                             aside,
                             asideLabel = '流程进度',
+                            stacked = true,
                           }: {
   open: boolean
   onOpenChange: (o: boolean) => void
@@ -133,6 +134,7 @@ export function BizDrawer({
   moreMenu?: React.ReactNode
   aside?: React.ReactNode
   asideLabel?: string
+  stacked?: boolean
 }) {
   const [asideOpen, setAsideOpen] = React.useState(true)
   React.useEffect(() => {
@@ -143,6 +145,7 @@ export function BizDrawer({
       <DrawerContent
         aria-describedby={undefined}
         hideClose
+        stacked={stacked}
         className={cn('w-full md:w-[calc(100vw-16rem)]', width)}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -165,12 +168,13 @@ export function BizDrawer({
             </DrawerClose>
           </div>
         </div>
-        <div className="flex min-h-0 flex-1">
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto lg:flex lg:overflow-hidden">
+          <div className="min-w-0 px-6 py-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {children}
           </div>
           {aside && asideOpen && (
-            <aside className="min-h-0 w-72 shrink-0 overflow-y-auto border-l border-border bg-muted/30 px-4 py-4">
+            <aside aria-label={asideLabel}
+                   className="min-w-0 border-t border-border bg-card px-4 py-5 lg:min-h-0 lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-t-0 xl:w-[360px] xl:px-5">
               {aside}
             </aside>
           )}

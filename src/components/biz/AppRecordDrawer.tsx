@@ -60,6 +60,7 @@ export function AppRecordDrawer({
                                   recordId,
                                   initialMode,
                                   approvalInstanceId,
+                                  stacked,
                                   onSaved,
                                   onDeleted,
                                   onOpenRecord,
@@ -71,6 +72,7 @@ export function AppRecordDrawer({
   recordId?: string | null
   initialMode?: 'view' | 'edit'
   approvalInstanceId?: string | null
+  stacked?: boolean
   onSaved?: (id: string) => void
   onDeleted?: () => void
   onOpenRecord?: (formName: string, recordId: string) => void
@@ -451,6 +453,7 @@ export function AppRecordDrawer({
           <ApprovalProgressPanel appId={appId} instanceId={approval.progressInstanceId}/>
         ) : undefined}
         asideLabel="审批"
+        stacked={stacked}
       >
         {isFormLoading && <AppLoading center className="min-h-[240px]"/>}
         {!isFormLoading && formError && (
