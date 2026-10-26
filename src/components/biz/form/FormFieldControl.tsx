@@ -12,6 +12,8 @@ import {
 import type {AppFormField} from '@/services/appForms'
 import {Button} from '@/components/ui/button'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
+import {AttachmentField} from './AttachmentField'
+import {isAttachmentField} from '@/lib/attachments'
 
 export type ReferenceOption = { value: string; label: string }
 
@@ -27,22 +29,30 @@ export function toInputValue(field: AppFormField, value: unknown) {
 }
 
 export function FieldControl({
+                               appId,
+                               formId,
                                field,
                                value,
                                options,
                                referenceOptions,
                                disabled,
                                onChange,
+                               onUploadStart,
                              }: {
+  appId: string
+  formId: string
   field: AppFormField
   value: unknown
   options: Array<{ id?: string; text?: string; color?: string }>
   referenceOptions: ReferenceOption[]
   disabled?: boolean
   onChange: (value: unknown) => void
+  onUploadStart?: () => () => void
 }) {
   const inputId = React.useId()
   const emptyOption = `__empty_${inputId}`
+  if (isAttachmentField(field.type)) return <AttachmentField appId={appId} formId={formId} label={field.label}
+    value={value} imageOnly={field.type !== 'FILE'} disabled={disabled} onChange={onChange} onUploadStart={onUploadStart}/>
   if (field.type === 'MULTISELECT') {
     const selected = Array.isArray(value) ? value.map(String) : []
     const choices = <div className="grid gap-2">

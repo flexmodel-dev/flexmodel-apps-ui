@@ -27,6 +27,7 @@ import {
 } from '@/components/biz/form/recordPayload'
 import {useReferenceOptions} from '@/components/biz/form/useReferenceOptions'
 import {renderFormValue} from '@/components/biz/form/FormReadonlyValue'
+import {useAttachmentUploads} from '@/components/biz/form/useAttachmentUploads'
 import {displayRecordText, recordTitle} from '@/lib/recordValue'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {formItemWidthTypeClasses} from '@/lib/form-items'
@@ -92,6 +93,7 @@ export function AppRecordDrawer({
   const [flowOpen, setFlowOpen] = React.useState(false)
   const [flowId, setFlowId] = React.useState('')
   const [isStarting, setIsStarting] = React.useState(false)
+  const {uploading, startUpload} = useAttachmentUploads()
   const requestKey = React.useRef(crypto.randomUUID())
   const initialModeRef = React.useRef(initialMode)
   initialModeRef.current = initialMode
@@ -188,10 +190,15 @@ export function AppRecordDrawer({
     setValues(toEditValues(form, record))
   }, [open, mode, form, record, dirty])
 
-  const buildPayload = (): AppRecord | null =>
-    form && !recordPending
+  const buildPayload = (): AppRecord | null => {
+    if (uploading) {
+      setError('请等待附件上传完成')
+      return null
+    }
+    return form && !recordPending
       ? buildRecordPayload(form, parseFormLayout(form).renderableFieldNames, values, setError, !activeRecordId)
       : null
+  }
 
   const persistRecord = (payload: AppRecord) =>
     activeRecordId
@@ -411,11 +418,11 @@ export function AppRecordDrawer({
       >
         取消
       </Button>
-      <Button onClick={save} disabled={isSubmitting || isStarting || approvalLocked || recordPending}>
+      <Button onClick={save} disabled={isSubmitting || isStarting || uploading || approvalLocked || recordPending}>
         {isSubmitting ? '保存中…' : '保存'}
       </Button>
       {isCreate && flows.length > 0 && (
-        <Button variant="outline" disabled={isSubmitting || isStarting} onClick={openFlowDialog}>
+        <Button variant="outline" disabled={isSubmitting || isStarting || uploading} onClick={openFlowDialog}>
           <Send className="h-4 w-4"/>发起流程
         </Button>
       )}
@@ -496,11 +503,15 @@ export function AppRecordDrawer({
                           {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
                         </label>
                         <FieldControl
+                          key={`${appId}/${formName}/${recordId ?? 'new'}/${field.name}`}
+                          appId={appId}
+                          formId={formName}
                           field={field}
                           value={values[field.name]}
                           options={field.options ?? []}
                           referenceOptions={referenceOptionsMap[field.name] ?? ([] as ReferenceOption[])}
-                          disabled={item.readonly || !isFieldWritable(field, !activeRecordId) || recordPending}
+                          disabled={item.readonly || !isFieldWritable(field, !activeRecordId) || recordPending || isSubmitting || isStarting}
+                          onUploadStart={startUpload}
                           onChange={(value) => {
                             setValues((previous) => ({...previous, [field.name]: value}))
                             setDirty(true)

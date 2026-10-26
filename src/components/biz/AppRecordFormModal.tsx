@@ -21,6 +21,7 @@ import {
   toEditValues,
 } from '@/components/biz/form/recordPayload'
 import {useReferenceOptions} from '@/components/biz/form/useReferenceOptions'
+import {useAttachmentUploads} from '@/components/biz/form/useAttachmentUploads'
 import {FlowStartDialog, useFormApprovalFlows} from '@/components/biz/form/flowLaunch'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {FormMoreMenu} from '@/components/biz/FormMoreMenu'
@@ -74,6 +75,7 @@ export function AppRecordFormModal({
   const [flowOpen, setFlowOpen] = React.useState(false)
   const [flowId, setFlowId] = React.useState('')
   const [isStarting, setIsStarting] = React.useState(false)
+  const {uploading, startUpload} = useAttachmentUploads()
   const requestKey = React.useRef(crypto.randomUUID())
 
   const effectiveRecordId = savedRecordId ?? recordId ?? null
@@ -133,8 +135,13 @@ export function AppRecordFormModal({
     if (!open) setFlowOpen(false)
   }, [open])
 
-  const buildPayload = (): AppRecord | null =>
-    buildRecordPayload(form, renderableFieldNames, values, setError, !recordId)
+  const buildPayload = (): AppRecord | null => {
+    if (uploading) {
+      setError('请等待附件上传完成')
+      return null
+    }
+    return buildRecordPayload(form, renderableFieldNames, values, setError, !recordId)
+  }
 
   const persistRecord = (payload: AppRecord) =>
     saveRecord
@@ -241,9 +248,9 @@ export function AppRecordFormModal({
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting || isStarting}>
             取消
           </Button>
-          <Button onClick={submit} disabled={isSubmitting || isStarting}>保存</Button>
+          <Button onClick={submit} disabled={isSubmitting || isStarting || uploading}>保存</Button>
           {!effectiveRecordId && flows.length > 0 && (
-            <Button variant="outline" onClick={openFlowDialog} disabled={isSubmitting || isStarting}>
+            <Button variant="outline" onClick={openFlowDialog} disabled={isSubmitting || isStarting || uploading}>
               发起流程
             </Button>
           )}
@@ -275,11 +282,15 @@ export function AppRecordFormModal({
                         {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
                       </label>
                       <FieldControl
+                        key={`${appId}/${form.name}/${recordId ?? 'new'}/${field.name}`}
+                        appId={appId}
+                        formId={form.name}
                         field={field}
                         value={values[field.name]}
                         options={field.options ?? []}
                         referenceOptions={referenceOptionsMap[field.name] ?? []}
-                        disabled={item.readonly || !isFieldWritable(field, !recordId)}
+                        disabled={item.readonly || !isFieldWritable(field, !recordId) || isSubmitting || isStarting}
+                        onUploadStart={startUpload}
                         onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
                       />
                     </div>
