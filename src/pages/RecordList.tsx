@@ -1,5 +1,7 @@
 import * as React from 'react'
 import {formatFieldValue} from '@/lib/fieldConfig'
+import {isAttachmentField} from '@/lib/attachments'
+import {AttachmentCell} from '@/components/biz/form/AttachmentField'
 import {useParams} from 'react-router-dom'
 import {
   ArrowDown,
@@ -480,6 +482,7 @@ export default function RecordList({formName}: { formName?: string }) {
 
   const renderCell = (row: AppRecord, field: AppFormField) => {
     const value = row[field.name]
+    if (isAttachmentField(field.type)) return <AttachmentCell value={value}/>
     if (field.type === 'REFERENCE') {
       return <AppReferenceValue appId={appId} field={field} value={value} onOpenRecord={openLinkedRecord}/>
     }

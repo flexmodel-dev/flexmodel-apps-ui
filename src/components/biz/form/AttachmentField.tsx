@@ -30,10 +30,10 @@ function useFilePreview(url: string, enabled: boolean) {
   return {source, error}
 }
 
-function AttachmentThumbnail({url}: {url: string}) {
+function AttachmentThumbnail({url, compact = false}: {url: string; compact?: boolean}) {
   const image = attachmentPreviewType(url)?.startsWith('image/') && isAttachmentUrl(url)
   const {source} = useFilePreview(url, !!image)
-  return source ? <img src={source} alt="" className="h-10 w-10 shrink-0 rounded border object-cover"/>
+  return source ? <img src={source} alt="" className={`${compact ? 'h-6 w-6' : 'h-10 w-10'} shrink-0 rounded border object-cover`}/>
     : <FileIcon className="h-5 w-5 shrink-0 text-muted-foreground"/>
 }
 
@@ -87,6 +87,27 @@ export function AttachmentList({value, onRemove}: {value: unknown; onRemove?: (u
     </div>)}
     {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     {preview && <AttachmentPreview url={preview} onClose={() => setPreview(null)}/>}
+  </div>
+}
+
+/** 列表仅展示首个文件和剩余数量，完整附件列表按需打开。 */
+export function AttachmentCell({value}: {value: unknown}) {
+  const urls = attachmentUrls(value)
+  const [open, setOpen] = React.useState(false)
+  if (!urls.length) return <span className="text-muted-foreground">-</span>
+  const name = attachmentName(urls[0])
+  return <div onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+    <button type="button" onClick={() => setOpen(true)}
+            className="flex h-7 w-full min-w-0 max-w-60 items-center gap-2 rounded-sm text-left text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`查看附件：${name}${urls.length > 1 ? `等${urls.length}个文件` : ''}`}
+            title={urls.map(attachmentName).join('\n')}>
+      <AttachmentThumbnail url={urls[0]} compact/>
+      <span className="min-w-0 flex-1 truncate">{name}</span>
+      {urls.length > 1 && <span className="shrink-0 rounded bg-muted px-1.5 text-xs text-muted-foreground">+{urls.length - 1}</span>}
+    </button>
+    <BizDialog open={open} onOpenChange={setOpen} title={`附件（${urls.length}）`} width={640}>
+      <AttachmentList value={value}/>
+    </BizDialog>
   </div>
 }
 

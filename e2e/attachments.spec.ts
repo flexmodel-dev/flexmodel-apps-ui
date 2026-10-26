@@ -10,7 +10,7 @@ const image = {name: '图,片.png', mimeType: 'image/png', buffer: readFileSync(
 const pdf = {name: '说明.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF')}
 const zip = {name: '资料.zip', mimeType: 'application/zip', buffer: Buffer.from('zip bytes')}
 
-async function setup(page: Page, {failName, pending, subform = false}: {failName?: string; pending?: Promise<void>; subform?: boolean} = {}) {
+async function setup(page: Page, {failName, pending, subform = false, initialFiles}: {failName?: string; pending?: Promise<void>; subform?: boolean; initialFiles?: string} = {}) {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const fields = [
@@ -25,7 +25,7 @@ async function setup(page: Page, {failName, pending, subform = false}: {failName
   const child = {name: 'lines', label: '订单明细', builtin: false, fields: [{name: 'files', label: '明细附件', type: 'FILE'}],
     layout: {items: [{type: 'FIELD', name: 'files', width: 'FULL'}]}, viewTabs: []}
   const app = {id: appId, projectId: 'storage-project', name: '附件验证', enabled: true, primaryColor: 'blue'}
-  let record: Record<string, unknown> = {id: 'first', title: '附件订单', files: null}
+  let record: Record<string, unknown> = {id: 'first', title: '附件订单', files: initialFiles ?? null}
   const writes: Record<string, unknown>[] = []
   const uploads: {url: string; path: string; auth?: string; type?: string; bytes: Buffer | null}[] = []
   const reads: {url: string; auth?: string}[] = []
@@ -49,7 +49,7 @@ async function setup(page: Page, {failName, pending, subform = false}: {failName
         childWrites.push(request.postDataJSON())
         return route.fulfill({json: {...request.postDataJSON(), id: 'line1'}})
       }
-      return route.fulfill({json: {list: [], total: 0}})
+      return route.fulfill({json: {list: initialFiles ? [{id: 'line1', files: initialFiles}] : [], total: initialFiles ? 1 : 0}})
     }
     if (pathname === bucketPath) {
       if (method === 'POST') {bucketExists = true; bucketCreates.push(request.postDataJSON())}
@@ -223,5 +223,70 @@ test('子表新增复用上传控件，使用子表标识作为上传目录', as
   await child.getByRole('button', {name: '保存', exact: true}).click()
   await expect(child).not.toBeVisible()
   expect(childWrites[0].files).toBe(uploads.map(upload => upload.url).join(','))
+  expect(errors).toEqual([])
+})
+
+test('列表附件展示缩略图、文件名和数量，按需预览下载且不误开记录', async ({page}) => {
+  const urls = [image.name, pdf.name, zip.name, '业务附件.docx'].map(name =>
+    `${objectPrefix}12345678-1234-1234-1234-123456789abc_${encodeURIComponent(name)}?version=existing`)
+  const {reads, errors} = await setup(page, {initialFiles: urls.join(',')})
+  const row = page.getByRole('row').filter({hasText: '附件订单'})
+  const cell = row.getByRole('button', {name: '查看附件：图,片.png等4个文件', exact: true})
+  await expect(cell).toBeVisible()
+  await expect(cell.getByText('+3', {exact: true})).toBeVisible()
+  await expect(cell.locator('img')).toHaveJSProperty('naturalWidth', 100)
+  expect(await row.innerText()).not.toContain('/api/')
+  expect((await row.boundingBox())!.height).toBeLessThanOrEqual(60)
+  await expect(row.getByRole('cell').nth(3)).toHaveText('-')
+  await page.screenshot({path: 'artifacts/attachment-list-light.png', animations: 'disabled'})
+  await cell.focus()
+  await page.keyboard.press('Enter')
+  const files = page.getByRole('dialog', {name: '附件（4）', exact: true})
+  await expect(files).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  await expect(files.getByText('业务附件.docx', {exact: true})).toBeVisible()
+  await expect(files.getByRole('button', {name: /^移除 /})).toHaveCount(0)
+  await files.getByRole('button', {name: '预览 图,片.png', exact: true}).click()
+  await expect(page.getByRole('dialog', {name: '图,片.png', exact: true}).getByRole('img')).toHaveJSProperty('naturalWidth', 100)
+  await expect(page.getByRole('dialog', {includeHidden: true})).toHaveCount(2)
+  await page.keyboard.press('Escape')
+  const downloadEvent = page.waitForEvent('download')
+  await files.getByRole('button', {name: '下载 资料.zip', exact: true}).click()
+  const download = await downloadEvent
+  expect(download.suggestedFilename()).toBe('资料.zip')
+  expect(await download.failure()).toBeNull()
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.evaluate(() => document.documentElement.classList.add('dark'))
+  await page.screenshot({path: 'artifacts/attachment-list-dark.png', animations: 'disabled'})
+  await row.getByText('附件订单', {exact: true}).click()
+  await expect(page.getByRole('dialog', {name: '附件订单', exact: true})).toBeVisible()
+  expect(reads.every(read => read.auth === 'Bearer attachment-test')).toBe(true)
+  expect(errors).toEqual([])
+})
+
+test('子表列表附件同样紧凑，长文件名和手机视口不撑宽页面', async ({page}) => {
+  const filename = `项目附件_${'long_filename_'.repeat(12)}.png`
+  const urls = [filename, pdf.name].map(name => `${objectPrefix}12345678-1234-1234-1234-123456789abc_${encodeURIComponent(name)}`)
+  const {errors} = await setup(page, {subform: true, initialFiles: urls.join(',')})
+  const mainRow = page.getByRole('row').filter({hasText: '附件订单'})
+  const mainCell = mainRow.getByRole('button', {name: /^查看附件：/})
+  expect((await mainCell.boundingBox())!.width).toBeLessThanOrEqual(240)
+  expect((await mainRow.boundingBox())!.height).toBeLessThanOrEqual(60)
+  const drawer = await edit(page)
+  const section = drawer.locator('section').filter({hasText: '订单明细'})
+  const cell = section.getByRole('button', {name: /^查看附件：/})
+  await expect(cell).toBeVisible()
+  expect(await section.innerText()).not.toContain('/api/')
+  expect((await cell.boundingBox())!.width).toBeLessThanOrEqual(240)
+  await cell.click()
+  await expect(page.getByRole('dialog', {name: '附件（2）', exact: true})).toBeVisible()
+  await expect(page.getByRole('dialog', {includeHidden: true})).toHaveCount(2)
+  await page.setViewportSize({width: 375, height: 900})
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375)
+  await page.screenshot({path: 'artifacts/attachment-list-mobile.png', animations: 'disabled'})
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', {name: '编辑订单', exact: true})).toBeVisible()
   expect(errors).toEqual([])
 })

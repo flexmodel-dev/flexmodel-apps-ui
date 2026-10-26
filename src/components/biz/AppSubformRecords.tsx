@@ -6,6 +6,8 @@ import {Empty} from '@/components/ui/empty'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {getAppForm, type AppForm} from '@/services/appForms'
 import {displayRecordText} from '@/lib/recordValue'
+import {isAttachmentField} from '@/lib/attachments'
+import {AttachmentCell} from '@/components/biz/form/AttachmentField'
 import {
   deleteAppRecord,
   getAppRecords,
@@ -229,9 +231,12 @@ export function AppSubformRecords({
               <tbody>
               {records.list.map((record) => (
                 <tr key={String(record.id)}>
-                  {columns.map((name) => (
-                    <td key={name}>{displayRecordText(record[name])}</td>
-                  ))}
+                  {columns.map((name) => {
+                    const field = form?.fields.find(field => field.name === name)
+                    return <td key={name}>{field && isAttachmentField(field.type)
+                      ? <AttachmentCell value={record[name]}/>
+                      : displayRecordText(record[name])}</td>
+                  })}
                   {!readOnly && (
                     <td>
                       <div className="flex items-center gap-1">
