@@ -137,51 +137,6 @@ export default function ApprovalList({appId}: { appId?: string }) {
     )
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
-      <div className="flex items-center justify-between gap-6 rounded-lg border bg-background/50 px-5 py-5">
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Workflow className="h-4 w-4"/>
-            </span>
-            <span className="text-xs font-medium text-muted-foreground">
-              让业务有序流转
-            </span>
-            <span className="rounded border bg-card px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              服务端保存
-            </span>
-          </div>
-          <h2 className="text-xl font-semibold tracking-tight">
-            把审批规则，变成清晰的流程
-          </h2>
-          <p className="mt-2 max-w-xl text-xs leading-5 text-muted-foreground">
-            连接审批人、条件与数据操作。通过可视化编排，让每一步都有迹可循。
-          </p>
-          <button
-            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary"
-            onClick={() => openCreate(true)}
-          >
-            <Sparkles className="h-3.5 w-3.5"/>
-            从报销审批模板开始
-            <ArrowUpRight className="h-3.5 w-3.5"/>
-          </button>
-        </div>
-        <div
-          aria-hidden
-          className="hidden w-44 shrink-0 flex-col items-center text-xs lg:flex"
-        >
-          <div className="flex w-32 items-center gap-2 rounded-lg border bg-card px-3 py-2 shadow-sm">
-            <FileText className="h-3.5 w-3.5 text-muted-foreground"/>
-            提交申请
-          </div>
-          <ArrowDown className="my-1 h-4 w-4 text-muted-foreground/50"/>
-          <div
-            className="flex w-40 items-center gap-2 rounded-lg border border-primary/30 bg-card px-3 py-2 text-primary shadow-sm">
-            <Check className="h-3.5 w-3.5"/>
-            审批通过
-            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary"/>
-          </div>
-        </div>
-      </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-lg bg-muted/70 p-1">
           {[
