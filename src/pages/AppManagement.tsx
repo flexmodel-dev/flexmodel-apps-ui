@@ -15,19 +15,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  appIconOptions,
-  appIcons,
-} from '@/data/mock'
+import {appIcons, type AppIconName} from '@/data/appIcons'
 import {
   createApp,
   deleteApp,
   getApps,
   updateApp,
   type App,
-  type AppIconName,
-  type AppPrimaryColor,
 } from '@/services/apps'
+import {getAppPrimaryColor, type AppPrimaryColor} from '@/theme/appPrimaryColors'
 import {toErrorMessage} from '@/lib/utils'
 
 interface AppFormValues {
@@ -38,33 +34,6 @@ interface AppFormValues {
 }
 
 const emptyForm: AppFormValues = {name: '', iconName: 'Boxes', primaryColor: 'blue', description: ''}
-
-const appPrimaryStyles: Record<AppPrimaryColor, { icon: string; border: string }> = {
-  blue: {
-    icon: 'bg-blue-500/10 text-blue-500 dark:text-blue-400',
-    border: 'hover:border-blue-500/60',
-  },
-  indigo: {
-    icon: 'bg-indigo-500/10 text-indigo-500 dark:text-indigo-400',
-    border: 'hover:border-indigo-500/60',
-  },
-  green: {
-    icon: 'bg-teal-600/10 text-teal-600 dark:text-teal-400',
-    border: 'hover:border-teal-600/60',
-  },
-  amber: {
-    icon: 'bg-amber-500/10 text-amber-500 dark:text-amber-400',
-    border: 'hover:border-amber-500/60',
-  },
-  rose: {
-    icon: 'bg-rose-500/10 text-rose-500 dark:text-rose-400',
-    border: 'hover:border-rose-500/60',
-  },
-  black: {
-    icon: 'bg-black/10 text-black dark:bg-white/10 dark:text-white',
-    border: 'hover:border-black/60 dark:hover:border-white/60',
-  },
-}
 
 function AppForm({
   value,
@@ -89,8 +58,6 @@ function AppForm({
         <div id="app-icon">
           <IconPicker
             value={value.iconName}
-            options={appIconOptions}
-            icons={appIcons}
             onChange={(iconName) => onChange({...value, iconName})}
           />
         </div>
@@ -216,16 +183,16 @@ export default function AppManagement() {
             <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {apps.map((app) => {
                 const Icon = appIcons[app.iconName] ?? appIcons.Boxes
-                const primaryStyle = appPrimaryStyles[app.primaryColor] ?? appPrimaryStyles.blue
                 return (
                   <div
                     key={app.id}
-                    className={`relative min-w-0 overflow-hidden rounded-lg border bg-background transition-colors hover:bg-accent/40 ${primaryStyle.border}`}
+                    data-primary={getAppPrimaryColor(app.primaryColor).value}
+                    className="relative min-w-0 overflow-hidden rounded-lg border bg-background transition-colors hover:border-primary/60 hover:bg-accent/40"
                   >
                     <Link to={`/apps/${app.id}`} className="block min-w-0 p-4 pr-12">
                       <div className="flex items-start gap-3">
                         <span
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${primaryStyle.icon}`}>
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                           <Icon className="h-6 w-6" />
                         </span>
                         <span className="min-w-0">

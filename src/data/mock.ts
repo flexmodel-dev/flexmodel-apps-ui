@@ -1,14 +1,12 @@
 import {
   Banknote,
   BookUser,
-  Boxes,
   ClipboardCheck,
   Folder,
   Home,
   PieChart,
   Shapes,
   ShoppingCart,
-  Settings,
   Tags,
   TrendingUp,
   User,
@@ -16,6 +14,8 @@ import {
 } from 'lucide-react'
 import type {ApprovalFlow, ApprovalForm, MemberDirectory, RecordStore} from '../types/approval'
 import {createApprovalNode, literal, newRule} from '../lib/approval'
+import type {AppPrimaryColor} from '@/theme/appPrimaryColors'
+import type {AppIconName} from '@/data/appIcons'
 
 /**
  * 假数据层
@@ -56,73 +56,6 @@ export interface BusinessObjectMeta {
   fields: BusinessObjectField[]
   description?: string
   badge?: string
-}
-
-export const appIconOptions = [
-  'ShoppingCart',
-  'Banknote',
-  'Boxes',
-  'Folder',
-  'Tags',
-  'TrendingUp',
-] as const
-
-export type AppIconName = (typeof appIconOptions)[number]
-
-export const appIcons: Record<AppIconName, LucideIcon> = {
-  ShoppingCart,
-  Banknote,
-  Boxes,
-  Folder,
-  Tags,
-  TrendingUp,
-}
-
-export type AppPrimaryColor = 'blue' | 'indigo' | 'green' | 'amber' | 'rose' | 'black'
-
-export const appPrimaryColors: Array<{
-  value: AppPrimaryColor
-  label: string
-  swatch: string
-}> = [
-  {value: 'blue', label: '蓝色', swatch: 'hsl(217 91% 60%)'},
-  {value: 'indigo', label: '靛蓝', swatch: 'hsl(243 75% 59%)'},
-  {value: 'green', label: '绿色', swatch: 'hsl(160 84% 39%)'},
-  {value: 'amber', label: '橙色', swatch: 'hsl(38 92% 50%)'},
-  {value: 'rose', label: '玫红', swatch: 'hsl(350 89% 60%)'},
-  {value: 'black', label: '黑色', swatch: 'hsl(0 0% 9%)'},
-]
-
-export const navIconOptions = [
-  'Home',
-  'User',
-  'TrendingUp',
-  'ShoppingCart',
-  'PieChart',
-  'Folder',
-  'BookUser',
-  'ClipboardCheck',
-  'Shapes',
-  'Tags',
-  'Boxes',
-  'Banknote',
-] as const
-
-export type NavIconName = (typeof navIconOptions)[number]
-
-export const navIcons: Record<NavIconName, LucideIcon> = {
-  Home,
-  User,
-  TrendingUp,
-  ShoppingCart,
-  PieChart,
-  Folder,
-  BookUser,
-  ClipboardCheck,
-  Shapes,
-  Tags,
-  Boxes,
-  Banknote,
 }
 
 export interface AppMeta {

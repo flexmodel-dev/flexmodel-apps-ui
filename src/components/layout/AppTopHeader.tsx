@@ -12,12 +12,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  appIcons,
   businessObjects,
   getAppMenuForBusinessObject,
   type NavItem,
   type TopNavItem,
 } from '@/data/mock'
+import {appIcons} from '@/data/appIcons'
 import {type App} from '@/services/apps'
 import {TopHeaderShell, headerActionClass} from './TopHeaderShell'
 

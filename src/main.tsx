@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import {HashRouter, Routes, Route, Navigate, Outlet, useLocation} from 'react-router-dom'
 import './index.css'
+import '@/theme/appPrimaryColors'
 
 import Login from '@/pages/Login'
 import AppManagement from '@/pages/AppManagement'

@@ -53,6 +53,9 @@ npm run preview
 
 - 夜间模式通过 `html.dark` 切换。
 - 主色通过 `html[data-primary]` 切换。
+- 主色清单唯一来源是 `src/theme/appPrimaryColors.ts`；新增主色只需在该文件追加一项，CSS 变量会自动注入，无需修改
+  `index.css` 或组件。
+- 应用与菜单图标唯一来源是 `src/data/appIcons.ts`；新增图标只需导入并加入对应分组，选择器按分组与搜索自动展示。
 - 修改颜色时必须同时检查浅色模式和夜间模式下的对比度。
 
 ## 代码风格

@@ -55,8 +55,6 @@ import {
   deleteTopMenu,
   getLeftMenuGroup,
   getTopNavById,
-  navIcons,
-  navIconOptions,
   reorderLeftMenus,
   reorderLeftSubmenus,
   reorderTopMenus,
@@ -65,16 +63,21 @@ import {
   updateLeftSubmenu,
   updateTopMenu,
   type LeftMenuItemType,
-  type NavIconName,
   type NavItem,
   type TopMenuItemInput,
   type TopNavItem,
 } from '@/data/mock'
+import {
+  appIcons,
+  appIconOptions,
+  isAppIconName,
+  type AppIconName,
+} from '@/data/appIcons'
 
 type EditorForm =
   | { kind: 'top'; id?: string; text: string }
-  | { kind: 'left'; id?: string; text: string; link?: string; icon: NavIconName | 'none'; type: LeftMenuItemType }
-  | { kind: 'sub'; id?: string; parentId: string; text: string; link?: string; icon: NavIconName | 'none' }
+  | { kind: 'left'; id?: string; text: string; link?: string; icon: AppIconName | 'none'; type: LeftMenuItemType }
+  | { kind: 'sub'; id?: string; parentId: string; text: string; link?: string; icon: AppIconName | 'none' }
 
 export interface MenuEditorDraft {
   text?: string
@@ -93,7 +96,11 @@ const sensorsOptions = {
 const rowActionsClass = 'flex shrink-0 items-center gap-0.5'
 
 function iconName(icon?: NavItem['icon']) {
-  return navIconOptions.find((name) => navIcons[name] === icon) ?? 'none'
+  return appIconOptions.find((name) => appIcons[name] === icon) ?? 'none'
+}
+
+function toIconValue(name?: string | null): AppIconName | 'none' {
+  return isAppIconName(name) ? name : 'none'
 }
 
 function LeftMenuDropArea({
@@ -586,7 +593,7 @@ function MenuEditorDialog({
         const values = {
           text: form.text.trim(),
           to: form.link,
-          icon: form.icon === 'none' ? undefined : navIcons[form.icon],
+          icon: form.icon === 'none' ? undefined : appIcons[form.icon],
           type: form.type,
         }
         const saved = form.id
@@ -597,7 +604,7 @@ function MenuEditorDialog({
         const values = {
           text: form.text.trim(),
           to: form.link,
-          icon: form.icon === 'none' ? undefined : navIcons[form.icon],
+          icon: form.icon === 'none' ? undefined : appIcons[form.icon],
           type: 'menu' as const,
         }
         const saved = form.id
@@ -650,7 +657,7 @@ function MenuEditorDialog({
             id: saved.id,
             text: saved.name,
             link: targetValue(saved.target),
-            icon: (saved.iconName ?? 'none') as NavIconName | 'none',
+            icon: toIconValue(saved.iconName),
             type: saved.type === 'GROUP' ? 'group' : 'menu',
           })
         } else {
@@ -660,7 +667,7 @@ function MenuEditorDialog({
             parentId: form.parentId,
             text: saved.name,
             link: targetValue(saved.target),
-            icon: (saved.iconName ?? 'none') as NavIconName | 'none',
+            icon: toIconValue(saved.iconName),
           })
         }
       } catch (caught) {
@@ -829,7 +836,7 @@ function MenuEditorDialog({
             id: menu.id,
             text: menu.name,
             link: targetValue(menu.target),
-            icon: (menu.iconName ?? 'none') as NavIconName | 'none',
+            icon: toIconValue(menu.iconName),
             type: 'menu',
           }
           : {
@@ -838,7 +845,7 @@ function MenuEditorDialog({
             parentId: targetParentId,
             text: menu.name,
             link: targetValue(menu.target),
-            icon: (menu.iconName ?? 'none') as NavIconName | 'none',
+            icon: toIconValue(menu.iconName),
           })
       }
     } catch (caught) {
@@ -1118,8 +1125,6 @@ function MenuEditorDialog({
                     <label className="block text-xs font-medium text-foreground">图标</label>
                     <OptionalIconPicker
                       value={form.icon}
-                      options={navIconOptions}
-                      icons={navIcons}
                       onChange={(icon) => setForm({...form, icon})}
                     />
                   </>

@@ -1,15 +1,7 @@
 import {requestJson} from '@/services/http'
 import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
-
-export type AppIconName =
-  | 'ShoppingCart'
-  | 'Banknote'
-  | 'Boxes'
-  | 'Folder'
-  | 'Tags'
-  | 'TrendingUp'
-
-export type AppPrimaryColor = 'blue' | 'indigo' | 'green' | 'amber' | 'rose' | 'black'
+import {getAppPrimaryColor, type AppPrimaryColor} from '@/theme/appPrimaryColors'
+import {resolveAppIconName, type AppIconName} from '@/data/appIcons'
 
 export interface App {
   id: string
@@ -36,7 +28,7 @@ interface AppPayload {
   projectId?: string
   name?: string
   description?: string
-  iconName?: AppIconName
+  iconName?: string
   primaryColor?: AppPrimaryColor
   enabled?: boolean
   owner?: string
@@ -69,8 +61,8 @@ function normalizeApp(payload: AppPayload): App {
     projectId: payload.projectId ?? payload.id ?? '',
     name: payload.name ?? '',
     description: payload.description ?? '',
-    iconName: (payload.iconName ?? 'Boxes') as AppIconName,
-    primaryColor: (payload.primaryColor ?? 'blue') as AppPrimaryColor,
+    iconName: resolveAppIconName(payload.iconName),
+    primaryColor: getAppPrimaryColor(payload.primaryColor).value,
     enabled: payload.enabled ?? true,
     owner: payload.owner ?? 'admin',
     createdAt: formatDateTime(payload.createdAt),

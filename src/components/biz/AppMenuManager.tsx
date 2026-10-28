@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {navIcons, navIconOptions, type NavIconName} from '@/data/mock'
+import {appIcons, isAppIconName, type AppIconName} from '@/data/appIcons'
 import {
   createAppMenu,
   deleteAppMenu,
@@ -54,7 +54,7 @@ interface MenuForm {
   id?: string
   type: AppMenuType
   name: string
-  iconName: NavIconName | 'none'
+  iconName: AppIconName | 'none'
   parentId: string
   targetValue: string
 }
@@ -98,9 +98,7 @@ function MenuRow({
   const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
     id: `${scope}-${menu.id}`,
   })
-  const Icon = menu.iconName && menu.iconName !== 'none'
-    ? navIcons[menu.iconName as NavIconName]
-    : undefined
+  const Icon = isAppIconName(menu.iconName) ? appIcons[menu.iconName] : undefined
 
   return (
     <div
@@ -205,7 +203,7 @@ export function AppMenuManager({
       id: menu.id,
       type: menu.type,
       name: menu.name,
-      iconName: (menu.iconName ?? 'none') as NavIconName | 'none',
+      iconName: isAppIconName(menu.iconName) ? menu.iconName : 'none',
       parentId: menu.parentId ?? 'root',
       targetValue: targetValue(menu.target),
     })
@@ -488,8 +486,6 @@ export function AppMenuManager({
               <label className="mb-1 block text-sm font-medium text-foreground">图标</label>
               <OptionalIconPicker
                 value={form.iconName}
-                options={navIconOptions}
-                icons={navIcons}
                 onChange={(iconName) => setForm({...form, iconName})}
               />
             </div>

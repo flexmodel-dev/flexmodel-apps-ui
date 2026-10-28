@@ -1,9 +1,10 @@
-import {navIcons, type NavIconName, type NavItem, type TopNavItem} from '@/data/mock'
+import {resolveAppIcon} from '@/data/appIcons'
+import type {NavItem, TopNavItem} from '@/data/mock'
 import {findInTree, flattenTree} from '@/lib/utils'
 import type {AppMenu, AppMenuOrderInput} from '@/services/appMenus'
 
 export function menuIcon(iconName?: string | null) {
-  return iconName && iconName !== 'none' ? navIcons[iconName as NavIconName] : undefined
+  return iconName && iconName !== 'none' ? resolveAppIcon(iconName) : undefined
 }
 
 function findFirstPageRoute(menu: AppMenu): string | undefined {

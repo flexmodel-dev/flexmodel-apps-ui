@@ -11,13 +11,8 @@ import {AppLoading} from '@/components/biz/AppLoading'
 import {Empty} from '@/components/ui/empty'
 import {AppMenuManager} from '@/components/biz/AppMenuManager'
 import {AdminApprovals, AdminForms, AdminTriggers} from '@/pages/admin'
-import {
-  appIconOptions,
-  appIcons,
-  appPrimaryColors,
-  type AppIconName,
-  type AppPrimaryColor,
-} from '@/data/mock'
+import {appIcons, type AppIconName} from '@/data/appIcons'
+import {getAppPrimaryColor, type AppPrimaryColor} from '@/theme/appPrimaryColors'
 import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
 import {toErrorMessage} from '@/lib/utils'
 import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
@@ -108,6 +103,7 @@ export default function AppSettings({ section }: { section: string }) {
   }
 
   const Icon = appIcons[app.iconName] ?? appIcons.Boxes
+  const primaryColor = getAppPrimaryColor(app.primaryColor)
   const saveApp = async () => {
     if (!formValue.name.trim()) return
     setIsSubmitting(true)
@@ -206,10 +202,8 @@ export default function AppSettings({ section }: { section: string }) {
                 <div className="rounded-md border p-4 md:col-span-2">
                   <div className="text-xs text-muted-foreground">应用主色</div>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-full border"
-                          style={{backgroundColor: appPrimaryColors.find((color) => color.value === app.primaryColor)?.swatch}}/>
-                    <span
-                      className="text-sm font-medium">{appPrimaryColors.find((color) => color.value === app.primaryColor)?.label}</span>
+                    <span className="h-5 w-5 rounded-full border" style={{backgroundColor: primaryColor.swatch}}/>
+                    <span className="text-sm font-medium">{primaryColor.label}</span>
                   </div>
                 </div>
                 <div className="flex justify-end md:col-span-2">
@@ -255,8 +249,6 @@ export default function AppSettings({ section }: { section: string }) {
             <div id="settings-app-icon">
               <IconPicker
                 value={formValue.iconName}
-                options={appIconOptions}
-                icons={appIcons}
                 onChange={(iconName) => setFormValue((value) => ({...value, iconName}))}
               />
             </div>

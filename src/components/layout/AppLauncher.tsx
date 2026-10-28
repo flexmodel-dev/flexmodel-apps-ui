@@ -12,8 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {appIcons} from '@/data/mock'
-import {getApps, type AppIconName} from '@/services/apps'
+import {appIcons, type AppIconName} from '@/data/appIcons'
+import {getApps} from '@/services/apps'
 import { cn } from '@/lib/utils'
 
 export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; currentAppId?: string }) {
