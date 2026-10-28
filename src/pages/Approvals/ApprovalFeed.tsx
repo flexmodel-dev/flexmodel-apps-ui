@@ -5,12 +5,19 @@ import {Button} from '@/components/ui/button'
 import {Pagination} from '@/components/biz/Pagination'
 import {SearchInput} from '@/components/biz/SearchInput'
 import {approvalStatus, getApprovalMemberNames, listPersonalApprovals, type ApprovalItem} from '@/services/approvals'
+import {getApps, type App} from '@/services/apps'
 import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
 import {cn, toErrorMessage} from '@/lib/utils'
 
-export function ApprovalFeed({appId, compact = false}: { appId?: string; compact?: boolean }) {
+export function ApprovalFeed({appId, compact = false, showAppFilter = false}: {
+  appId?: string;
+  compact?: boolean;
+  showAppFilter?: boolean
+}) {
   const params = useParams()
-  const effectiveAppId = appId ?? params.appId
+  const [selectedAppId, setSelectedAppId] = React.useState('')
+  const [apps, setApps] = React.useState<App[]>([])
+  const effectiveAppId = appId ?? params.appId ?? (showAppFilter ? selectedAppId : '')
   const [tab, setTab] = React.useState<'pending' | 'handled' | 'initiated'>('pending')
   const [search, setSearch] = React.useState('')
   const [page, setPage] = React.useState(1)
@@ -21,6 +28,17 @@ export function ApprovalFeed({appId, compact = false}: { appId?: string; compact
   const [selected, setSelected] = React.useState<ApprovalItem | null>(null)
   const [names, setNames] = React.useState<Record<string, string>>({})
   const [revision, refresh] = React.useReducer(value => value + 1, 0)
+  React.useEffect(() => {
+    if (!showAppFilter) return
+    let active = true
+    getApps()
+      .then(value => active && setApps(value.filter(app => app.enabled)))
+      .catch(() => {
+      })
+    return () => {
+      active = false
+    }
+  }, [showAppFilter])
   React.useEffect(() => {
     let active = true
     const load = async () => {
@@ -74,6 +92,15 @@ export function ApprovalFeed({appId, compact = false}: { appId?: string; compact
                   setSelected(null)
                 }}>{label}</button>)}</div>
       {!compact && <div className="flex items-center gap-2">
+        {showAppFilter &&
+          <select aria-label="所属应用" className="h-10 max-w-48 rounded-md border bg-background px-3 text-sm"
+                  value={selectedAppId} onChange={event => {
+            setSelectedAppId(event.target.value);
+            setPage(1)
+          }}>
+            <option value="">全部应用</option>
+            {apps.map(app => <option key={app.id} value={app.id}>{app.name}</option>)}
+          </select>}
         <SearchInput aria-label="搜索审批" className="w-56" placeholder="搜索流程或当前节点" value={search}
                      onChange={event => {
                        setSearch(event.target.value);
