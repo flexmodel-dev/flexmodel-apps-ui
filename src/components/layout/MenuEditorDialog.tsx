@@ -23,6 +23,7 @@ import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Empty} from '@/components/ui/empty'
+import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {DirectoryMemberPicker} from '@/components/rb/DirectoryMemberPicker'
 import type {DirectorySelection} from '@/types/directory'
 import {OptionalIconPicker} from '@/components/biz/IconPicker'
@@ -35,7 +36,6 @@ import {
   isValidHttpUrl,
   reorderAppMenus,
   updateAppMenu,
-  updateAppMenuMembers,
   type AppMenu,
   type AppMenuInput,
   type AppMenuTargetType,
@@ -90,6 +90,8 @@ const sensorsOptions = {
   activationConstraint: {distance: 4},
 }
 
+const rowActionsClass = 'flex shrink-0 items-center gap-0.5'
+
 function iconName(icon?: NavItem['icon']) {
   return navIconOptions.find((name) => navIcons[name] === icon) ?? 'none'
 }
@@ -109,21 +111,100 @@ function LeftMenuDropArea({
   )
 }
 
+function MenuAuthorizationPopover({
+                                    appId,
+                                    menu,
+                                    disabled,
+                                    onSaved,
+                                  }: {
+  appId: string
+  menu: AppMenu
+  disabled?: boolean
+  onSaved: () => Promise<void>
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [members, setMembers] = React.useState<DirectorySelection[]>(() => menu.members ?? [])
+  const [error, setError] = React.useState<string | null>(null)
+  const [saving, setSaving] = React.useState(false)
+  const memberCount = (menu.members ?? []).length
+
+  React.useEffect(() => {
+    if (!open) return
+    setMembers(menu.members ?? [])
+    setError(null)
+  }, [open, menu.members])
+
+  const save = async () => {
+    if (saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      await updateAppMenu(appId, menu.id, {members}, 'PATCH')
+      setOpen(false)
+      await onSaved()
+    } catch (caught) {
+      setError(toErrorMessage(caught, '保存菜单授权失败，请稍后重试。'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={(next) => !saving && setOpen(next)}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          title={memberCount > 0 ? `授权（已设置 ${memberCount} 项）` : '授权'}
+          aria-label={'授权：' + menu.name}
+          disabled={disabled}
+        >
+          <ShieldCheck className={cn('h-4 w-4', memberCount > 0 && 'text-primary')}/>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="z-[1100] w-80 space-y-3 p-4"
+        aria-label={'菜单授权 · ' + menu.name}
+      >
+        <div className="text-sm font-semibold text-foreground">菜单授权 · {menu.name}</div>
+        {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+        <DirectoryMemberPicker
+          appId={appId}
+          value={members}
+          onChange={setMembers}
+          disabled={saving}
+          multiple
+        />
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" size="sm" disabled={saving}
+                  onClick={() => setOpen(false)}>取消</Button>
+          <Button type="button" size="sm" disabled={saving} onClick={() => void save()}>
+            {saving ? '保存中…' : '保存'}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function TopMenuRow({
                       menu,
                       selected,
                       canDelete,
+                      authorization,
                       onSelect,
                       onEdit,
-                      onAuthorize,
                       onDelete,
                     }: {
   menu: TopNavItem
   selected: boolean
   canDelete: boolean
+  authorization?: React.ReactNode
   onSelect: (menu: TopNavItem) => void
   onEdit: (menu: TopNavItem) => void
-  onAuthorize?: (id: string) => void
   onDelete: (menu: TopNavItem) => void
 }) {
   const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
@@ -158,32 +239,30 @@ function TopMenuRow({
           <span className={cn('block truncate text-sm font-medium', selected && 'text-primary')}>{menu.text}</span>
         </span>
       </button>
-      {onAuthorize && <Button type="button" variant="ghost" size="icon" className="h-8 w-8"
-                              title="授权" aria-label={'授权：' + menu.text}
-                              onClick={() => onAuthorize(menu.id)}>
-        <ShieldCheck className="h-4 w-4"/>
-      </Button>}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        title="编辑一级菜单"
-        onClick={() => onEdit(menu)}
-      >
-        <Pencil className="h-4 w-4"/>
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        title="删除一级菜单"
-        disabled={!canDelete}
-        onClick={() => onDelete(menu)}
-      >
-        <Trash2 className="h-4 w-4"/>
-      </Button>
+      <div className={rowActionsClass}>
+        {authorization}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          title="编辑一级菜单"
+          onClick={() => onEdit(menu)}
+        >
+          <Pencil className="h-4 w-4"/>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          title="删除一级菜单"
+          disabled={!canDelete}
+          onClick={() => onDelete(menu)}
+        >
+          <Trash2 className="h-4 w-4"/>
+        </Button>
+      </div>
     </div>
   )
 }
@@ -191,15 +270,15 @@ function TopMenuRow({
 function LeftMenuRow({
                        item,
                        selected,
+                       authorization,
                        onEdit,
-                       onAuthorize,
                        onDelete,
                        onAddChild,
                      }: {
   item: NavItem
   selected: boolean
+  authorization?: React.ReactNode
   onEdit: (item: NavItem) => void
-  onAuthorize?: (id: string) => void
   onDelete: (item: NavItem) => void
   onAddChild: (parentId: string) => void
 }) {
@@ -237,43 +316,41 @@ function LeftMenuRow({
           )}
         </span>
       </button>
-      {item.sub && (
+      <div className={rowActionsClass}>
+        {item.sub && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="新增分组内菜单"
+            onClick={() => onAddChild(item.id)}
+          >
+            <Plus className="h-4 w-4"/>
+          </Button>
+        )}
+        {authorization}
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
-          title="新增分组内菜单"
-          onClick={() => onAddChild(item.id)}
+          className="h-7 w-7"
+          title={item.sub ? '编辑分组' : '编辑菜单'}
+          onClick={() => onEdit(item)}
         >
-          <Plus className="h-4 w-4"/>
+          <Pencil className="h-4 w-4"/>
         </Button>
-      )}
-      {onAuthorize && <Button type="button" variant="ghost" size="icon" className="h-8 w-8"
-                              title="授权" aria-label={'授权：' + item.text}
-                              onClick={() => onAuthorize(item.id)}>
-        <ShieldCheck className="h-4 w-4"/>
-      </Button>}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        title={item.sub ? '编辑分组' : '编辑菜单'}
-        onClick={() => onEdit(item)}
-      >
-        <Pencil className="h-4 w-4"/>
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        title={item.sub ? '删除分组' : '删除菜单'}
-        onClick={() => onDelete(item)}
-      >
-        <Trash2 className="h-4 w-4"/>
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          title={item.sub ? '删除分组' : '删除菜单'}
+          onClick={() => onDelete(item)}
+        >
+          <Trash2 className="h-4 w-4"/>
+        </Button>
+      </div>
     </div>
   )
 }
@@ -282,15 +359,15 @@ function SubmenuRow({
                       parentId,
                       item,
                       selected,
+                      authorization,
                       onEdit,
-                      onAuthorize,
                       onDelete,
                     }: {
   parentId: string
   item: NavItem
   selected: boolean
+  authorization?: React.ReactNode
   onEdit: (parentId: string, item: NavItem) => void
-  onAuthorize?: (id: string) => void
   onDelete: (parentId: string, item: NavItem) => void
 }) {
   const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
@@ -321,31 +398,29 @@ function SubmenuRow({
           <span className="block truncate text-sm">{item.text}</span>
         </span>
       </button>
-      {onAuthorize && <Button type="button" variant="ghost" size="icon" className="h-8 w-8"
-                              title="授权" aria-label={'授权：' + item.text}
-                              onClick={() => onAuthorize(item.id)}>
-        <ShieldCheck className="h-4 w-4"/>
-      </Button>}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        title="编辑分组内菜单"
-        onClick={() => onEdit(parentId, item)}
-      >
-        <Pencil className="h-4 w-4"/>
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        title="删除分组内菜单"
-        onClick={() => onDelete(parentId, item)}
-      >
-        <Trash2 className="h-4 w-4"/>
-      </Button>
+      <div className={rowActionsClass}>
+        {authorization}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          title="编辑分组内菜单"
+          onClick={() => onEdit(parentId, item)}
+        >
+          <Pencil className="h-4 w-4"/>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          title="删除分组内菜单"
+          onClick={() => onDelete(parentId, item)}
+        >
+          <Trash2 className="h-4 w-4"/>
+        </Button>
+      </div>
     </div>
   )
 }
@@ -400,12 +475,6 @@ function MenuEditorDialog({
   const [isLoading, setIsLoading] = React.useState(false)
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [isSaving, setIsSaving] = React.useState(false)
-  const [authorization, setAuthorization] = React.useState<{menu: AppMenu; members: DirectorySelection[]} | null>(null)
-  const [authorizationError, setAuthorizationError] = React.useState<string | null>(null)
-
-  React.useEffect(() => {
-    setAuthorization(null)
-  }, [open, appId])
 
   const sensors = useSensors(
     useSensor(PointerSensor, sensorsOptions),
@@ -816,29 +885,29 @@ function MenuEditorDialog({
     void moveMenuToParent(activeMenu, overInfo.parentId, targetIndex)
   }
 
-  const authorize = (id: string) => {
-    const menu = findMenuById(apiMenus, id)
-    if (!menu || isSaving) return
-    setAuthorizationError(null)
-    setAuthorization({menu, members: menu.members ?? []})
-  }
-
-  const saveAuthorization = async () => {
-    if (!appId || !authorization || isSaving) return
-    setIsSaving(true)
-    setAuthorizationError(null)
-    const {menu, members} = authorization
+  const refreshAuthorizedMenus = async () => {
+    if (!appId) return
     try {
-      await updateAppMenuMembers(appId, menu.id, members)
       const menus = await getAppMenus(appId)
       setApiMenus(menus)
       onMenusChange(menus)
-      setAuthorization(null)
     } catch (caught) {
-      setAuthorizationError(toErrorMessage(caught, '保存菜单授权失败，请稍后重试。'))
-    } finally {
-      setIsSaving(false)
+      setActionError(toErrorMessage(caught, '刷新菜单授权失败，请稍后重试。'))
     }
+  }
+
+  const authorizationFor = (menuId: string) => {
+    if (!appId) return undefined
+    const menu = findMenuById(apiMenus, menuId)
+    if (!menu) return undefined
+    return (
+      <MenuAuthorizationPopover
+        appId={appId}
+        menu={menu}
+        disabled={isSaving}
+        onSaved={refreshAuthorizedMenus}
+      />
+    )
   }
 
   const deleteText =
@@ -887,7 +956,7 @@ function MenuEditorDialog({
                         setSelectedTopId(menu.id)
                         editTop(menu)
                       }}
-                      onAuthorize={appId ? authorize : undefined}
+                      authorization={authorizationFor(item.id)}
                       onEdit={editTop}
                       onDelete={(menu) => setDeleteTarget({kind: 'top', item: menu})}
                     />
@@ -927,7 +996,7 @@ function MenuEditorDialog({
                       <LeftMenuRow
                         item={item}
                         selected={form?.kind === 'left' && form.id === item.id}
-                        onAuthorize={appId ? authorize : undefined}
+                        authorization={authorizationFor(item.id)}
                         onEdit={editLeft}
                         onDelete={(menuItem) => setDeleteTarget({kind: 'left', item: menuItem})}
                         onAddChild={startSub}
@@ -960,7 +1029,7 @@ function MenuEditorDialog({
                                   parentId={item.id}
                                   item={child}
                                   selected={form?.kind === 'sub' && form.id === child.id}
-                                  onAuthorize={appId ? authorize : undefined}
+                                  authorization={authorizationFor(child.id)}
                                   onEdit={editSub}
                                   onDelete={(parentId, menuItem) =>
                                     setDeleteTarget({kind: 'sub', parentId, item: menuItem})
@@ -1068,17 +1137,6 @@ function MenuEditorDialog({
             )}
           </section>
         </div>
-      </BizDialog>
-
-      <BizDialog open={open && authorization !== null}
-                 onOpenChange={next => !next && !isSaving && setAuthorization(null)}
-                 title={'菜单授权 · ' + (authorization?.menu.name ?? '')} footer={<>
-        <Button type="button" variant="secondary" disabled={isSaving} onClick={() => setAuthorization(null)}>取消</Button>
-        <Button type="button" disabled={isSaving} onClick={() => void saveAuthorization()}>{isSaving ? '保存中…' : '保存'}</Button>
-      </>}>
-        {authorizationError && <p role="alert" className="mb-3 text-sm text-destructive">{authorizationError}</p>}
-        {authorization !== null && <DirectoryMemberPicker appId={appId} value={authorization.members}
-          onChange={members => setAuthorization({...authorization, members})} disabled={isSaving} multiple/>}
       </BizDialog>
 
       <BizDialog

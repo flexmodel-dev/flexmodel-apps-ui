@@ -21,9 +21,11 @@ export interface AppMenu {
   pageRoute?: string | null
   children: AppMenu[]
   members?: DirectorySelection[]
+  ownerId?: string
 }
 
 export interface AppMenuInput {
+  members?: DirectorySelection[]
   type: AppMenuType
   name: string
   iconName?: string | null
@@ -92,10 +94,11 @@ export async function createAppMenu(appId: string, input: AppMenuInput): Promise
 export async function updateAppMenu(
   appId: string,
   menuId: string,
-  input: AppMenuInput,
+  input: Partial<AppMenuInput>,
+  method: 'PUT' | 'PATCH' = 'PUT',
 ): Promise<AppMenu> {
   const menu = await requestJson<AppMenu>(`${API_BASE}/${appId}/menus/${menuId}`, {
-    method: 'PUT',
+    method,
     body: JSON.stringify(input),
   })
   menuCache.delete(appId)
@@ -105,14 +108,6 @@ export async function updateAppMenu(
 export async function deleteAppMenu(appId: string, menuId: string): Promise<void> {
   await requestJson<null>(`${API_BASE}/${appId}/menus/${menuId}`, {method: 'DELETE'})
   menuCache.delete(appId)
-}
-
-export async function updateAppMenuMembers(appId: string, menuId: string, members: DirectorySelection[]): Promise<AppMenu> {
-  const menu = await requestJson<AppMenu>(`${API_BASE}/${appId}/menus/${menuId}/members`, {
-    method: 'PUT', body: JSON.stringify(members),
-  })
-  menuCache.delete(appId)
-  return menu
 }
 
 export async function reorderAppMenus(
