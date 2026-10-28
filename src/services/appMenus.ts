@@ -1,5 +1,6 @@
 import {requestJson} from '@/services/http'
 import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
+import type {DirectorySelection} from '@/types/directory'
 
 export type AppMenuType = 'GROUP' | 'ITEM'
 export type AppMenuTargetType = 'BUILTIN' | 'FORM' | 'LINK'
@@ -19,6 +20,7 @@ export interface AppMenu {
   target?: AppMenuTarget | null
   pageRoute?: string | null
   children: AppMenu[]
+  members?: DirectorySelection[]
 }
 
 export interface AppMenuInput {
@@ -103,6 +105,14 @@ export async function updateAppMenu(
 export async function deleteAppMenu(appId: string, menuId: string): Promise<void> {
   await requestJson<null>(`${API_BASE}/${appId}/menus/${menuId}`, {method: 'DELETE'})
   menuCache.delete(appId)
+}
+
+export async function updateAppMenuMembers(appId: string, menuId: string, members: DirectorySelection[]): Promise<AppMenu> {
+  const menu = await requestJson<AppMenu>(`${API_BASE}/${appId}/menus/${menuId}/members`, {
+    method: 'PUT', body: JSON.stringify(members),
+  })
+  menuCache.delete(appId)
+  return menu
 }
 
 export async function reorderAppMenus(
