@@ -178,7 +178,7 @@ export default function AppSettings({ section }: { section: string }) {
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
-          <SettingsPageHeader title={`${app.name} · ${settingsNavs.find(item => item.key === activeSection)?.label}`}
+          <SettingsPageHeader title={`${settingsNavs.find(item => item.key === activeSection)?.label}`}
             description={sectionDescriptions[activeSection]} onBack={() => navigate('/admin/apps')} backLabel="返回应用管理"
             actions={activeSection === 'basic' && (
               <Button onClick={() => setFormOpen(true)}>
