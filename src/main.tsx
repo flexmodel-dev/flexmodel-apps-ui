@@ -20,6 +20,7 @@ import ContactsHome from '@/pages/ContactsHome'
 import UserSettings from '@/pages/UserSettings'
 import FormDesign from '@/pages/FormDesign'
 import FormSettings from '@/pages/FormSettings'
+import FormDataPermissions from '@/pages/FormDataPermissions'
 import {
   AdminUsers,
   AdminRoles,
@@ -82,6 +83,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                  element={<FormSettings section="base"/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/fields"
                  element={<FormSettings section="fields"/>}/>
+          <Route path="/admin/apps/:appId/forms/:formName/data-permissions" element={<FormDataPermissions/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/form-design"
                  element={<FormDesign/>}/>
           <Route path="/admin/users" element={<AdminUsers/>}/>

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import {useDirectory} from './directory'
+import {DirectoryMemberPicker} from '@/components/rb/DirectoryMemberPicker'
 import {getAuthSession} from '@/services/auth'
 import {
   ArrowDown,
@@ -178,39 +179,16 @@ function AssigneeEditor({
                   )}
                 />
               </Field>
-              {rule.source === 'users' && (
-                <MultiChoice
-                  value={rule.values}
-                  onChange={(values) => patch({values})}
-                  placeholder="搜索并选择用户"
-                  options={approvalDirectory.members.map((member) => ({
-                    value: member.id,
-                    label: member.name,
-                    description: member.role,
-                  }))}
-                />
-              )}
-              {rule.source === 'roles' && (
-                <MultiChoice
-                  value={rule.values}
-                  onChange={(values) => patch({values})}
-                  placeholder="选择角色"
-                  options={(approvalDirectory.roles ?? []).map(role => ({value: role.id, label: role.name}))}
-                />
-              )}
+              {(rule.source === 'users' || rule.source === 'roles') && <DirectoryMemberPicker
+                directory={approvalDirectory} types={[rule.source === 'users' ? 'USER' : 'ROLE']}
+                label={rule.source === 'users' ? '选择用户' : '选择角色'}
+                value={rule.values.map(id => ({type: rule.source === 'users' ? 'USER' : 'ROLE', id}))}
+                onChange={items => patch({values: items.map(item => item.id)})}/>}
               {rule.source === 'organizations' && (
                 <>
-                  <MultiChoice
-                    tree
-                    value={rule.values}
-                    onChange={(values) => patch({values})}
-                    placeholder="选择组织架构"
-                    options={approvalDirectory.organizations.map((org) => ({
-                      value: org.id,
-                      label: org.name,
-                      depth: org.parentId ? 1 : 0,
-                    }))}
-                  />
+                  <DirectoryMemberPicker directory={approvalDirectory} types={['ORGANIZATION']} allowIncludeChildren={false}
+                    label="选择组织架构" value={rule.values.map(id => ({type: 'ORGANIZATION', id}))}
+                    onChange={items => patch({values: items.map(item => item.id)})}/>
                   <label className="flex items-center gap-2 text-xs">
                     <input
                       type="checkbox"

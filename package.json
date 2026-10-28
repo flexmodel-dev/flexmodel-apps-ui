@@ -12,6 +12,7 @@
     "test:records": "playwright test --config playwright.records.config.ts",
     "test:fields": "playwright test --config playwright.fields.config.ts",
     "test:settings": "playwright test --config playwright.settings.config.ts",
+    "test:permissions": "playwright test --config playwright.permissions.config.ts",
     "test:attachments": "playwright test --config playwright.attachments.config.ts"
   },
   "dependencies": {

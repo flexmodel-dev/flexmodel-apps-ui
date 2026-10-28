@@ -4,11 +4,12 @@ import {cloneNode, emptyDocument, flattenNodes} from '../lib/approval'
 import {requestJson} from './http'
 import {cachedFetch, createAppDataCache} from './appDataCache'
 import {decodeApprovalFlow, encodeApprovalFlow, type ApprovalFlowRecord} from './approval-model'
+import {getDirectory} from './directory'
 
 const base = (appId: string) => `/api/apps/${encodeURIComponent(appId)}/approval-flows`
 export const getApprovalFlows = async (appId: string) => (await requestJson<ApprovalFlowRecord[]>(base(appId))).map(record => decodeApprovalFlow(record, appId))
 export const getApprovalFlow = async (appId: string, id: string) => decodeApprovalFlow(await requestJson<ApprovalFlowRecord>(`${base(appId)}/${encodeURIComponent(id)}`), appId)
-export const getApprovalDirectory = (appId: string) => requestJson<MemberDirectory>(`/api/apps/${encodeURIComponent(appId)}/approval-directory`)
+export const getApprovalDirectory = (appId: string) => getDirectory(appId) as Promise<MemberDirectory>
 
 const memberCache = createAppDataCache<Record<string, ApprovalMember>>()
 
