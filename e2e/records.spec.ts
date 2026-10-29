@@ -2,6 +2,9 @@ import {test, expect, type Page} from '@playwright/test'
 import {readFileSync} from 'node:fs'
 import type {RecordDiscussionItem} from '../src/services/recordDiscussions'
 
+// 验证滚动条实际占位；Chromium 无头模式默认隐藏原生滚动条。
+test.use({launchOptions: {ignoreDefaultArgs: ['--hide-scrollbars']}})
+
 const root = '/api/apps/record-edit'
 const recordsPath = `${root}/forms/purchase/records`
 const listUrl = '/#/apps/record-edit/purchases'
@@ -26,8 +29,8 @@ const form = {
   layout: {items: []}, viewTabs: [],
 }
 
-async function setupRecords(page: Page, {pending, failLoad = false}: {
-  pending?: Promise<void>; failLoad?: boolean
+async function setupRecords(page: Page, {pending, failLoad = false, listForm = form}: {
+  pending?: Promise<void>; failLoad?: boolean; listForm?: typeof form
 } = {}) {
   const records: Record<string, Record<string, unknown>> = {
     first: {
@@ -84,8 +87,8 @@ async function setupRecords(page: Page, {pending, failLoad = false}: {
     const json = pathname === root ? app
       : pathname === '/api/apps' ? [app]
         : pathname === `${root}/menus` ? menus
-          : pathname === `${root}/forms/purchase` ? form
-            : pathname === `${root}/forms` ? [form]
+          : pathname === `${root}/forms/purchase` ? listForm
+            : pathname === `${root}/forms` ? [listForm]
               : pathname === '/api/notifications/summary'
                 ? {version: '0', unread: 0, byCategory: {}, apps: []}
                 : []
@@ -95,6 +98,43 @@ async function setupRecords(page: Page, {pending, failLoad = false}: {
   await expect(page.getByRole('row').filter({hasText: '原始申请'})).toBeVisible()
   return {records, writes}
 }
+
+for (const dark of [false, true]) test(`列表横向滚动保持主显字段和操作可见（${dark ? '夜间' : '浅色'}）`, async ({page}) => {
+  await setupRecords(page)
+  if (dark) await page.evaluate(() => document.documentElement.classList.add('dark'))
+  const scroll = page.locator('.record-list-scroll')
+  const row = scroll.getByRole('row').filter({hasText: '原始申请'})
+  const primary = row.locator('.record-list-primary')
+  const actions = row.locator('.record-list-actions')
+  const before = {primary: (await primary.boundingBox())!, actions: (await actions.boundingBox())!,
+    middle: (await row.locator('td').nth(2).boundingBox())!}
+  expect(await scroll.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true)
+  expect(await scroll.evaluate(el => el.getBoundingClientRect().height - el.clientHeight)).toBeGreaterThan(0)
+  await scroll.evaluate(el => {el.scrollLeft = el.scrollWidth})
+  await expect.poll(() => scroll.evaluate(el => el.scrollLeft)).toBeGreaterThan(0)
+  expect((await primary.boundingBox())!.x).toBeCloseTo(before.primary.x, 0)
+  expect((await actions.boundingBox())!.x).toBeCloseTo(before.actions.x, 0)
+  expect((await row.locator('td').nth(2).boundingBox())!.x).toBeLessThan(before.middle.x)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await row.getByRole('checkbox').check()
+  await expect(row).toHaveAttribute('data-selected', 'true')
+  await page.mouse.move(0, 0)
+  expect(await primary.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(
+    await row.locator('td').nth(2).evaluate(el => getComputedStyle(el).backgroundColor))
+  await page.screenshot({path: `artifacts/record-fixed-columns-${dark ? 'dark' : 'light'}.png`})
+  await row.getByTitle('编辑', {exact: true}).click()
+  await expect(page.getByRole('dialog').getByPlaceholder('请输入申请事由')).toHaveValue('原始申请')
+})
+
+test('字段较少时表格填满内容区且无需横向滚动', async ({page}) => {
+  await setupRecords(page, {listForm: {...form, fields: form.fields.slice(0, 2)}})
+  const scroll = page.locator('.record-list-scroll')
+  expect(await scroll.evaluate(el => el.scrollWidth === el.clientWidth)).toBe(true)
+  const selection = (await scroll.locator('tbody .record-list-selection').first().boundingBox())!
+  const primary = (await scroll.locator('tbody .record-list-primary').first().boundingBox())!
+  expect(selection.width).toBe(48)
+  expect(primary.x).toBeCloseTo(selection.x + selection.width, 0)
+})
 
 test('列表直接编辑等待记录加载，回填全部字段并在重开时切换到正确记录', async ({page}) => {
   let release!: () => void

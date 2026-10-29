@@ -680,14 +680,21 @@ export default function RecordList({formName}: { formName?: string }) {
           {error && (
             <div className="mb-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
           )}
-          <div className="data-list app-table-scroll min-h-0 flex-1 overflow-x-auto">
+          <div className="data-list app-table-scroll record-list-scroll min-h-0 min-w-0 flex-1">
             {isLoading ? (
               <AppLoading center className="min-h-[240px]"/>
             ) : (
-              <table className="app-table w-full min-w-[900px] border-collapse bg-background">
+              <table className="app-table record-list-table table-fixed bg-background"
+                style={{minWidth: 48 + columns.reduce((width, column) => width + (column.name === primaryField?.name ? 220 : 180), 0) + 120}}>
+                <colgroup>
+                  <col style={{width: 48}}/>
+                  {columns.map((column) => <col key={column.name}
+                    style={{width: columns.length > 1 && column.name === primaryField?.name ? 220 : undefined}}/>)}
+                  <col style={{width: columns.length ? 120 : undefined}}/>
+                </colgroup>
                 <thead>
                 <tr>
-                  <th className="w-[36px]">
+                  <th className="record-list-selection">
                     <Checkbox
                       checked={rows.length > 0 && selected.length === rows.length}
                       onCheckedChange={toggleAll}
@@ -696,7 +703,7 @@ export default function RecordList({formName}: { formName?: string }) {
                   {columns.map((column) => (
                     <th
                       key={column.name}
-                      className="cursor-pointer select-none hover:text-primary"
+                      className={cn('cursor-pointer select-none hover:text-primary', column.name === primaryField?.name && 'record-list-primary')}
                       onClick={() => sortBy(column.name)}
                     >
                       {form.layout.items.find((item) => item.type === 'FIELD' && item.name === column.name)?.label?.trim() || column.label}
@@ -705,7 +712,7 @@ export default function RecordList({formName}: { formName?: string }) {
                       )}
                     </th>
                   ))}
-                  <th className="w-[120px]">操作</th>
+                  <th className="record-list-actions">操作</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -718,18 +725,21 @@ export default function RecordList({formName}: { formName?: string }) {
                         'cursor-pointer transition-colors hover:bg-muted/40',
                         selected.includes(recordId) && 'bg-primary/10',
                       )}
+                      data-selected={selected.includes(recordId)}
                       onClick={() => openRecordDetail(recordId)}
                     >
-                      <td onClick={(event) => event.stopPropagation()}>
+                      <td className="record-list-selection" onClick={(event) => event.stopPropagation()}>
                         <Checkbox
                           checked={selected.includes(recordId)}
                           onCheckedChange={() => toggleOne(recordId)}
                         />
                       </td>
                       {columns.map((column) => (
-                        <td key={column.name}>{renderCell(row, column)}</td>
+                        <td key={column.name} className={cn(column.name === primaryField?.name && 'record-list-primary')}>
+                          <div className="overflow-hidden text-ellipsis whitespace-nowrap">{renderCell(row, column)}</div>
+                        </td>
                       ))}
-                      <td>
+                      <td className="record-list-actions">
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"

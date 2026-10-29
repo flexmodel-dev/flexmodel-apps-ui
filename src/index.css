@@ -94,6 +94,79 @@
     z-index: 10;
   }
 
+  .record-list-scroll {
+    max-height: none;
+  }
+
+  .record-list-scroll::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .record-list-scroll::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+
+  .record-list-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+    border: 3px solid hsl(var(--muted));
+    border-radius: 6px;
+  }
+
+  .record-list-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .record-list-table th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .record-list-table tbody tr {
+    --record-row-background: hsl(var(--background));
+  }
+
+  .record-list-table tbody tr[data-selected='true'] {
+    --record-row-background: color-mix(in srgb, hsl(var(--primary)) 10%, hsl(var(--background)));
+  }
+
+  .record-list-table tbody tr:hover {
+    --record-row-background: color-mix(in srgb, hsl(var(--primary)) 5%, hsl(var(--background)));
+  }
+
+  .record-list-table tbody tr td {
+    background: var(--record-row-background);
+  }
+
+  .record-list-table .record-list-selection,
+  .record-list-table .record-list-primary,
+  .record-list-table .record-list-actions {
+    position: sticky;
+    z-index: 1;
+  }
+
+  .record-list-table .record-list-selection {
+    left: 0;
+  }
+
+  .record-list-table .record-list-primary {
+    left: 48px;
+    box-shadow: 1px 0 0 hsl(var(--border));
+  }
+
+  .record-list-table .record-list-actions {
+    right: 0;
+    box-shadow: -1px 0 0 hsl(var(--border));
+  }
+
+  .record-list-scroll .record-list-table thead .record-list-selection,
+  .record-list-scroll .record-list-table thead .record-list-primary,
+  .record-list-scroll .record-list-table thead .record-list-actions {
+    z-index: 20;
+  }
+
   .badge-secondary {
     @apply inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary;
   }
