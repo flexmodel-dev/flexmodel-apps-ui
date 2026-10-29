@@ -1,9 +1,5 @@
-﻿import * as React from 'react'
-import {AdminLayout} from '@/components/layout/AdminLayout'
-import {AdminTablePage} from './AdminTablePage'
+﻿import {AdminLayout} from '@/components/layout/AdminLayout'
 import {FormManagementContent} from './AdminContent'
-import {Button} from '@/components/ui/button'
-import {CirclePlus} from 'lucide-react'
 import ApprovalList from '@/pages/Approvals/ApprovalList'
 
 export {AdminUsers} from './AdminUsers'
@@ -19,23 +15,4 @@ export function AdminForms({embedded = false, appId}: { embedded?: boolean; appI
 export function AdminApprovals({embedded = false, appId}: { embedded?: boolean; appId?: string } = {}) {
   const content = <ApprovalList appId={appId}/>
   return embedded ? content : <AdminLayout>{content}</AdminLayout>
-}
-
-/** 触发器列表 */
-export function AdminTriggers({ embedded = false }: { embedded?: boolean } = {}) {
-  return (
-    <AdminTablePage
-      title="触发器"
-      desc="数据自动化处理规则"
-      bare={embedded}
-      rows={[
-        {id: 'trigger', name: '触发器', state: '启用'},
-      ]}
-      columns={[
-        {key: 'name', label: '触发器名称'},
-        {key: 'state', label: '状态'},
-      ]}
-      toolbar={<Button><CirclePlus className="h-4 w-4" /> 新建触发器</Button>}
-    />
-  )
 }

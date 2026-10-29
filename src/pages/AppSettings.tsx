@@ -10,7 +10,7 @@ import {IconPicker} from '@/components/biz/IconPicker'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {Empty} from '@/components/ui/empty'
 import {AppMenuManager} from '@/components/biz/AppMenuManager'
-import {AdminApprovals, AdminForms, AdminTriggers} from '@/pages/admin'
+import {AdminApprovals, AdminForms} from '@/pages/admin'
 import {appIcons, type AppIconName} from '@/data/appIcons'
 import {getAppPrimaryColor, type AppPrimaryColor} from '@/theme/appPrimaryColors'
 import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
@@ -22,7 +22,6 @@ const settingsNavs = [
   {key: 'menus', label: '菜单管理'},
   {key: 'forms', label: '表单管理'},
   { key: 'approvals', label: '审批流程' },
-  { key: 'triggers', label: '触发器' },
 ]
 
 const sectionDescriptions: Record<string, string> = {
@@ -30,7 +29,6 @@ const sectionDescriptions: Record<string, string> = {
   menus: '配置应用导航与页面入口。',
   forms: '管理业务表单、字段及布局。',
   approvals: '管理审批流程与流转规则。',
-  triggers: '管理数据自动化处理规则。',
 }
 
 export default function AppSettings({ section }: { section: string }) {
@@ -220,8 +218,6 @@ export default function AppSettings({ section }: { section: string }) {
 
             {activeSection === 'approvals' && <AdminApprovals embedded appId={app.id}/>}
 
-            {activeSection === 'triggers' && <AdminTriggers embedded />}
-
           </div>
         </div>
       </div>
@@ -278,7 +274,7 @@ export default function AppSettings({ section }: { section: string }) {
           }}
           title="删除应用"
           message={<>
-            确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占表单和记录。
+            确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程及独占表单和记录。
             {deleteError ? (
               <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
             ) : null}

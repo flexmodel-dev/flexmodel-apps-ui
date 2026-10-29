@@ -27,7 +27,6 @@ import {
   AdminUsers,
   AdminRoles,
   AdminApprovals,
-  AdminTriggers,
 } from '@/pages/admin'
 import {MessageViewport} from '@/components/ui/message'
 import {getAuthSession} from '@/services/auth'
@@ -74,7 +73,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                  element={<AppSettings section="forms"/>}/>
           <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals"/>}/>
           <Route path="/admin/apps/:appId/approvals/:flowId/design" element={<ApprovalDesignerRoute/>}/>
-          <Route path="/admin/apps/:appId/settings/triggers" element={<AppSettings section="triggers"/>}/>
           {/* 内置模块 */}
           <Route path="/approval/home" element={<ApprovalHome/>}/>
           <Route path="/feeds/home" element={<FeedsHome/>}/>
@@ -94,7 +92,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/admin/users" element={<AdminUsers/>}/>
           <Route path="/admin/role-privileges" element={<AdminRoles/>}/>
           <Route path="/admin/robot/approvals" element={<AdminApprovals/>}/>
-          <Route path="/admin/robot/triggers" element={<AdminTriggers/>}/>
         </Route>
         {/* 兜底 */}
         <Route path="*" element={<Navigate to="/admin/apps" replace/>}/>

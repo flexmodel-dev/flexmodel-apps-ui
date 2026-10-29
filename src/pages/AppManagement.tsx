@@ -263,7 +263,7 @@ export default function AppManagement() {
         }}
         title="删除应用"
         message={<>
-          确认删除应用「{deleteTarget?.name}」吗？将同时删除该应用菜单、审批流程、触发器及独占表单和记录。
+          确认删除应用「{deleteTarget?.name}」吗？将同时删除该应用菜单、审批流程及独占表单和记录。
           {deleteError ? (
             <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
           ) : null}
