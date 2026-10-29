@@ -15,6 +15,7 @@ import {
   ListChecks,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Settings,
   Share,
@@ -617,6 +618,17 @@ export default function RecordList({formName}: { formName?: string }) {
           </ul>
           <div className="mb-1 flex items-center gap-1">
             <span className="block h-5 w-px shrink-0 bg-muted-foreground/40" aria-hidden="true"/>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="刷新"
+              aria-label="刷新"
+              disabled={isLoading}
+              onClick={refresh}
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')}/>
+            </Button>
             <Button
               variant="ghost"
               size="icon"
