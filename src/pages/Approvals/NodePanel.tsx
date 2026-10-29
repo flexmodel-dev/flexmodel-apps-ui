@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {useDirectory} from './directory'
-import {DirectoryMemberPicker} from '@/components/rb/DirectoryMemberPicker'
+import {DirectoryMemberPicker} from '@/components/biz/DirectoryMemberPicker'
 import {getAuthSession} from '@/services/auth'
 import {
   ArrowDown,
