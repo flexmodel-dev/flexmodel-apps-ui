@@ -11,16 +11,28 @@ export interface TransferUpload {
 export interface TransferSummary { sheet: string; formName: string; count: number }
 export interface TransferPreview {
   importId: string; planHash: string; expiresAt: number; status: 'READY' | 'INVALID'
-  tables: TransferSummary[]
+  forms: TransferSummary[]
   errors: {sheet: string; row: number; field: string; value: string; message: string}[]
   sample: {sheet: string; row: number; key: string; values: Record<string, unknown>}[]
 }
-export interface TransferResult { importId: string; status: 'COMMITTED'; total: number; tables: TransferSummary[] }
-export interface TransferTable {
+
+export interface TransferResult {
+  importId: string;
+  status: 'COMMITTED';
+  total: number;
+  forms: TransferSummary[]
+}
+
+export interface TransferForm {
   formName: string; scope: 'ALL' | 'FILTERED' | 'IDS'; fields?: string[]; recordIds?: string[]
   search?: string; viewTabId?: string; sortField?: string; sortOrder?: 'ASC' | 'DESC'
 }
-export interface TransferExport { tables: TransferTable[]; includeSubforms: boolean; includeReferences: boolean }
+
+export interface TransferExport {
+  forms: TransferForm[];
+  includeSubforms: boolean;
+  includeReferences: boolean
+}
 const base = (appId: string) => `/api/apps/${encodeURIComponent(appId)}/transfers`
 
 export function getTransferForms(appId: string): Promise<AppForm[]> {
@@ -43,7 +55,8 @@ export async function downloadTransfer(appId: string, request: TransferExport, t
   const response = await requestResponse(`${base(appId)}/${template ? 'templates' : 'exports'}`, {method: 'POST', body: JSON.stringify(request)})
   const url = URL.createObjectURL(await response.blob())
   const anchor = document.createElement('a')
-  anchor.href = url; anchor.download = template ? '多表导入模板.xlsx' : '多表数据.xlsx'
+  anchor.href = url;
+  anchor.download = template ? '多表单导入模板.xlsx' : '多表单数据.xlsx'
   document.body.appendChild(anchor)
   try { anchor.click() } finally { anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000) }
 }

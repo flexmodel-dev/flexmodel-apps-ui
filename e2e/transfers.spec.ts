@@ -19,8 +19,9 @@ const upload = {uploadId: 'upload', expiresAt: Date.now() + 1800000, platform: t
   {name: '订单', rowCount: 2, sample: [['键', '名称'], ['O1', '测试订单']].map(row => row.map(cell))},
   {name: '明细', rowCount: 2, sample: [['键', '名称', '所属订单'], ['L1', '明细一', 'O1']].map(row => row.map(cell))},
 ]}
-const tables = [{sheet: '订单', formName: 'orders', count: 1}, {sheet: '明细', formName: 'items', count: 1}]
-const ready = {importId: 'import', planHash: 'hash', status: 'READY', errors: [], tables,
+const forms = [{sheet: '订单', formName: 'orders', count: 1}, {sheet: '明细', formName: 'items', count: 1}]
+const ready = {
+  importId: 'import', planHash: 'hash', status: 'READY', errors: [], forms,
   sample: [{sheet: '订单', row: 2, key: 'O1', values: {name: '测试订单'}}]}
 
 async function setup(page: Page, options: {invalid?: boolean; commitFailure?: boolean; ordinary?: boolean; dark?: boolean} = {}) {
@@ -52,7 +53,7 @@ async function setup(page: Page, options: {invalid?: boolean; commitFailure?: bo
     if (pathname.endsWith('/commit')) {
       commits++; writes.push({kind: 'commit', body: route.request().postDataJSON()})
       if (options.commitFailure && commits === 1) return route.fulfill({status: 503, json: {message: '网络暂时不可用，请重试'}})
-      return route.fulfill({json: {importId: 'import', status: 'COMMITTED', total: 2, tables}})
+      return route.fulfill({json: {importId: 'import', status: 'COMMITTED', total: 2, forms}})
     }
     if (pathname === `${root}/forms/orders/records`) {
       loads++
@@ -79,7 +80,7 @@ test('模板下载、预览错误修正和提交失败重试保持相同计划',
   const state = await setup(page, {invalid: true, commitFailure: true})
   await page.getByRole('button', {name: '导入', exact: true}).click()
   const download = page.waitForEvent('download')
-  await page.getByRole('button', {name: '下载多表模板'}).click()
+  await page.getByRole('button', {name: '下载多表单模板'}).click()
   expect((await download).suggestedFilename()).toContain('模板.xlsx')
   await page.getByLabel('上传 Excel 文件').setInputFiles({name: 'data.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from('xlsx')})
   await page.getByRole('button', {name: '配置字段'}).click()
@@ -117,7 +118,7 @@ test('普通 Excel 手动选择表单、键列、字段和包内引用', async (
   expect(state.writes.find(item => item.kind === 'preview')?.body).toEqual({sheets: suggestions})
 })
 
-test('筛选导出、勾选导出和多表选择传递正确范围', async ({page}) => {
+test('筛选导出、勾选导出和多表单选择传递正确范围', async ({page}) => {
   const state = await setup(page)
   await page.getByRole('button', {name: '导出', exact: true}).first().click()
   await page.getByLabel('订单明细', {exact: true}).check()
@@ -125,14 +126,21 @@ test('筛选导出、勾选导出和多表选择传递正确范围', async ({pag
   let download = page.waitForEvent('download')
   await page.getByRole('button', {name: '导出 Excel'}).click(); await download
   expect(state.writes.find(item => item.kind === 'export')?.body).toMatchObject({includeSubforms: true, includeReferences: true,
-    tables: [{formName: 'orders', scope: 'FILTERED'}, {formName: 'items', scope: 'ALL'}]})
+    forms: [{formName: 'orders', scope: 'FILTERED'}, {formName: 'items', scope: 'ALL'}]
+  })
   await page.getByRole('button', {name: '关闭', exact: true}).click()
   await page.getByRole('row').filter({hasText: '原始订单'}).getByRole('checkbox').check()
   await page.getByRole('button', {name: '导出', exact: true}).last().click()
   await expect(page.getByRole('combobox', {name: '导出范围'})).toContainText('勾选的 1 条记录')
   download = page.waitForEvent('download')
   await page.getByRole('button', {name: '导出 Excel'}).click(); await download
-  expect(state.writes.filter(item => item.kind === 'export').at(-1)?.body).toMatchObject({tables: [{formName: 'orders', scope: 'IDS', recordIds: ['one']}]})
+  expect(state.writes.filter(item => item.kind === 'export').at(-1)?.body).toMatchObject({
+    forms: [{
+      formName: 'orders',
+      scope: 'IDS',
+      recordIds: ['one']
+    }]
+  })
 })
 
 test('夜间和窄屏向导保持可操作且无页面异常', async ({page}) => {

@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {FileSpreadsheet, Loader2, Upload} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Checkbox} from '@/components/ui/checkbox'
@@ -8,13 +9,14 @@ import {type AppForm} from '@/services/appForms'
 import {
   commitTransfer, downloadTransfer, getTransferForms, previewTransfer, uploadTransfer,
   type TransferColumn, type TransferExport, type TransferPreview, type TransferResult,
-  type TransferSheet, type TransferTable, type TransferUpload,
+  type TransferForm, type TransferSheet, type TransferUpload,
 } from '@/services/appTransfers'
-import {toErrorMessage} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 
 interface Props {
   appId: string; currentForm: AppForm; mode: 'import' | 'export' | 'selected'
-  selectedIds: string[]; query: Omit<TransferTable, 'formName' | 'scope'>
+  selectedIds: string[];
+  query: Omit<TransferForm, 'formName' | 'scope'>
   onClose: () => void; onImported: () => void
 }
 const IGNORE = '__ignore__'
@@ -40,7 +42,7 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
   const [notice, setNotice] = React.useState('')
   const [step, setStep] = React.useState(0)
   const [chosen, setChosen] = React.useState<string[]>([currentForm.name])
-  const [scope, setScope] = React.useState<TransferTable['scope']>(mode === 'selected' ? 'IDS' : 'FILTERED')
+  const [scope, setScope] = React.useState<TransferForm['scope']>(mode === 'selected' ? 'IDS' : 'FILTERED')
   const [subforms, setSubforms] = React.useState(true)
   const [references, setReferences] = React.useState(false)
   const [fields, setFields] = React.useState<Record<string, string[]>>({})
@@ -48,6 +50,7 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
   const [mappings, setMappings] = React.useState<TransferSheet[]>([])
   const [preview, setPreview] = React.useState<TransferPreview | null>(null)
   const [result, setResult] = React.useState<TransferResult | null>(null)
+  const [dragging, setDragging] = React.useState(false)
 
   React.useEffect(() => {
     let alive = true
@@ -64,7 +67,8 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
   }
   function exportRequest(template = false): TransferExport {
     return {includeSubforms: subforms, includeReferences: references,
-      tables: chosen.map(name => ({formName: name, scope: template || name !== currentForm.name ? 'ALL' : scope,
+      forms: chosen.map(name => ({
+        formName: name, scope: template || name !== currentForm.name ? 'ALL' : scope,
         ...(name === currentForm.name && !template ? {...query, recordIds: selectedIds} : {}),
         fields: template ? undefined : fields[name],
       }))}
@@ -110,9 +114,10 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
       setResult(await commitTransfer(appId, preview)); setStep(4); onImported()
     })
   }
-  function tablePicker() {
+
+  function formPicker() {
     return <div className="space-y-3">
-      <p>选择业务表，每张表对应一个 Sheet。</p>
+      <p>选择业务表单，每个表单对应一个 Sheet。</p>
       {forms.map(form => <div key={form.name} className="rounded-md border border-border p-3 space-y-3">
         <Choice value={chosen.includes(form.name)} label={form.label}
           onChange={checked => setChosen(previous => checked ? [...previous, form.name] : previous.filter(name => name !== form.name))}/>
@@ -126,14 +131,14 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
         </div>}
       </div>)}
       <div className="flex flex-wrap gap-4">
-        <Choice value={subforms} label="包含子表记录" onChange={setSubforms}/>
+        <Choice value={subforms} label="包含子表单记录" onChange={setSubforms}/>
         {mode !== 'import' && <Choice value={references} label="补齐引用的业务记录" onChange={setReferences}/>}
       </div>
     </div>
   }
 
   return <BizDialog open onOpenChange={open => { if (!open && !busy) onClose() }} width={960}
-    title={mode === 'import' ? '多表 Excel 导入' : '多表 Excel 导出'}
+                    title={mode === 'import' ? '多表单 Excel 导入' : '多表单 Excel 导出'}
     footer={<>
       <Button variant="secondary" disabled={busy} onClick={onClose}>{step === 4 ? '完成' : '关闭'}</Button>
       {mode !== 'import' ? <Button disabled={busy || loading || !chosen.length} onClick={() => void run(async () => {
@@ -151,34 +156,65 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
       {notice && <div role="status" className="rounded-md border bg-muted p-3 text-foreground">{notice}</div>}
       {loading ? <p>加载表单中…</p> : mode !== 'import' ? <>
         <div className="space-y-2">
-          <p>当前表「{currentForm.label}」的范围；额外选择的表导出全部记录。</p>
-          <Select value={scope} onValueChange={value => setScope(value as TransferTable['scope'])}>
+          <p>当前表单「{currentForm.label}」的范围；额外选择的表单导出全部记录。</p>
+          <Select value={scope} onValueChange={value => setScope(value as TransferForm['scope'])}>
             <SelectTrigger aria-label="导出范围"><SelectValue/></SelectTrigger>
             <SelectContent>
               <SelectItem value="FILTERED">当前筛选的全部结果</SelectItem>
-              <SelectItem value="ALL">当前表全部记录</SelectItem>
+              <SelectItem value="ALL">当前表单全部记录</SelectItem>
               {!!selectedIds.length && <SelectItem value="IDS">勾选的 {selectedIds.length} 条记录</SelectItem>}
             </SelectContent>
           </Select>
         </div>
-        {tablePicker()}
-        <p className="text-xs">上限：20 张表、整包 5,000 条记录；必要的关联键会自动保留。</p>
+        {formPicker()}
+        <p className="text-xs">上限：20 个表单、整包 5,000 条记录；必要的关联键会自动保留。</p>
       </> : <>
         <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="导入步骤">
           {steps.map((label, index) => <li key={label} aria-current={index === step ? 'step' : undefined}
             className={index === step ? 'font-medium text-primary' : 'text-muted-foreground'}>{index + 1}. {label}</li>)}
         </ol>
         {step === 0 && <div className="space-y-4">
-          <div className="rounded-md border border-dashed border-border p-4 space-y-2">
-            <label htmlFor="transfer-file" className="block font-medium text-foreground">上传 Excel 文件</label>
-            <Input id="transfer-file" type="file" accept=".xlsx" disabled={busy}
+          <label htmlFor="transfer-file"
+                 className={cn('group flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-6 text-center transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background',
+                   dragging ? 'border-primary bg-primary/5' : 'border-border bg-muted/20',
+                   busy ? 'cursor-wait opacity-70' : 'hover:border-primary/60 hover:bg-accent/40')}
+                 onDragOver={event => {
+                   event.preventDefault();
+                   if (!busy) setDragging(true)
+                 }}
+                 onDragLeave={event => {
+                   if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false)
+                 }}
+                 onDrop={event => {
+                   event.preventDefault();
+                   setDragging(false);
+                   if (!busy) void selectFile(event.dataTransfer.files?.[0])
+                 }}>
+            <input id="transfer-file" type="file" accept=".xlsx" className="sr-only" disabled={busy}
+                   aria-label="上传 Excel 文件"
               onChange={event => {const file = event.target.files?.[0]; event.target.value = ''; void selectFile(file)}}/>
-            <p className="text-xs">支持平台文件和普通多 Sheet Excel；文件不超过 10 MB，不支持公式。</p>
-          </div>
-          {tablePicker()}
+            <span
+              className={cn('flex h-12 w-12 items-center justify-center rounded-full text-primary transition-colors',
+                dragging ? 'bg-primary/15' : 'bg-primary/10 group-hover:bg-primary/15')}>
+              {busy ? <Loader2 className="h-6 w-6 animate-spin"/> : <FileSpreadsheet className="h-6 w-6"/>}
+            </span>
+            <span className="space-y-1">
+              <span className="block text-sm font-medium text-foreground">
+                {busy ? '正在解析 Excel 文件…' : dragging ? '松开即可上传' : '拖拽 Excel 文件到此处，或点击选择'}
+              </span>
+              <span className="block text-xs text-muted-foreground">支持平台文件与普通多 Sheet Excel · 最大 10 MB · 不支持公式</span>
+            </span>
+            <span
+              className={cn('inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors',
+                !busy && 'group-hover:bg-accent group-hover:text-accent-foreground')}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin"/> :
+                <Upload className="h-4 w-4"/>}{busy ? '解析中…' : '选择文件'}
+            </span>
+          </label>
+          {formPicker()}
           <Button variant="secondary" disabled={busy || !chosen.length} onClick={() => void run(async () => {
             await downloadTransfer(appId, exportRequest(true), true); setNotice('模板已生成，下载已开始。')
-          })}>{busy ? '处理中…' : '下载多表模板'}</Button>
+          })}>{busy ? '处理中…' : '下载多表单模板'}</Button>
         </div>}
         {step === 1 && upload && <div className="space-y-3">
           <p>选择各 Sheet 的目标表单。不需要导入的 Sheet 可忽略。</p>
@@ -191,7 +227,8 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
           </div>)}
         </div>}
         {step === 2 && upload && <div className="space-y-5">
-          <p className="text-xs">为引用字段选择“包内键”或“已有 ID”；同一行只填写一种。被其他表引用的 Sheet 必须指定包内键列。</p>
+          <p className="text-xs">为引用字段选择“包内键”或“已有 ID”；同一行只填写一种。被其他表单引用的 Sheet
+            必须指定包内键列。</p>
           {mappings.map(mapping => {
             const sheet = upload.sheets.find(item => item.name === mapping.sheet)!
             const form = forms.find(item => item.name === mapping.formName)
@@ -205,7 +242,10 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
                 <div className="space-y-1"><p>包内键列</p><Select value={mapping.keyColumn === null ? AUTO : String(mapping.keyColumn)}
                   onValueChange={value => updateMapping(mapping.sheet, {keyColumn: value === AUTO ? null : Number(value), columns: mapping.columns.filter(column => String(column.column) !== value)})}>
                   <SelectTrigger aria-label={`${mapping.sheet} 包内键列`}><SelectValue/></SelectTrigger>
-                  <SelectContent><SelectItem value={AUTO}>自动生成（此表不被包内引用）</SelectItem>{header.map((cell, index) => <SelectItem key={index} value={String(index)}>{index + 1}. {cell.display || '空列名'}</SelectItem>)}</SelectContent>
+                  <SelectContent><SelectItem
+                    value={AUTO}>自动生成（此表单不被包内引用）</SelectItem>{header.map((cell, index) => <SelectItem
+                    key={index} value={String(index)}>{index + 1}. {cell.display || '空列名'}</SelectItem>)}
+                  </SelectContent>
                 </Select></div>
               </div>
               <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm">
@@ -239,8 +279,10 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
           })}
         </div>}
         {step === 3 && preview && <div className="space-y-4">
-          <p className="font-medium text-foreground">预计新增 {preview.tables.reduce((sum, table) => sum + table.count, 0)} 条记录；有错误时不会写入任何数据。</p>
-          <ul className="space-y-1">{preview.tables.map(table => <li key={table.sheet}>{table.sheet}：{table.count} 条</li>)}</ul>
+          <p
+            className="font-medium text-foreground">预计新增 {preview.forms.reduce((sum, form) => sum + form.count, 0)} 条记录；有错误时不会写入任何数据。</p>
+          <ul className="space-y-1">{preview.forms.map(form => <li
+            key={form.sheet}>{form.sheet}：{form.count} 条</li>)}</ul>
           {!!preview.errors.length && <div role="alert" className="space-y-2 rounded-md border border-destructive/30 p-3 text-destructive">
             <p className="font-medium">发现 {preview.errors.length} 项错误，请返回修改映射或文件。</p>
             {preview.errors.map((issue, index) => <p key={index} className="break-words text-xs">{issue.sheet} {issue.row > 0 ? `第 ${issue.row} 行` : ''} {issue.field}：{issue.message}{issue.value ? `（原值：${issue.value}）` : ''}</p>)}
@@ -252,7 +294,7 @@ export function AppTransferDialog({appId, currentForm, mode, selectedIds, query,
         </div>}
         {step === 4 && result && <div role="status" className="space-y-3 rounded-md border border-border p-4 text-foreground">
           <p className="text-base font-medium">导入成功，共新增 {result.total} 条记录</p>
-          {result.tables.map(table => <p key={table.sheet}>{table.sheet}：{table.count} 条</p>)}
+          {result.forms.map(form => <p key={form.sheet}>{form.sheet}：{form.count} 条</p>)}
         </div>}
       </>}
     </div>
