@@ -22,7 +22,7 @@ export default function Notifications() {
   const {summary, revision, status: connection, error: summaryError, refresh} = useNotifications()
   const [status, setStatus] = React.useState('unread'), [category, setCategory] = React.useState(''), [appId, setAppId] = React.useState(''), [page, setPage] = React.useState(1)
   const [items, setItems] = React.useState<AppNotification[]>([]), [total, setTotal] = React.useState(0), [error, setError] = React.useState(''), [loading, setLoading] = React.useState(true)
-  const [detail, setDetail] = React.useState<AppNotification | null>(null), [detailError, setDetailError] = React.useState(''), [showApproval, setShowApproval] = React.useState(false), [busy, setBusy] = React.useState(false)
+  const [detail, setDetail] = React.useState<AppNotification | null>(null), [detailError, setDetailError] = React.useState(''), [showApproval, setShowApproval] = React.useState(false), [showDiscussion, setShowDiscussion] = React.useState(false), [busy, setBusy] = React.useState(false)
   const [permission, setPermission] = React.useState(() => 'Notification' in window ? Notification.permission : 'unsupported')
   const [localRevision, reload] = React.useReducer(value => value + 1, 0)
   const [detailRevision, reloadDetail] = React.useReducer(value => value + 1, 0)
@@ -51,7 +51,8 @@ export default function Notifications() {
     let active = true;
     setDetail(null);
     setDetailError('');
-    setShowApproval(false)
+    setShowApproval(false);
+    setShowDiscussion(false)
     void notificationDetail(open).then(async value => {
       if (!active) return;
       setDetail(value);
@@ -123,6 +124,7 @@ export default function Notifications() {
           <option value="">全部分类</option>
           <option value="approval">审批</option>
           <option value="workflow">流程通知</option>
+          <option value="discussion">讨论</option>
         </select><select aria-label="所属应用" className="max-w-48 rounded-md border bg-background px-3 text-sm"
                          value={appId} onChange={e => select(setAppId, e.target.value)}>
         <option value="">全部应用</option>
@@ -164,8 +166,11 @@ export default function Notifications() {
           </p> : !detail ? <p className="text-sm text-muted-foreground">正在加载…</p> :
             <p className="whitespace-pre-wrap break-words text-sm leading-7">{detail.content}</p>}</div>
         {detail && <div className="border-t p-4">{detail.canNavigate && detail.approval ?
-          <Button onClick={() => setShowApproval(true)}>查看审批</Button> : detail.instanceId ?
-            <p className="text-xs text-muted-foreground">关联审批已不可用或暂无查看权限</p> : null}</div>}
+          <Button
+            onClick={() => setShowApproval(true)}>查看审批</Button> : detail.canNavigate && detail.formName && detail.recordId ?
+            <Button
+              onClick={() => setShowDiscussion(true)}>查看讨论</Button> : detail.instanceId || detail.discussionId ?
+              <p className="text-xs text-muted-foreground">关联内容已不可用或暂无查看权限</p> : null}</div>}
       </DrawerContent></Drawer>
       {showApproval && detail?.approval &&
         <AppRecordDrawer
@@ -177,6 +182,19 @@ export default function Notifications() {
           formName={detail.approval.formName}
           recordId={detail.approval.recordId}
           approvalInstanceId={detail.approval.id}
+          stacked={false}
+          onSaved={reload}
+        />}
+      {showDiscussion && detail?.formName && detail.recordId &&
+        <AppRecordDrawer
+          open
+          onOpenChange={(open) => {
+            if (!open) setShowDiscussion(false)
+          }}
+          appId={detail.appId}
+          formName={detail.formName}
+          recordId={detail.recordId}
+          initialAsideTab="discussion"
           stacked={false}
           onSaved={reload}
         />}

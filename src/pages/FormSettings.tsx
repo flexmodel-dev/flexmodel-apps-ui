@@ -256,7 +256,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
   return (
     <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
-        <SettingsPageHeader title={`${form.label} · ${sections[section]}`}
+        <SettingsPageHeader title={`${sections[section]}`}
           description={section === 'base' ? '管理表单信息与主显字段。' : '管理字段类型、默认值与校验规则。'}
           onBack={() => navigate(backPath)} backLabel={backLabel}
           badge={form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}

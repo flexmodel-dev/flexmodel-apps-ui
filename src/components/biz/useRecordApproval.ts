@@ -81,5 +81,5 @@ export function useRecordApproval({appId, formName, recordId, instanceId, enable
 
   const locked = instances.some((item) => !FINISHED_STATUS.includes(item.status))
 
-  return {flows, myTask, locked, progressInstanceId, refresh}
+  return {flows, instances, myTask, locked, progressInstanceId, refresh}
 }

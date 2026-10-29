@@ -123,6 +123,8 @@ export function BizDrawer({
                             moreMenu,
                             aside,
                             asideLabel = '流程进度',
+                            asideCollapsedLabel,
+                            asideDefaultOpen = true,
                             stacked = true,
                           }: {
   open: boolean
@@ -134,12 +136,25 @@ export function BizDrawer({
   moreMenu?: React.ReactNode
   aside?: React.ReactNode
   asideLabel?: string
+  asideCollapsedLabel?: React.ReactNode
+  asideDefaultOpen?: boolean
   stacked?: boolean
 }) {
-  const [asideOpen, setAsideOpen] = React.useState(true)
+  const [asideOpen, setAsideOpen] = React.useState(asideDefaultOpen)
+  const asideTouched = React.useRef(false)
+  const defaultOpenRef = React.useRef(asideDefaultOpen)
+  defaultOpenRef.current = asideDefaultOpen
+
   React.useEffect(() => {
-    if (open) setAsideOpen(true)
+    asideTouched.current = false
+    if (open) setAsideOpen(defaultOpenRef.current)
   }, [open])
+
+  // 审批实例异步到达后才可判断“进行中”，仅在用户未手动操作时自动展开
+  React.useEffect(() => {
+    if (!open || asideTouched.current || !asideDefaultOpen) return
+    setAsideOpen(true)
+  }, [open, asideDefaultOpen])
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
@@ -154,12 +169,16 @@ export function BizDrawer({
             {aside && (
               <button
                 type="button"
-                className="rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex items-center gap-1 rounded-sm p-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                 title={asideOpen ? `收起${asideLabel}` : `展开${asideLabel}`}
                 aria-label={asideOpen ? `收起${asideLabel}` : `展开${asideLabel}`}
-                onClick={() => setAsideOpen((value) => !value)}
+                onClick={() => {
+                  asideTouched.current = true
+                  setAsideOpen((value) => !value)
+                }}
               >
                 {asideOpen ? <PanelRightClose className="h-4 w-4"/> : <PanelRightOpen className="h-4 w-4"/>}
+                {!asideOpen && asideCollapsedLabel}
               </button>
             )}
             {moreMenu}

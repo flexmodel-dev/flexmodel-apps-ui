@@ -156,6 +156,7 @@ const builtinFieldTypeNames = new Set([
   'TIME',
   'BOOL',
   'MULTISELECT',
+  'REFERENCE',
 ])
 
 interface DesignForm {
@@ -832,7 +833,7 @@ export function FormDesigner({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
-      <SettingsPageHeader title={`${form.label} · 表单设计`}
+      <SettingsPageHeader title={`表单设计`}
         description="调整字段布局、填写提示与显示方式。"
         onBack={onBack} backLabel={backLabel}
         actions={<>
@@ -1268,7 +1269,8 @@ export function FormDesigner({
         footer={
           <>
             <Button variant="secondary" onClick={() => setCreatingField(null)}>取消</Button>
-            <Button onClick={saveFieldCreate}>保存</Button>
+            <Button onClick={saveFieldCreate}
+                    disabled={creatingField?.type === 'REFERENCE' && !creatingField.referenceForm}>保存</Button>
           </>
         }
       >

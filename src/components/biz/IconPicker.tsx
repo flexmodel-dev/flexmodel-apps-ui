@@ -106,7 +106,7 @@ function IconPickerBase({
 }
 
 function GroupLabel({label}: { label: string }) {
-  return <div className="mb-2 text-xs font-medium text-muted-foreground">{label}</div>
+  return <div className="mb-2 text-xs font-semibold font-medium text-muted-foreground">{label}</div>
 }
 
 function IconGrid({

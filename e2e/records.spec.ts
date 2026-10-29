@@ -1,4 +1,6 @@
 import {test, expect, type Page} from '@playwright/test'
+import {readFileSync} from 'node:fs'
+import type {RecordDiscussionItem} from '../src/services/recordDiscussions'
 
 const root = '/api/apps/record-edit'
 const recordsPath = `${root}/forms/purchase/records`
@@ -152,6 +154,161 @@ test('记录加载失败时显示错误并禁止保存空表单', async ({page})
   await expect(drawer.getByText('记录读取失败', {exact: true})).toBeVisible()
   await expect(drawer.getByRole('button', {name: '保存', exact: true})).toBeDisabled()
   expect(writes).toHaveLength(0)
+})
+
+for (const dark of [false, true]) test(`讨论行内回复与本人删除菜单（${dark ? '夜间' : '浅色'}）`, async ({page}) => {
+  await setupRecords(page)
+  if (dark) await page.evaluate(() => document.documentElement.classList.add('dark'))
+  const discussionPath = `${recordsPath}/first/discussions`
+  const makeItem = (id: string, authorId: string, authorName: string, content: string): RecordDiscussionItem => ({
+    id, authorId, authorName, content, parentId: null, createdAt: '2026-10-29T10:00:00',
+    canDelete: authorId === 'admin', replyCount: 0, replies: [],
+  })
+  let roots = [makeItem('mine', 'admin', 'Admin', '我的评论'), makeItem('other', 'member', '李娜', '同事的评论'),
+    makeItem('no-avatar', 'guest', '王五', '没有头像的评论'), makeItem('broken-avatar', 'broken', '赵六', '头像失效的评论')]
+  const nested = {...makeItem('reply', 'member', '李娜', '同事的回复'), parentId: 'mine'}
+  roots[0].replies = [nested]
+  roots[0].replyCount = 1
+  let failSend = true
+  const writes: Record<string, unknown>[] = []
+  const avatarRequests: string[] = []
+  await page.route('**/api/test-avatars/**', route => {
+    expect(route.request().headers().authorization).toBe('Bearer record-edit-test')
+    avatarRequests.push(route.request().url())
+    if (route.request().url().endsWith('broken.png')) return route.fulfill({status: 404})
+    return route.fulfill({
+      contentType: 'image/png',
+      body: readFileSync(new URL('../public/favicon.png', import.meta.url))
+    })
+  })
+  await page.route(`**${root}/directory`, route => route.fulfill({
+    json: {
+      members: [{id: 'admin', name: 'Admin', avatar: '/api/test-avatars/admin.png'},
+        {id: 'member', name: '李娜', avatar: '/api/test-avatars/member.png'},
+        {id: 'guest', name: '王五'}, {id: 'broken', name: '赵六', avatar: '/api/test-avatars/broken.png'}],
+      organizations: [],
+    }
+  }))
+  await page.route(`**${discussionPath}**`, async route => {
+    const method = route.request().method()
+    if (method === 'DELETE') {
+      expect(route.request().url()).toContain('/mine')
+      roots = roots.filter(item => item.id !== 'mine')
+      return route.fulfill({status: 204})
+    }
+    if (method === 'POST') {
+      const payload = route.request().postDataJSON()
+      if (failSend) {
+        failSend = false
+        return route.fulfill({status: 500, json: {message: '发送失败，请重试'}})
+      }
+      writes.push(payload)
+      const created = {
+        ...makeItem('new', 'admin', 'Admin', payload.content), parentId: payload.parentId,
+        replyToName: '李娜'
+      }
+      roots[0].replies.push(created)
+      roots[0].replyCount++
+      return route.fulfill({status: 201, json: created})
+    }
+    return route.fulfill({
+      json: {
+        list: roots,
+        total: roots.reduce((n, item) => n + 1 + item.replies.length, 0),
+        rootTotal: roots.length
+      }
+    })
+  })
+  await page.getByRole('row').filter({hasText: '原始申请'}).click()
+  await expect(page.getByRole('button', {name: '展开记录动态'})).toHaveText('5条讨论')
+  await page.getByRole('button', {name: '展开记录动态'}).click()
+  const aside = page.getByRole('complementary', {name: '记录动态'})
+  await aside.getByRole('tab', {name: /讨论/}).click()
+  const mine = aside.locator('article').filter({hasText: '我的评论'})
+  const other = aside.locator('article').filter({hasText: '同事的评论'})
+  const reply = aside.locator('article').filter({hasText: '同事的回复'})
+  for (const item of [mine, other, reply]) {
+    await expect(item.locator('img')).toHaveJSProperty('naturalWidth', 100)
+  }
+  await expect(aside.locator('article').filter({hasText: '没有头像的评论'}).getByRole('img', {name: '王五的头像'})).toHaveText('王')
+  await expect.poll(() => avatarRequests.some(url => url.endsWith('broken.png'))).toBe(true)
+  const brokenAvatar = aside.locator('article').filter({hasText: '头像失效的评论'}).getByRole('img', {name: '赵六的头像'})
+  await expect(brokenAvatar).toHaveText('赵')
+  await expect(brokenAvatar.locator('img')).toHaveCount(0)
+  await expect(other.getByRole('button', {name: '更多'})).toHaveCount(0)
+  await expect(reply.getByRole('button', {name: '更多'})).toHaveCount(0)
+  await expect(aside.getByRole('menuitem', {name: '删除评论'})).toHaveCount(0)
+  const mainDraft = aside.getByRole('textbox', {name: '添加讨论'})
+  await mainDraft.fill('保留主评论草稿')
+  await reply.getByRole('button', {name: '回复', exact: true}).click()
+  const composer = reply.getByRole('textbox', {name: '回复 李娜', exact: true})
+  await expect(composer).toBeFocused()
+  await expect(composer).toHaveAttribute('placeholder', '回复 李娜 的讨论')
+  await expect(reply.getByRole('button', {name: '取消回复'})).toHaveCount(0)
+  await expect(reply.getByText('回复 李娜', {exact: true})).toHaveCount(0)
+  await composer.fill('回复的草稿 @李')
+  await expect(reply.getByRole('button').filter({hasText: '李娜'})).toBeVisible()
+  await composer.press('Enter')
+  await expect(composer).toHaveValue('回复的草稿 @李娜 ')
+  await page.screenshot({path: test.info().outputPath('inline-reply.png')})
+  await reply.getByRole('button', {name: '发送', exact: true}).click()
+  await expect(composer).toHaveValue('回复的草稿 @李娜 ')
+  await reply.getByRole('button', {name: '发送', exact: true}).click()
+  await expect(composer).toHaveCount(0)
+  expect(writes).toEqual([expect.objectContaining({
+    content: '回复的草稿 @李娜',
+    parentId: 'mine',
+    replyToId: 'reply',
+    mentionedUserIds: ['member']
+  })])
+  await expect(mainDraft).toHaveValue('保留主评论草稿')
+  await other.getByRole('button', {name: '回复', exact: true}).click()
+  await expect(other.getByRole('textbox', {name: '回复 李娜'})).toBeFocused()
+  await other.getByRole('button', {name: '回复', exact: true}).click()
+  await expect(other.getByRole('textbox')).toHaveCount(0)
+  await other.getByRole('button', {name: '回复', exact: true}).click()
+  await expect(other.getByRole('textbox', {name: '回复 李娜'})).toBeFocused()
+  await mine.getByRole('button', {name: '回复', exact: true}).click()
+  await expect(other.getByRole('textbox')).toHaveCount(0)
+  await expect(mine.getByRole('textbox')).toHaveAttribute('placeholder', '回复 Admin 的讨论')
+  await mine.getByRole('button', {name: '回复', exact: true}).click()
+  await expect(mine.getByRole('textbox')).toHaveCount(0)
+  await mine.getByRole('button', {name: '更多'}).click()
+  await page.screenshot({path: test.info().outputPath('delete-menu.png')})
+  await page.getByRole('menuitem', {name: '删除评论'}).click()
+  await expect(page.getByText(/条回复会一并删除/)).toBeVisible()
+  await page.getByRole('button', {name: '删除', exact: true}).click()
+  await expect(mine).toHaveCount(0)
+  await expect(reply).toHaveCount(0)
+  await expect(other).toBeVisible()
+  await expect(aside.getByRole('tab', {name: /讨论/})).toHaveText('讨论3')
+  await page.getByRole('button', {name: '收起记录动态'}).click()
+  await expect(aside).toHaveCount(0)
+  await expect(page.getByRole('button', {name: '展开记录动态'})).toHaveText('3条讨论')
+  await page.screenshot({path: test.info().outputPath('collapsed-discussion-count.png')})
+  await page.getByRole('button', {name: '展开记录动态'}).click()
+  await expect(aside).toBeVisible()
+})
+
+test('收起的讨论数量随记录切换，零条时只展示展开图标', async ({page}) => {
+  await setupRecords(page)
+  await page.route(`**${recordsPath}/*/discussions*`, route => route.fulfill({
+    json: {
+      list: [], total: route.request().url().includes('/first/') ? 4 : 0, rootTotal: 0,
+    }
+  }))
+  await page.getByRole('row').filter({hasText: '原始申请'}).click()
+  await expect(page.getByRole('button', {name: '展开记录动态'})).toHaveText('4条讨论')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  const countLoaded = page.waitForResponse(response => response.url().includes('/second/discussions'))
+  await page.getByRole('row').filter({hasText: '另一条申请'}).click()
+  await countLoaded
+  await expect(page.getByRole('button', {name: '展开记录动态'})).toHaveText('')
+  await expect(page.getByText('0条讨论', {exact: true})).toHaveCount(0)
+  await expect(page.getByText('4条讨论', {exact: true})).toHaveCount(0)
+  await page.getByRole('button', {name: '展开记录动态'}).click()
+  await expect(page.getByRole('complementary', {name: '记录动态'})).toBeVisible()
 })
 
 test('新建记录保存后详情显示新记录', async ({page}) => {

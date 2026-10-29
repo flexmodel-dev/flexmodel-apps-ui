@@ -200,7 +200,7 @@ export default function FormDataPermissions() {
   }
   return <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
-      <SettingsPageHeader title={`${root?.label ?? formName} · 数据权限`}
+      <SettingsPageHeader title={`数据权限`}
                           onBack={() => navigate(formSettingsBackPath(appId, formName))} backLabel="返回表单列表"
                           actions={<Button disabled={loading || !root || busy} onClick={() => edit()}><Plus
                             className="h-4 w-4"/>新增规则</Button>}>

@@ -191,8 +191,13 @@ export function ApprovalTimeline({detail, names, avatars = {}, upcoming = [], en
 }
 
 /** 流程状态和当前节点置顶，审批历史沿时间线依次展开。 */
-export function ApprovalProgressPanel({appId, instanceId}: { appId: string; instanceId: string }) {
-  const {detail, names, avatars, error} = useApprovalDetail(appId, instanceId)
+export function ApprovalProgressView({detail, names, avatars = {}, error = '', title = '流程进度'}: {
+  detail: ApprovalDetail | null;
+  names: Record<string, string>;
+  avatars?: Record<string, string | null | undefined>;
+  error?: string;
+  title?: string
+}) {
   const current = detail?.status === 'RUNNING' ? detail.waits.filter(wait => wait.status === 'WAITING') : []
   const pendingNames = detail ? [...new Set(detail.tasks.filter(task => task.status === 'PENDING')
     .map(task => names[task.user_id] ?? task.user_id))] : []
@@ -200,7 +205,7 @@ export function ApprovalProgressPanel({appId, instanceId}: { appId: string; inst
   return <section aria-label="流程进度" className="min-w-0 space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="flex items-center gap-2 text-sm font-semibold"><GitBranch className="h-4 w-4 text-muted-foreground"
-                                                                               aria-hidden="true"/>流程进度</h3>
+                                                                               aria-hidden="true"/>{title}</h3>
       {detail && !error &&
         <StatusBadge tone={instanceTone(detail.status)}>{approvalStatus[detail.status] ?? detail.status}</StatusBadge>}
     </div>
@@ -244,4 +249,10 @@ export function ApprovalProgressPanel({appId, instanceId}: { appId: string; inst
         </div>
       </>}
   </section>
+}
+
+/** 轮询审批详情并渲染进度视图，记录详情抽屉直接使用。 */
+export function ApprovalProgressPanel({appId, instanceId}: { appId: string; instanceId: string }) {
+  const {detail, names, avatars, error} = useApprovalDetail(appId, instanceId)
+  return <ApprovalProgressView detail={detail} names={names} avatars={avatars} error={error}/>
 }

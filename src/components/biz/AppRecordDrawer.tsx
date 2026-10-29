@@ -12,6 +12,8 @@ import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {FormMoreMenu} from '@/components/biz/FormMoreMenu'
 import {ApprovalProgressPanel} from '@/pages/Approvals/ApprovalProgress'
+import {RecordActivityAside, type RecordAsideTab} from '@/components/biz/RecordActivityAside'
+import {useRecordHistoryMock} from '@/components/biz/useRecordHistoryMock'
 import {useRecordApproval} from '@/components/biz/useRecordApproval'
 import {ApprovalDecisionDialog, useApprovalDecision} from '@/components/biz/approvalDecision'
 import {FlowStartDialog, useFormApprovalFlows} from '@/components/biz/form/flowLaunch'
@@ -39,6 +41,7 @@ import {
   type AppRecord,
 } from '@/services/appRecords'
 import {submitApproval} from '@/services/approvals'
+import {listRecordDiscussions} from '@/services/recordDiscussions'
 
 export type AppRecordDrawerMode = 'view' | 'edit' | 'create'
 
@@ -49,7 +52,7 @@ function renderViewValue(field: AppFormField, value: unknown) {
 
 /**
  * 记录统一抽屉：查看 / 编辑 / 新建在同一抽屉内原地切换。
- * 查看态展示文本与审批进度；编辑/新建态切换为输入控件，同一布局保持字段位置连续。
+ * 查看态展示文本与记录动态（流程/讨论/历史）；编辑/新建态切换为输入控件，同一布局保持字段位置连续。
  */
 export function AppRecordDrawer({
                                   open,
@@ -59,6 +62,7 @@ export function AppRecordDrawer({
                                   recordId,
                                   initialMode,
                                   approvalInstanceId,
+                                  initialAsideTab,
                                   stacked,
                                   onSaved,
                                   onDeleted,
@@ -71,6 +75,7 @@ export function AppRecordDrawer({
   recordId?: string | null
   initialMode?: 'view' | 'edit'
   approvalInstanceId?: string | null
+  initialAsideTab?: RecordAsideTab
   stacked?: boolean
   onSaved?: (id: string) => void
   onDeleted?: () => void
@@ -358,6 +363,35 @@ export function AppRecordDrawer({
     }
     return isCreate ? `新建${form.label}` : `编辑${form.label}`
   })()
+  const showActivity = mode === 'view' && !!form && !form.builtin && !!activeRecordId
+  const discussionKey = JSON.stringify([appId, formName, activeRecordId])
+  const [discussionCount, setDiscussionCount] = React.useState<{ key: string; total: number } | null>(null)
+  const updateDiscussionCount = React.useCallback((total: number) => {
+    setDiscussionCount({key: discussionKey, total})
+  }, [discussionKey])
+  React.useEffect(() => {
+    setDiscussionCount(null)
+    if (!open || !showActivity || !activeRecordId) return
+    let active = true
+    // 收起状态只读取一次总数；侧栏展开后由现有讨论轮询同步。
+    listRecordDiscussions(appId, formName, activeRecordId, 1, 1).then(page => {
+      const total = page?.total
+      if (active && Number.isFinite(total)) {
+        setDiscussionCount(current => current?.key === discussionKey ? current : {key: discussionKey, total})
+      }
+    }).catch(() => {
+      // 数量读取失败时保留展开入口，讨论面板继续提供重试。
+    })
+    return () => {
+      active = false
+    }
+  }, [open, showActivity, appId, formName, activeRecordId, discussionKey])
+  const history = useRecordHistoryMock({
+    enabled: showActivity,
+    form,
+    record,
+    approvals: approval.instances,
+  })
 
   const lockHint = approvalLocked && activeRecordId ? (
     <span className="mr-auto inline-flex items-center gap-1 text-xs font-medium text-destructive">
@@ -452,10 +486,23 @@ export function AppRecordDrawer({
           />
         ) : undefined}
         footer={footer}
-        aside={mode === 'view' && !form?.builtin && approval.progressInstanceId ? (
-          <ApprovalProgressPanel appId={appId} instanceId={approval.progressInstanceId}/>
+        aside={showActivity ? (
+          <RecordActivityAside
+            key={discussionKey}
+            flow={approval.progressInstanceId
+              ? <ApprovalProgressPanel appId={appId} instanceId={approval.progressInstanceId}/>
+              : undefined}
+            appId={appId}
+            formName={formName}
+            recordId={activeRecordId ?? ''}
+            history={history}
+            initialTab={initialAsideTab}
+            onTotalChange={updateDiscussionCount}
+          />
         ) : undefined}
-        asideLabel="审批"
+        asideLabel="记录动态"
+        asideCollapsedLabel={discussionCount?.key === discussionKey && discussionCount.total > 0 ? `${discussionCount.total}条讨论` : undefined}
+        asideDefaultOpen={!!initialAsideTab || approval.locked}
         stacked={stacked}
       >
         {isFormLoading && <AppLoading center className="min-h-[240px]"/>}

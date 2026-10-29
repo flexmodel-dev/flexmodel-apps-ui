@@ -3,13 +3,16 @@ import type {ApprovalDetail} from './approvals'
 
 export interface AppNotification {
   id: string;
-  category: 'approval' | 'workflow';
+  category: 'approval' | 'workflow' | 'discussion';
   title: string;
   content: string
   appId: string;
   appName: string;
   instanceId?: string;
   taskId?: string
+  discussionId?: string
+  formName?: string
+  recordId?: string
   occurredAt: string;
   receivedAt: string;
   readAt: string | null
