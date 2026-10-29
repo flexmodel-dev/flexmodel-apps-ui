@@ -373,12 +373,16 @@ export function AppRecordDrawer({
           <Send className="h-4 w-4"/>提交审批
         </Button>
       )}
-      <Button variant="secondary" disabled={approvalLocked} onClick={() => setDeleteOpen(true)}>
-        <Trash2 className="h-4 w-4"/>删除
-      </Button>
-      <Button disabled={approvalLocked || recordPending} onClick={startEdit}>
-        <Pencil className="h-4 w-4"/>编辑
-      </Button>
+      {!approvalLocked && (
+        <>
+          <Button variant="secondary" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="h-4 w-4"/>删除
+          </Button>
+          <Button disabled={recordPending} onClick={startEdit}>
+            <Pencil className="h-4 w-4"/>编辑
+          </Button>
+        </>
+      )}
       {approval.myTask && (
         <>
           <Button variant="secondary" disabled={decision.busy} onClick={() => decision.openDecision('reject')}>

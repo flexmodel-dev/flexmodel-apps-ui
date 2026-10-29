@@ -186,6 +186,8 @@ export function AppLayout({
           onTopNavChange={setActiveTopId}
           mobileNavs={hideNavigation ? [] : activeTop?.navs ?? []}
           app={app ?? undefined}
+          appId={appId}
+          appMenus={appMenus}
           topNavItems={topMenuItems}
           showSearch={!hideNavigation}
           showBack={showBack}

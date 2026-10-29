@@ -569,15 +569,6 @@ export default function RecordList({formName}: { formName?: string }) {
               >
                 <Filter className="h-4 w-4"/>
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground"
-                title="列显示"
-                aria-label="列显示"
-              >
-                <Columns3 className="h-4 w-4"/>
-              </Button>
             </div>
             <Button
               size="sm"

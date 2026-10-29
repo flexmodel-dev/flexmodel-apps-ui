@@ -90,14 +90,16 @@ export function AppRecordDetail({
             {recordTitle(record[form.displayField ?? 'id'], String(record.id))}
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" disabled={approvalLocked} onClick={() => setEditOpen(true)}>
-            <Pencil className="h-4 w-4"/> 编辑
-          </Button>
-          <Button size="sm" variant="danger" disabled={approvalLocked} onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="h-4 w-4"/> 删除
-          </Button>
-        </div>
+        {!approvalLocked && (
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4"/> 编辑
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4"/> 删除
+            </Button>
+          </div>
+        )}
       </div>
 
       {!form.builtin &&

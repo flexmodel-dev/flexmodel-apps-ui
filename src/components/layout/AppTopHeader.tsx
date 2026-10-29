@@ -11,33 +11,41 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  businessObjects,
-  getAppMenuForBusinessObject,
-  type NavItem,
-  type TopNavItem,
-} from '@/data/mock'
+import {type NavItem, type TopNavItem} from '@/data/mock'
 import {appIcons} from '@/data/appIcons'
 import {type App} from '@/services/apps'
+import {type AppMenu} from '@/services/appMenus'
 import {TopHeaderShell, headerActionClass} from './TopHeaderShell'
 
-const searchSuggestions = [
-  {label: '工作台', to: '/workbench/home'},
-  ...businessObjects.flatMap((businessObject) => {
-    const menu = getAppMenuForBusinessObject(businessObject.name)
-    return menu ? [{label: businessObject.label, to: `/apps/${menu.appId}/${menu.menuId}`}] : []
-  }),
-  {label: '审批中心', to: '/approval/home'},
-  {label: '动态', to: '/feeds/home'},
-  {label: '文件', to: '/files/home'},
-  {label: '通知', to: '/notifications'},
-]
+interface SearchSuggestion {
+  label: string
+  to: string
+  hint?: string
+  keywords: string
+}
+
+function collectMenuSearchItems(menus: AppMenu[], appId: string, parentPath: string[] = []): SearchSuggestion[] {
+  return menus.flatMap((menu) => {
+    const path = [...parentPath, menu.name]
+    const item = menu.type === 'ITEM'
+      ? [{
+        label: menu.name,
+        to: menu.pageRoute ?? `/apps/${appId}/${menu.id}`,
+        hint: parentPath.length ? parentPath.join(' / ') : undefined,
+        keywords: path.join(' '),
+      }]
+      : []
+    return [...item, ...collectMenuSearchItems(menu.children ?? [], appId, path)]
+  })
+}
 
 export function AppTopHeader({
                                activeTopId,
                                onTopNavChange,
                                mobileNavs,
                                app,
+                               appId,
+                               appMenus = [],
                                topNavItems,
                                showSearch = true,
                                showBack = false,
@@ -50,6 +58,8 @@ export function AppTopHeader({
   onTopNavChange: (id: string) => void
   mobileNavs: NavItem[]
   app?: App
+  appId?: string
+  appMenus?: AppMenu[]
   topNavItems?: TopNavItem[]
   showSearch?: boolean
   showBack?: boolean
@@ -62,6 +72,7 @@ export function AppTopHeader({
   const location = useLocation()
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState('')
+  const [activeSuggestion, setActiveSuggestion] = React.useState(-1)
   const [createOpen, setCreateOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const searchWrapperRef = React.useRef<HTMLDivElement>(null)
@@ -100,9 +111,36 @@ export function AppTopHeader({
   const brand = currentApp?.name ?? (isAppLoading ? '…' : '应用')
   const LogoIcon = appIcons[currentApp?.iconName ?? 'Boxes'] ?? appIcons.Boxes
 
-  const filteredSuggestions = searchValue.trim()
-    ? searchSuggestions.filter((item) => item.label.toLowerCase().includes(searchValue.trim().toLowerCase()))
-    : searchSuggestions
+  const menuSuggestions = React.useMemo(
+    () => collectMenuSearchItems(appMenus, appId ?? currentApp?.id ?? ''),
+    [appMenus, appId, currentApp?.id],
+  )
+  const searchQuery = searchValue.trim().toLowerCase()
+  const filteredSuggestions = (searchQuery
+      ? menuSuggestions.filter((item) => item.keywords.toLowerCase().includes(searchQuery))
+      : menuSuggestions
+  ).slice(0, 8)
+
+  React.useEffect(() => {
+    setActiveSuggestion(-1)
+  }, [searchQuery, filteredSuggestions.length, searchOpen])
+
+  const moveActiveSuggestion = (step: number) => {
+    if (!filteredSuggestions.length) return
+    setActiveSuggestion((current) => {
+      const next = current + step
+      if (next < 0) return filteredSuggestions.length - 1
+      if (next >= filteredSuggestions.length) return 0
+      return next
+    })
+  }
+
+  const openSuggestion = (index: number) => {
+    const item = filteredSuggestions[index] ?? filteredSuggestions[0]
+    if (!item) return
+    navigate(item.to)
+    closeSearch()
+  }
 
   return (
     <TopHeaderShell
@@ -132,32 +170,49 @@ export function AppTopHeader({
               <Input
                 ref={searchInputRef}
                 value={searchValue}
-                placeholder="搜索菜单或业务"
+                placeholder="搜索菜单"
                 className="h-9 rounded-full border-transparent bg-white/90 pl-8 text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:ring-primary/30 focus-visible:ring-offset-primary"
                 onChange={(event) => setSearchValue(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Escape') closeSearch()
+                  if (event.key === 'ArrowDown') {
+                    event.preventDefault()
+                    moveActiveSuggestion(1)
+                  }
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    moveActiveSuggestion(-1)
+                  }
                   if (event.key === 'Enter' && filteredSuggestions.length > 0) {
-                    navigate(filteredSuggestions[0].to)
-                    closeSearch()
+                    event.preventDefault()
+                    openSuggestion(activeSuggestion < 0 ? 0 : activeSuggestion)
                   }
                 }}
               />
-              {searchValue && filteredSuggestions.length > 0 && (
+              {searchOpen && (
                 <div
                   className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md">
-                  {filteredSuggestions.slice(0, 6).map((item) => (
+                  {isMenusLoading ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">正在加载菜单…</div>
+                  ) : filteredSuggestions.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      {searchQuery ? '没有匹配的菜单' : '当前应用暂无菜单'}
+                    </div>
+                  ) : filteredSuggestions.map((item, index) => (
                     <button
-                      key={item.to}
+                      key={`${item.to}-${item.label}-${index}`}
                       type="button"
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                      onClick={() => {
-                        navigate(item.to)
-                        closeSearch()
-                      }}
+                      className={cn(
+                        'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent',
+                        index === activeSuggestion && 'bg-accent',
+                      )}
+                      onMouseEnter={() => setActiveSuggestion(index)}
+                      onClick={() => openSuggestion(index)}
                     >
-                      <Search className="h-3.5 w-3.5 text-muted-foreground"/>
-                      <span className="truncate">{item.label}</span>
+                      <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/>
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {item.hint && <span
+                        className="max-w-[45%] shrink-0 truncate text-xs text-muted-foreground">{item.hint}</span>}
                     </button>
                   ))}
                 </div>
