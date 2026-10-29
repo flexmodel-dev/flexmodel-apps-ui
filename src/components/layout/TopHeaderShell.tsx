@@ -166,7 +166,8 @@ function TopHeaderShell({
                   'dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white',
                 )}
               >
-                <UserAvatar name={authUser?.name ?? '未登录'} src={authUser?.avatar} size={30}/>
+                <UserAvatar name={authUser?.name ?? ''} src={authUser?.avatar} size={30}
+                            className="bg-white/20 text-white"/>
                 <span className="hidden text-sm md:inline">{authUser?.name ?? '未登录'}</span>
               </button>
             </DropdownMenuTrigger>

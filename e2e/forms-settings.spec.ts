@@ -67,7 +67,7 @@ async function expectNoOverflow(page: Page) {
 test('表单列表、信息、字段和设计器页头一致，返回沿设置层级导航', async ({page}) => {
   const {errors} = await setup(page)
   await page.goto(`#${listUrl}`)
-  await expect(page.getByRole('heading', {level: 1})).toHaveText('业务协作 · 表单管理')
+  await expect(page.getByRole('heading', {level: 1})).toHaveText('表单管理')
   await expect(page.getByRole('button', {name: '新建表单', exact: true})).toHaveCount(1)
   await page.screenshot({path: 'artifacts/forms-settings-list.png', animations: 'disabled'})
   await page.getByRole('link', {name: '订单', exact: true}).click()

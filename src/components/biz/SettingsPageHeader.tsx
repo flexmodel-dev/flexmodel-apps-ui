@@ -15,9 +15,9 @@ export function SettingsPageHeader({title, description, onBack, backLabel = '返
   return <header data-settings-header className="shrink-0 border-b border-border text-foreground">
     <div className="flex flex-wrap items-center gap-4 p-4 sm:px-6">
       <div className="flex min-w-0 flex-1 basis-64 items-center gap-3">
-        <Button type="button" variant="outline" size="sm" className="shrink-0"
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground"
                 onClick={onBack} aria-label={backLabel} title={backLabel}>
-          <ArrowLeft className="h-4 w-4"/>返回
+          <ArrowLeft className="h-4 w-4"/>
         </Button>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">

@@ -312,7 +312,7 @@ export default function UserSettings() {
                       {avatarPreview ? (
                         <img src={avatarPreview} alt="头像" className="h-full w-full object-cover"/>
                       ) : (
-                        <UserAvatar name={fullName || '?'} size={160}/>
+                        <UserAvatar name={fullName} size={160}/>
                       )}
                       <span
                         className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40 text-sm text-white opacity-0 transition-opacity group-hover:opacity-100">
