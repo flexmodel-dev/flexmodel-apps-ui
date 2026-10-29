@@ -4,7 +4,7 @@ import {getAppRecords} from '@/services/appRecords'
 import type {ReferenceOption} from './FormFieldControl'
 
 /**
- * 加载 REFERENCE/MULTIREFERENCE 字段的候选记录选项；overrides 中的字段跳过加载。
+ * 加载 MULTIREFERENCE 候选；单选引用由 ReferenceField 按需搜索，overrides 跳过加载。
  */
 export function useReferenceOptions({
                                       appId,
@@ -25,7 +25,7 @@ export function useReferenceOptions({
     if (!open || !form) return
     let cancelled = false
     const referenceFields = form.fields.filter((field) =>
-      (field.type === 'REFERENCE' || field.type === 'MULTIREFERENCE')
+      field.type === 'MULTIREFERENCE'
       && field.referenceForm
       && !overrides?.[field.name]
       && field.name !== excludeField
@@ -49,5 +49,5 @@ export function useReferenceOptions({
     }
   }, [appId, form, open, excludeField, overrides])
 
-  return {...overrides, ...loaded}
+  return {...loaded, ...overrides}
 }

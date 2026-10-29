@@ -73,6 +73,9 @@ async function setupRecords(page: Page, {pending, failLoad = false}: {
     if (pathname === `${root}/forms/supplier/records`) {
       return route.fulfill({json: {list: [{id: 'supplier-1', title: '供应商甲'}], total: 1}})
     }
+    if (pathname === `${root}/forms/supplier/records/supplier-1`) {
+      return route.fulfill({json: {id: 'supplier-1', title: '供应商甲'}})
+    }
     if (pathname === `${root}/forms/supplier`) {
       return route.fulfill({json: {...form, name: 'supplier', label: '供应商', fields: []}})
     }
@@ -109,7 +112,7 @@ test('列表直接编辑等待记录加载，回填全部字段并在重开时�
   await expect(drawer.locator('textarea')).toHaveValue('')
   await expect(drawer.getByPlaceholder('请输入补充信息')).toHaveValue('')
   await expect(drawer.getByRole('combobox').nth(0)).toHaveText('办公用品')
-  await expect(drawer.getByRole('combobox').nth(1)).toHaveText('供应商甲')
+  await expect(drawer.getByRole('combobox', {name: '供应商', exact: true})).toHaveValue('供应商甲')
   await expect(drawer.locator('input[value="undefined"]')).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(drawer).not.toBeVisible()

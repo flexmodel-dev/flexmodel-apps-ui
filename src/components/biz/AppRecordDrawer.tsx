@@ -17,7 +17,6 @@ import {ApprovalDecisionDialog, useApprovalDecision} from '@/components/biz/appr
 import {FlowStartDialog, useFormApprovalFlows} from '@/components/biz/form/flowLaunch'
 import {
   FieldControl,
-  type ReferenceOption,
 } from '@/components/biz/form/FormFieldControl'
 import {parseFormLayout, type FormLayoutEntry} from '@/components/biz/form/parseFormLayout'
 import {
@@ -512,7 +511,7 @@ export function AppRecordDrawer({
                           field={field}
                           value={values[field.name]}
                           options={field.options ?? []}
-                          referenceOptions={referenceOptionsMap[field.name] ?? ([] as ReferenceOption[])}
+                          referenceOptions={referenceOptionsMap[field.name]}
                           disabled={item.readonly || !isFieldWritable(field, !activeRecordId) || recordPending || isSubmitting || isStarting}
                           onUploadStart={startUpload}
                           onChange={(value) => {

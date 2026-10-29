@@ -14,6 +14,7 @@ import {Button} from '@/components/ui/button'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {AttachmentField} from './AttachmentField'
 import {isAttachmentField} from '@/lib/attachments'
+import {ReferenceField} from './ReferenceField'
 
 export type ReferenceOption = { value: string; label: string }
 
@@ -44,7 +45,7 @@ export function FieldControl({
   field: AppFormField
   value: unknown
   options: Array<{ id?: string; text?: string; color?: string }>
-  referenceOptions: ReferenceOption[]
+  referenceOptions?: ReferenceOption[]
   disabled?: boolean
   onChange: (value: unknown) => void
   onUploadStart?: () => () => void
@@ -106,7 +107,7 @@ export function FieldControl({
   if (field.type === 'MULTIREFERENCE') {
     return (
       <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-2">
-        {referenceOptions.map((option) => {
+        {referenceOptions?.map((option) => {
           const selected = Array.isArray(value) && value.map(String).includes(option.value)
           return (
             <label key={option.value} className="flex items-center gap-2 text-sm">
@@ -129,18 +130,7 @@ export function FieldControl({
   }
 
   if (field.type === 'REFERENCE') {
-    return (
-      <Select value={String(value ?? '')} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger>
-          <SelectValue placeholder={`请选择${field.label}`}/>
-        </SelectTrigger>
-        <SelectContent>
-          {referenceOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    )
+    return <ReferenceField appId={appId} field={field} value={value} options={referenceOptions} disabled={disabled} onChange={onChange}/>
   }
 
   if (field.type === 'BOOL') {

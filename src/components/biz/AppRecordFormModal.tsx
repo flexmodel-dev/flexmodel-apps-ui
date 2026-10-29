@@ -288,7 +288,7 @@ export function AppRecordFormModal({
                         field={field}
                         value={values[field.name]}
                         options={field.options ?? []}
-                        referenceOptions={referenceOptionsMap[field.name] ?? []}
+                        referenceOptions={referenceOptionsMap[field.name]}
                         disabled={item.readonly || !isFieldWritable(field, !recordId) || isSubmitting || isStarting}
                         onUploadStart={startUpload}
                         onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
