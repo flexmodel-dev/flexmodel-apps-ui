@@ -136,7 +136,8 @@
     --record-row-background: color-mix(in srgb, hsl(var(--primary)) 5%, hsl(var(--background)));
   }
 
-  .record-list-table tbody tr td {
+  .record-list-table tbody tr td,
+  .record-list-table tbody tr:hover td {
     background: var(--record-row-background);
   }
 
@@ -153,12 +154,10 @@
 
   .record-list-table .record-list-primary {
     left: 48px;
-    box-shadow: 1px 0 0 hsl(var(--border));
   }
 
   .record-list-table .record-list-actions {
     right: 0;
-    box-shadow: -1px 0 0 hsl(var(--border));
   }
 
   .record-list-scroll .record-list-table thead .record-list-selection,

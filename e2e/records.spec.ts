@@ -121,6 +121,19 @@ for (const dark of [false, true]) test(`列表横向滚动保持主显字段和�
   await page.mouse.move(0, 0)
   expect(await primary.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(
     await row.locator('td').nth(2).evaluate(el => getComputedStyle(el).backgroundColor))
+  const primaryBox = (await primary.boundingBox())!
+  await page.mouse.move(primaryBox.x + primaryBox.width / 2, primaryBox.y + primaryBox.height / 2)
+  expect(await scroll.evaluate(el => el.scrollLeft)).toBeGreaterThan(0)
+  for (const cell of [primary, actions]) {
+    const appearance = await cell.evaluate(el => {
+      const style = getComputedStyle(el)
+      const context = document.createElement('canvas').getContext('2d')!
+      context.fillStyle = style.backgroundColor
+      context.fillRect(0, 0, 1, 1)
+      return {alpha: context.getImageData(0, 0, 1, 1).data[3], shadow: style.boxShadow}
+    })
+    expect(appearance).toEqual({alpha: 255, shadow: 'none'})
+  }
   await page.screenshot({path: `artifacts/record-fixed-columns-${dark ? 'dark' : 'light'}.png`})
   await row.getByTitle('编辑', {exact: true}).click()
   await expect(page.getByRole('dialog').getByPlaceholder('请输入申请事由')).toHaveValue('原始申请')
