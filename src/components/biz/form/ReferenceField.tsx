@@ -115,6 +115,7 @@ export function ReferenceField({appId, field, value, options, disabled, onChange
   const valueId = String(value ?? '')
   const formName = field.referenceForm ?? ''
   const input = React.useRef<HTMLInputElement>(null)
+  const dialogInput = React.useRef<HTMLInputElement>(null)
   const anchor = React.useRef<HTMLDivElement>(null)
   const gridId = React.useId()
   const [resolved, setResolved] = React.useState({id: '', label: ''})
@@ -123,7 +124,6 @@ export function ReferenceField({appId, field, value, options, disabled, onChange
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [draft, setDraft] = React.useState<ReferenceOption | null>(null)
   const [keyword, setKeyword] = React.useState('')
-  const [dialogSearch, setDialogSearch] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [size, setSize] = React.useState(20)
   const [retry, setRetry] = React.useState(0)
@@ -131,7 +131,7 @@ export function ReferenceField({appId, field, value, options, disabled, onChange
   const selectedLabel = options?.find(option => option.value === valueId)?.label
     ?? (resolved.id === valueId ? resolved.label : valueId)
   const results = useReferenceRecords(appId, formName, options, dropdownOpen || dialogOpen,
-    dialogOpen ? dialogSearch : search?.trim() ?? '', dialogOpen ? page : 1, dialogOpen ? size : 10, retry)
+    dialogOpen ? keyword.trim() : search?.trim() ?? '', dialogOpen ? page : 1, dialogOpen ? size : 10, retry)
   const columns = React.useMemo(() => {
     const fields = options !== undefined ? [labelField] : referenceColumns(results.form)
     return fields.length ? fields : [{...labelField, name: 'id', label: '记录 ID'}]
@@ -172,7 +172,6 @@ export function ReferenceField({appId, field, value, options, disabled, onChange
   }
   const openDialog = () => {
     setKeyword(search?.trim() ?? '')
-    setDialogSearch(search?.trim() ?? '')
     setPage(1)
     setDraft(valueId ? {value: valueId, label: selectedLabel} : null)
     closeDropdown()
@@ -233,12 +232,11 @@ export function ReferenceField({appId, field, value, options, disabled, onChange
                    closeDialog()
                  }}>确定</Button></>}>
       <div className="flex h-full min-h-0 flex-col gap-4 text-foreground">
-        <div className="flex flex-wrap gap-2">
-          <Input aria-label="搜索引用记录" placeholder="搜索关键字" maxLength={100} className="min-w-0 flex-1 basis-48"
-                 value={keyword} onChange={event => setKeyword(event.target.value)}
-                 onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { setDialogSearch(keyword.trim()); setPage(1); setRetry(current => current + 1) } }}/>
-          <Button type="button" variant="secondary" onClick={() => { setDialogSearch(keyword.trim()); setPage(1); setRetry(current => current + 1) }}>搜索</Button>
-          <Button type="button" variant="secondary" onClick={() => { setKeyword(''); setDialogSearch(''); setPage(1); setRetry(current => current + 1) }}>重置</Button>
+        <div className="relative">
+          <Input ref={dialogInput} aria-label="搜索引用记录" placeholder="搜索关键字" maxLength={100} className="pr-10"
+                 value={keyword} onChange={event => { setKeyword(event.target.value); setPage(1) }}/>
+          {keyword && <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8" aria-label="清空搜索" title="清空搜索"
+            onClick={() => { setKeyword(''); setPage(1); dialogInput.current?.focus() }}><X className="h-4 w-4"/></Button>}
         </div>
         <ReferenceTable records={results.data.list} columns={columns} selectedId={draft?.value ?? ''}
                         loading={results.loading} error={results.error} onRetry={() => setRetry(current => current + 1)} onSelect={record => setDraft(toOption(record))}/>
