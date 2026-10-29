@@ -29,6 +29,7 @@ export function AppSubformRecords({
                                     subform,
                                     onBeforeCreate,
                                     readOnly,
+                                    onChanged,
                                   }: {
   appId: string
   mainFormName: string
@@ -36,6 +37,8 @@ export function AppSubformRecords({
   subform: AppSubform
   onBeforeCreate?: () => Promise<string | null>
   readOnly?: boolean
+  /** 子表记录增删改成功后通知，用于刷新主记录历史等旁路数据。 */
+  onChanged?: () => void
 }) {
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [page, setPage] = React.useState(1)
@@ -127,6 +130,7 @@ export function AppSubformRecords({
         referenceField: subform.referenceField,
       })
       load()
+      onChanged?.()
     } catch (caught: unknown) {
       setError(toErrorMessage(caught, '删除子表单记录失败'))
     } finally {
@@ -318,6 +322,7 @@ export function AppSubformRecords({
           onSaved={() => {
             setFormOpen(false)
             load()
+            onChanged?.()
           }}
         />
       )}

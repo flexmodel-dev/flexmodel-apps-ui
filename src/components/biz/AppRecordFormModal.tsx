@@ -46,7 +46,7 @@ export function AppRecordFormModal({
                                      appId,
                                      form,
                                      recordId,
-                                     recordContext,
+                                     recordContext: context,
                                      loadRecord,
                                      saveRecord,
                                      referenceOptions,
@@ -68,6 +68,12 @@ export function AppRecordFormModal({
   onSaved?: (id: string) => void
 }) {
   const navigate = useNavigate()
+  // 父列表刷新会重新创建上下文对象，只有实际关联变化时才重新初始化表单。
+  const recordContext = React.useMemo<AppRecordContext | undefined>(() => context ? {
+    mainFormName: context.mainFormName,
+    mainRecordId: context.mainRecordId,
+    referenceField: context.referenceField,
+  } : undefined, [context?.mainFormName, context?.mainRecordId, context?.referenceField])
   const [values, setValues] = React.useState<AppRecord>({})
   const [error, setError] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)

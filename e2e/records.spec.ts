@@ -99,6 +99,78 @@ async function setupRecords(page: Page, {pending, failLoad = false, listForm = f
   return {records, writes}
 }
 
+for (const dark of [false, true]) test(`子表新增输入不被父列表迟到响应清空（${dark ? '夜间' : '浅色'}）`, async ({page}) => {
+  await setupRecords(page, {
+    listForm: {
+      ...form, layout: {
+        items: [
+          {type: 'FIELD', name: 'title'},
+          {type: 'SUBFORM', formName: 'purchase_item', referenceField: 'purchase_id'},
+        ]
+      } as typeof form.layout
+    }
+  })
+  if (dark) await page.evaluate(() => document.documentElement.classList.add('dark'))
+  const childPath = `${root}/forms/purchase_item/records`
+  const childForm = {
+    name: 'purchase_item', label: '采购明细', displayField: 'name', builtin: false,
+    fields: [
+      {name: 'name', label: '明细名称', type: 'TEXT', required: true},
+      {name: 'quantity', label: '数量', type: 'NUMBER', config: {defaultValue: 2}},
+      {name: 'purchase_id', label: '采购单', type: 'TEXT'},
+    ],
+    layout: {items: []}, viewTabs: [],
+  }
+  let release!: () => void
+  const pending = new Promise<void>(resolve => {
+    release = resolve
+  })
+  let listStarted = false
+  let listFinished = false
+  const writes: Record<string, unknown>[] = []
+  await page.route(`**${root}/forms/purchase_item**`, async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === `${root}/forms/purchase_item`) return route.fulfill({json: childForm})
+    if (url.pathname === childPath && route.request().method() === 'POST') {
+      expect(url.searchParams.get('mainFormName')).toBe('purchase')
+      expect(url.searchParams.get('mainRecordId')).toBe('first')
+      expect(url.searchParams.get('referenceField')).toBe('purchase_id')
+      const payload = route.request().postDataJSON()
+      writes.push(payload)
+      return route.fulfill({status: 201, json: {...payload, id: 'item-created'}})
+    }
+    listStarted = true
+    await pending
+    await route.fulfill({json: {list: [{id: 'item-old', name: '原有明细', quantity: 1}], total: 1}})
+    listFinished = true
+  })
+  await page.getByRole('row').filter({hasText: '原始申请'}).getByTitle('编辑', {exact: true}).click()
+  const parent = page.getByRole('dialog').filter({has: page.getByRole('heading', {name: '编辑采购申请'})})
+  await expect(parent.getByPlaceholder('请输入申请事由')).toHaveValue('原始申请')
+  await expect.poll(() => listStarted).toBe(true)
+  await parent.getByRole('button', {name: '新增', exact: true}).click()
+  const child = page.getByRole('dialog').filter({has: page.getByRole('heading', {name: '新增采购明细'})})
+  const name = child.getByPlaceholder('请输入明细名称')
+  const quantity = child.getByPlaceholder('请输入数量')
+  try {
+    await expect(quantity).toHaveValue('2')
+    await name.fill('新采购的键盘')
+    await quantity.fill('0')
+  } finally {
+    release()
+  }
+  await expect.poll(() => listFinished).toBe(true)
+  await expect(parent.getByText('原有明细', {exact: true})).toBeVisible()
+  await expect(name).toHaveValue('新采购的键盘')
+  await expect(quantity).toHaveValue('0')
+  await child.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(child).not.toBeVisible()
+  expect(writes).toEqual([{name: '新采购的键盘', quantity: 0}])
+  await parent.getByRole('button', {name: '新增', exact: true}).click()
+  await expect(name).toHaveValue('')
+  await expect(quantity).toHaveValue('2')
+})
+
 for (const dark of [false, true]) test(`列表横向滚动保持主显字段和操作可见（${dark ? '夜间' : '浅色'}）`, async ({page}) => {
   await setupRecords(page)
   if (dark) await page.evaluate(() => document.documentElement.classList.add('dark'))

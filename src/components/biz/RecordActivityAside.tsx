@@ -1,13 +1,14 @@
 import * as React from 'react'
 import {
   ArrowRight,
-  AlertCircle,
   Check,
+  ChevronDown,
+  Clock,
   ListPlus,
   Loader2,
   MessageSquare,
+  Minus,
   MoreHorizontal,
-  Paperclip,
   Pencil,
   Plus,
   Send,
@@ -23,56 +24,37 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {UserAvatar} from '@/components/ui/avatar'
 import {DiscussionComposer} from '@/components/biz/DiscussionComposer'
 import {useRecordDiscussions} from '@/components/biz/useRecordDiscussions'
+import {useRecordHistory} from '@/components/biz/useRecordHistory'
 import type {RecordDiscussionItem} from '@/services/recordDiscussions'
+import type {RecordHistoryChange, RecordHistoryDetail, RecordHistoryItem} from '@/services/recordHistory'
+import {getRecordHistory} from '@/services/recordHistory'
 import {getDirectory} from '@/services/directory'
 import {cn, toErrorMessage} from '@/lib/utils'
 
 export type RecordAsideTab = 'flow' | 'discussion' | 'history'
 
-export interface RecordHistoryChange {
-  field: string
-  from?: string
-  to?: string
+const historyIcons: Record<string, LucideIcon> = {
+  RECORD_CREATED: Plus,
+  RECORD_UPDATED: Pencil,
+  RECORD_DELETED: Trash2,
+  APPROVAL_SUBMITTED: Send,
+  APPROVAL_TASK_APPROVED: Check,
+  APPROVAL_TASK_REJECTED: X,
+  APPROVAL_APPROVED: Check,
+  APPROVAL_REJECTED: X,
+  APPROVAL_TERMINATED: Minus,
 }
 
-export type RecordHistoryKind =
-  'created'
-  | 'updated'
-  | 'submitted'
-  | 'approved'
-  | 'rejected'
-  | 'attachment'
-  | 'subrecord'
-
-export interface RecordHistoryEntry {
-  id: string
-  actorName: string
-  avatar?: string | null
-  at: string
-  kind: RecordHistoryKind
-  action: string
-  detail?: string
-  changes?: RecordHistoryChange[]
-}
-
-const historyIcon: Record<RecordHistoryKind, LucideIcon> = {
-  created: Plus,
-  updated: Pencil,
-  submitted: Send,
-  approved: Check,
-  rejected: X,
-  attachment: Paperclip,
-  subrecord: ListPlus,
-}
-
-const historyTone: Record<RecordHistoryKind, string> = {
-  created: 'border-primary/25 bg-primary/10 text-primary',
-  updated: 'border-border bg-muted text-muted-foreground',
-  submitted: 'border-primary/25 bg-primary/10 text-primary',
-  approved: 'border-green-600/25 bg-green-600/10 text-green-700 dark:text-green-400',
-  rejected: 'border-destructive/25 bg-destructive/10 text-destructive',
-  attachment: 'border-border bg-muted text-muted-foreground',
-  subrecord: 'border-border bg-muted text-muted-foreground',
+const historyTones: Record<string, string> = {
+  RECORD_CREATED: 'border-primary/25 bg-primary/10 text-primary',
+  RECORD_UPDATED: 'border-border bg-muted text-muted-foreground',
+  RECORD_DELETED: 'border-destructive/25 bg-destructive/10 text-destructive',
+  APPROVAL_SUBMITTED: 'border-primary/25 bg-primary/10 text-primary',
+  APPROVAL_TASK_APPROVED: 'border-green-600/25 bg-green-600/10 text-green-700 dark:text-green-400',
+  APPROVAL_TASK_REJECTED: 'border-destructive/25 bg-destructive/10 text-destructive',
+  APPROVAL_APPROVED: 'border-green-600/25 bg-green-600/10 text-green-700 dark:text-green-400',
+  APPROVAL_REJECTED: 'border-destructive/25 bg-destructive/10 text-destructive',
+  APPROVAL_TERMINATED: 'border-border bg-muted text-muted-foreground',
 }
 
 const dayKey = (value: string) => {
@@ -94,19 +76,19 @@ function dayLabel(value: string) {
 const clock = (value: string) =>
   new Date(value).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit', hour12: false})
 
-function discussionTimestamp(value: string) {
+const fullTimestamp = (value: string) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   const pad = (part: number) => String(part).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
-function groupHistory(entries: RecordHistoryEntry[]) {
-  return entries.reduce<Array<{ key: string; label: string; items: RecordHistoryEntry[] }>>((groups, entry) => {
-    const key = dayKey(entry.at)
+function groupHistory(items: RecordHistoryItem[]) {
+  return items.reduce<Array<{ key: string; label: string; items: RecordHistoryItem[] }>>((groups, item) => {
+    const key = dayKey(item.occurredAt)
     const current = groups[groups.length - 1]
-    if (current?.key === key) current.items.push(entry)
-    else groups.push({key, label: dayLabel(entry.at), items: [entry]})
+    if (current?.key === key) current.items.push(item)
+    else groups.push({key, label: dayLabel(item.occurredAt), items: [item]})
     return groups
   }, [])
 }
@@ -183,10 +165,160 @@ function DiscussionItem({item, avatar, replyToName, onReply, onDelete, children}
         <DiscussionContent content={item.content}/>
       </div>
       <time dateTime={item.createdAt}
-            className="mt-1 block text-[11px] tabular-nums text-muted-foreground">{discussionTimestamp(item.createdAt)}</time>
+            className="mt-1 block text-[11px] tabular-nums text-muted-foreground">{fullTimestamp(item.createdAt)}</time>
       {children}
     </div>
   </article>
+}
+
+function HistoryChangeRows({changes}: { changes: RecordHistoryChange[] }) {
+  if (!changes.length) return null
+  return <div
+    className="mt-2 overflow-hidden rounded-md border bg-muted/30">{changes.map((change, changeIndex) =>
+    <div key={`${change.fieldName}-${changeIndex}`}
+         className={cn('grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-baseline gap-x-1.5 px-2.5 py-1.5', changeIndex > 0 && 'border-t border-border/70')}>
+      <span
+        className="text-[11px] text-muted-foreground">{change.fieldLabel?.trim() || change.fieldName}</span>
+      <span className="flex min-w-0 flex-wrap items-baseline gap-1 text-xs">
+                    {change.beforeDisplay
+                      ? <span
+                        className="min-w-0 truncate text-muted-foreground line-through decoration-muted-foreground/40">{change.beforeDisplay}</span>
+                      : <span className="text-muted-foreground">（空）</span>}
+        <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground/70" aria-hidden="true"/>
+                    <span
+                      className={cn('min-w-0 break-words font-medium [overflow-wrap:anywhere]', change.afterDisplay ? 'text-foreground' : 'text-muted-foreground')}>{change.afterDisplay || '（空）'}</span>
+                  </span>
+    </div>)}</div>
+}
+
+type HistoryEntryState = { loading: boolean; detail?: RecordHistoryDetail; error?: string }
+
+function HistoryEntry({appId, formName, recordId, item, expanded, onToggleExpand}: {
+  appId: string;
+  formName: string;
+  recordId: string;
+  item: RecordHistoryItem;
+  expanded: HistoryEntryState | undefined;
+  onToggleExpand: (item: RecordHistoryItem) => void;
+}) {
+  const Icon = historyIcons[item.eventType] ?? Pencil
+  const tone = historyTones[item.eventType] ?? 'border-border bg-muted text-muted-foreground'
+  const comment = typeof expanded?.detail?.context?.comment === 'string'
+    ? expanded.detail.context.comment : undefined
+  return <li className="relative flex gap-3 pb-4 last:pb-0">
+    <span aria-hidden="true"
+          className={cn('relative z-[1] mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border', tone)}>
+      <Icon className="h-3 w-3"/>
+    </span>
+    <div className="min-w-0 flex-1 pt-0.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+        <p className="min-w-0 text-[13px] leading-5">
+          <span className="font-medium text-foreground">{item.actorName}</span>
+          <span className="text-muted-foreground"> {item.summary}</span>
+        </p>
+        <time dateTime={item.occurredAt} title={fullTimestamp(item.occurredAt)}
+              className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{clock(item.occurredAt)}</time>
+      </div>
+      {comment && <p
+        className="mt-1.5 break-words rounded-md bg-muted/60 px-2.5 py-2 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{comment}</p>}
+      {(expanded?.detail ? expanded.detail.changes : item.changesPreview).length > 0 &&
+        <HistoryChangeRows changes={expanded?.detail ? expanded.detail.changes : item.changesPreview}/>}
+      {item.hasMoreChanges && <button type="button"
+                                      className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                                      onClick={() => onToggleExpand(item)}>
+        {expanded
+          ? (expanded.loading ? '加载中…' : '收起变更')
+          : <>展开全部 {item.changeCount} 项变更 <ChevronDown className="h-3 w-3"/></>}
+      </button>}
+      {expanded?.error && <p className="mt-1 text-[11px] text-destructive">{expanded.error}</p>}
+    </div>
+  </li>
+}
+
+function HistoryPanel({appId, formName, recordId, history}: {
+  appId: string;
+  formName: string;
+  recordId: string;
+  history: ReturnType<typeof useRecordHistory>
+}) {
+  const [expanded, setExpanded] = React.useState<Record<string, HistoryEntryState>>({})
+
+  const toggleExpand = React.useCallback((item: RecordHistoryItem) => {
+    setExpanded(current => {
+      const next = {...current}
+      if (current[item.id]) {
+        delete next[item.id]
+        return next
+      }
+      const state: HistoryEntryState = {loading: true}
+      next[item.id] = state
+      getRecordHistory(appId, formName, recordId, item.id).then(detail => {
+        setExpanded(latest => latest[item.id] ? {...latest, [item.id]: {loading: false, detail}} : latest)
+      }).catch(cause => {
+        setExpanded(latest => latest[item.id]
+          ? {...latest, [item.id]: {loading: false, error: toErrorMessage(cause, '加载变更详情失败')}}
+          : latest)
+      })
+      return next
+    })
+  }, [appId, formName, recordId])
+
+  React.useEffect(() => {
+    setExpanded({})
+  }, [appId, formName, recordId])
+
+  if (!history.supported && !history.loading) {
+    return <EmptyState icon={Clock} title="该表单暂不支持历史记录"
+                       hint="内置表单或当前数据源未启用历史能力"/>
+  }
+  return <div className="flex h-full min-h-0 flex-col">
+    <div className="min-h-0 flex-1 lg:overflow-y-auto">
+      {history.error && !history.items.length && <div role="alert"
+                                                      className="mb-3 flex items-center justify-between gap-2 rounded-md bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
+        <span className="min-w-0 break-words">{history.error}</span>
+        <button type="button" className="shrink-0 underline-offset-2 hover:underline"
+                onClick={history.refresh}>重试
+        </button>
+      </div>}
+      {history.loading && !history.items.length
+        ? <div role="status"
+               className="flex items-center gap-2 rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin"/>正在加载历史…
+        </div>
+        : !history.items.length && !history.error
+          ? <EmptyState icon={Pencil} title="暂无操作历史"
+                        hint="历史功能启用后的操作会记录在这里"/>
+          : <div className="space-y-5 pb-1">
+            {groupHistory(history.items).map(group => <section key={group.key}>
+              <h4 className="mb-3 text-[11px] font-medium tracking-wide text-muted-foreground">{group.label}</h4>
+              <ol>
+                {group.items.map(item => <HistoryEntry
+                  key={item.id}
+                  appId={appId}
+                  formName={formName}
+                  recordId={recordId}
+                  item={item}
+                  expanded={expanded[item.id]}
+                  onToggleExpand={toggleExpand}
+                />)}
+              </ol>
+            </section>)}
+            {history.error && history.items.length > 0 && <div role="alert"
+                                                               className="flex items-center justify-between gap-2 rounded-md bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
+              <span className="min-w-0 break-words">{history.error}</span>
+              <button type="button" className="shrink-0 underline-offset-2 hover:underline"
+                      onClick={history.refresh}>重试
+              </button>
+            </div>}
+            {history.hasMore && <div className="pt-1 text-center">
+              <Button size="xs" variant="ghost" disabled={history.loadingMore}
+                      onClick={() => void history.loadMore()}>
+                {history.loadingMore ? '加载中…' : '加载更早的历史'}
+              </Button>
+            </div>}
+          </div>}
+    </div>
+  </div>
 }
 
 function DiscussionPanel({
@@ -314,67 +446,34 @@ function DiscussionPanel({
   </div>
 }
 
-function HistoryPanel({entries}: { entries: RecordHistoryEntry[] }) {
-  if (!entries.length) return <EmptyState icon={Pencil} title="暂无变更记录"
-                                          hint="字段修改、审批流转与附件变化都会记录在这里"/>
-  return <div className="space-y-5 pb-1">
-    {groupHistory(entries).map(group => <section key={group.key}>
-      <h4 className="mb-3 text-[11px] font-medium tracking-wide text-muted-foreground">{group.label}</h4>
-      <ol>
-        {group.items.map((entry, index) => {
-          const Icon = historyIcon[entry.kind]
-          const last = index === group.items.length - 1
-          return <li key={entry.id} className="relative flex gap-3 pb-4 last:pb-0">
-            {!last && <span aria-hidden="true" className="absolute bottom-0 left-3 top-7 w-px bg-border"/>}
-            <span aria-hidden="true"
-                  className={cn('relative z-[1] mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border', historyTone[entry.kind])}>
-              <Icon className="h-3 w-3"/>
-            </span>
-            <div className="min-w-0 flex-1 pt-0.5">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-                <p className="min-w-0 text-[13px] leading-5">
-                  <span className="font-medium text-foreground">{entry.actorName}</span>
-                  <span className="text-muted-foreground"> {entry.action}</span>
-                </p>
-                <time dateTime={entry.at}
-                      className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{clock(entry.at)}</time>
-              </div>
-              {entry.detail && <p
-                className="mt-1.5 break-words rounded-md bg-muted/60 px-2.5 py-2 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{entry.detail}</p>}
-              {entry.changes && entry.changes.length > 0 && <div
-                className="mt-2 overflow-hidden rounded-md border bg-muted/30">{entry.changes.map((change, changeIndex) =>
-                <div key={`${change.field}-${changeIndex}`}
-                     className={cn('grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-baseline gap-x-1.5 px-2.5 py-1.5', changeIndex > 0 && 'border-t border-border/70')}>
-                  <span className="text-[11px] text-muted-foreground">{change.field}</span>
-                  <span className="flex min-w-0 flex-wrap items-baseline gap-1 text-xs">
-                    {change.from
-                      ? <span
-                        className="min-w-0 truncate text-muted-foreground line-through decoration-muted-foreground/40">{change.from}</span>
-                      : <span className="text-muted-foreground">（空）</span>}
-                    <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground/70" aria-hidden="true"/>
-                    <span
-                      className={cn('min-w-0 break-words font-medium [overflow-wrap:anywhere]', change.to ? 'text-foreground' : 'text-muted-foreground')}>{change.to || '（空）'}</span>
-                  </span>
-                </div>)}</div>}
-            </div>
-          </li>
-        })}
-      </ol>
-    </section>)}
-  </div>
-}
-
-/** 记录详情右侧栏：流程优先，讨论与变更历史通过下划线 Tab 切换。 */
-export function RecordActivityAside({flow, appId, formName, recordId, history, initialTab, onTotalChange}: {
+/** 记录详情右侧栏：流程优先，讨论与操作历史通过下划线 Tab 切换。 */
+export function RecordActivityAside({
+                                      flow,
+                                      appId,
+                                      formName,
+                                      recordId,
+                                      initialTab,
+                                      onTotalChange,
+                                      historyRefreshSignal = 0
+                                    }: {
   flow?: React.ReactNode;
   appId: string;
   formName: string;
   recordId: string;
-  history: RecordHistoryEntry[];
   initialTab?: RecordAsideTab;
-  onTotalChange?: (total: number) => void
+  onTotalChange?: (total: number) => void;
+  /** 保存、子表操作、提交审批或签核成功后递增，使历史首屏静默刷新。 */
+  historyRefreshSignal?: number
 }) {
   const discussions = useRecordDiscussions({appId, formName, recordId})
+  const history = useRecordHistory({appId, formName, recordId, enabled: Boolean(recordId)})
+  const lastSignal = React.useRef(historyRefreshSignal)
+  React.useEffect(() => {
+    if (historyRefreshSignal !== lastSignal.current) {
+      lastSignal.current = historyRefreshSignal
+      history.refreshSilently()
+    }
+  }, [historyRefreshSignal, history])
   React.useEffect(() => {
     if (!discussions.loading && !discussions.error) onTotalChange?.(discussions.total)
   }, [discussions.loading, discussions.error, discussions.total, onTotalChange])
@@ -420,8 +519,8 @@ export function RecordActivityAside({flow, appId, formName, recordId, history, i
         onDelete={discussions.remove}
       />
     </TabsContent>
-    <TabsContent value="history" className="min-h-0 flex-1 pt-4 lg:overflow-y-auto">
-      <HistoryPanel entries={history}/>
+    <TabsContent value="history" className="min-h-0 flex-1 pt-3 lg:overflow-y-auto">
+      <HistoryPanel appId={appId} formName={formName} recordId={recordId} history={history}/>
     </TabsContent>
   </Tabs>
 }

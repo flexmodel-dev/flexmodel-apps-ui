@@ -13,7 +13,6 @@ import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {FormMoreMenu} from '@/components/biz/FormMoreMenu'
 import {ApprovalProgressPanel} from '@/pages/Approvals/ApprovalProgress'
 import {RecordActivityAside, type RecordAsideTab} from '@/components/biz/RecordActivityAside'
-import {useRecordHistoryMock} from '@/components/biz/useRecordHistoryMock'
 import {useRecordApproval} from '@/components/biz/useRecordApproval'
 import {ApprovalDecisionDialog, useApprovalDecision} from '@/components/biz/approvalDecision'
 import {FlowStartDialog, useFormApprovalFlows} from '@/components/biz/form/flowLaunch'
@@ -103,6 +102,8 @@ export function AppRecordDrawer({
   const requestKey = React.useRef(crypto.randomUUID())
   const initialModeRef = React.useRef(initialMode)
   initialModeRef.current = initialMode
+  // 保存、子表操作、提交审批和签核成功后递增，使历史面板静默刷新
+  const [historySignal, bumpHistory] = React.useReducer((value: number) => value + 1, 0)
 
   const isCreate = mode === 'create'
   const recordPending = !!activeRecordId && !record
@@ -115,6 +116,7 @@ export function AppRecordDrawer({
   })
   const decision = useApprovalDecision(appId, () => {
     approval.refresh()
+    bumpHistory()
     onSaved?.(activeRecordId ?? '')
   })
   const approvalLocked = approval.locked
@@ -258,6 +260,7 @@ export function AppRecordDrawer({
       setRecord(saved)
       setDirty(false)
       setMode('view')
+      bumpHistory()
       message.success('保存成功')
       onSaved?.(id)
     } catch (caught: unknown) {
@@ -277,6 +280,7 @@ export function AppRecordDrawer({
       const id = String(saved.id ?? '')
       if (!activeRecordId && id) {
         setActiveRecordId(id)
+        bumpHistory()
         message.success('主表单已自动保存')
       }
       return id || null
@@ -326,6 +330,7 @@ export function AppRecordDrawer({
       await submitApproval(appId, formName, id, flowId, requestKey.current)
       requestKey.current = crypto.randomUUID()
       setFlowOpen(false)
+      bumpHistory()
       if (isCreate) {
         onOpenChange(false)
         onSaved?.(id)
@@ -352,6 +357,7 @@ export function AppRecordDrawer({
         subform={{formName: item.formName, referenceField: item.referenceField}}
         readOnly={!interactive}
         onBeforeCreate={interactive ? persistForSubform : undefined}
+        onChanged={bumpHistory}
       />
     )
   }
@@ -386,12 +392,6 @@ export function AppRecordDrawer({
       active = false
     }
   }, [open, showActivity, appId, formName, activeRecordId, discussionKey])
-  const history = useRecordHistoryMock({
-    enabled: showActivity,
-    form,
-    record,
-    approvals: approval.instances,
-  })
 
   const lockHint = approvalLocked && activeRecordId ? (
     <span className="mr-auto inline-flex items-center gap-1 text-xs font-medium text-destructive">
@@ -495,8 +495,8 @@ export function AppRecordDrawer({
             appId={appId}
             formName={formName}
             recordId={activeRecordId ?? ''}
-            history={history}
             initialTab={initialAsideTab}
+            historyRefreshSignal={historySignal}
             onTotalChange={updateDiscussionCount}
           />
         ) : undefined}
