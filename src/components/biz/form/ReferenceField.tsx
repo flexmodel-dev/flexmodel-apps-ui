@@ -88,11 +88,10 @@ function ReferenceTable({id, records, columns, selectedId, activeIndex, onSelect
                      checked={selectedId === recordId} tabIndex={id ? -1 : 0} className="h-4 w-4 accent-primary"
                      onClick={event => event.stopPropagation()} onChange={() => onSelect(record)}/>
             </td>
-            {columns.map((field, column) => <td key={field.name} className="max-w-64 border-b border-r px-3 py-3 last:border-r-0">
+            {columns.map(field => <td key={field.name} className="max-w-64 border-b border-r px-3 py-3 last:border-r-0">
               <div className="truncate" title={formatRecordValue(record[field.name])}>
                 {['REFERENCE', 'MULTIREFERENCE'].includes(field.type) ? formatRecordValue(record[field.name]) || '-' : formatFieldValue(field, record[field.name])}
               </div>
-              {column === 0 && field.name !== 'id' && <div className="mt-1 truncate text-xs text-muted-foreground">{recordId}</div>}
             </td>)}
           </tr>
         })}
