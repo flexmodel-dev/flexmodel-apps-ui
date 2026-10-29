@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:approvals": "playwright test --config playwright.approvals.config.ts",
     "test:records": "playwright test --config playwright.records.config.ts",
+    "test:transfers": "playwright test --config playwright.transfers.config.ts",
     "test:fields": "playwright test --config playwright.fields.config.ts",
     "test:settings": "playwright test --config playwright.settings.config.ts",
     "test:permissions": "playwright test --config playwright.permissions.config.ts",

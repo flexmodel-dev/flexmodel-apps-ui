@@ -37,6 +37,7 @@ import {Pagination} from '@/components/biz/Pagination'
 import {Empty} from '@/components/ui/empty'
 import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
+import {AppTransferDialog} from '@/components/biz/AppTransferDialog'
 import {
   getAppForm,
   patchAppFormViewTabs,
@@ -200,6 +201,7 @@ export default function RecordList({formName}: { formName?: string }) {
   const [linkedRecord, setLinkedRecord] = React.useState<{ formName: string; recordId: string } | null>(null)
   const [formOpen, setFormOpen] = React.useState(false)
   const [refreshTick, setRefreshTick] = React.useState(0)
+  const [transfer, setTransfer] = React.useState<'import' | 'export' | 'selected' | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [deleteIds, setDeleteIds] = React.useState<string[] | null>(null)
@@ -583,10 +585,10 @@ export default function RecordList({formName}: { formName?: string }) {
             >
               <Plus className="h-4 w-4"/> 新建
             </Button>
-            <Button variant="secondary" size="sm" className={compactButtonClass}>
+            <Button variant="secondary" size="sm" className={compactButtonClass} disabled={form.builtin} onClick={() => setTransfer('import')}>
               <FileInput className="h-4 w-4"/> 导入
             </Button>
-            <Button variant="secondary" size="sm" className={compactButtonClass}>
+            <Button variant="secondary" size="sm" className={compactButtonClass} disabled={form.builtin} onClick={() => setTransfer('export')}>
               <FileSpreadsheet className="h-4 w-4"/> 导出
             </Button>
           </div>
@@ -661,7 +663,7 @@ export default function RecordList({formName}: { formName?: string }) {
               <Button variant="secondary" size="sm" className={compactButtonClass}>
                 <ArrowRightLeft className="h-4 w-4"/> 移交
               </Button>
-              <Button variant="secondary" size="sm" className={compactButtonClass}>
+              <Button variant="secondary" size="sm" className={compactButtonClass} disabled={form.builtin} onClick={() => setTransfer('selected')}>
                 <FileSpreadsheet className="h-4 w-4"/> 导出
               </Button>
               <Button variant="secondary" size="sm" className={compactButtonClass}>
@@ -778,6 +780,11 @@ export default function RecordList({formName}: { formName?: string }) {
           </div>
         </div>
       </div>
+
+      {transfer && <AppTransferDialog key={`${appId}:${resolvedFormName}:${transfer}`} appId={appId} currentForm={form}
+        mode={transfer} selectedIds={selected} query={{search: debouncedQ, viewTabId: activeTabId,
+          sortField: sortKey || undefined, sortOrder: sortKey ? (sortAsc ? 'ASC' : 'DESC') : undefined}}
+        onClose={() => setTransfer(null)} onImported={() => {setSelected([]); refresh()}}/>}
 
       <AppRecordDrawer
         open={Boolean(detailId)}
