@@ -26,8 +26,13 @@ export function ApprovalFeed({appId, compact = false, showAppFilter = false}: {
   const [error, setError] = React.useState('')
   const [loading, setLoading] = React.useState(true)
   const [selected, setSelected] = React.useState<ApprovalItem | null>(null)
+  const [linkedRecord, setLinkedRecord] = React.useState<{ formName: string; recordId: string } | null>(null)
   const [names, setNames] = React.useState<Record<string, string>>({})
   const [revision, refresh] = React.useReducer(value => value + 1, 0)
+
+  React.useEffect(() => {
+    setLinkedRecord(null)
+  }, [selected])
   React.useEffect(() => {
     if (!showAppFilter) return
     let active = true
@@ -138,6 +143,23 @@ export function ApprovalFeed({appId, compact = false, showAppFilter = false}: {
         recordId={selected.recordId}
         approvalInstanceId={selected.id}
         onSaved={refresh}
+        onOpenRecord={(formName, recordId) => setLinkedRecord({formName, recordId})}
+      />}
+    {selected && linkedRecord &&
+      <AppRecordDrawer
+        open
+        onOpenChange={(open) => {
+          if (!open) setLinkedRecord(null)
+        }}
+        appId={selected.appId}
+        formName={linkedRecord.formName}
+        recordId={linkedRecord.recordId}
+        onSaved={refresh}
+        onOpenRecord={(formName, recordId) => setLinkedRecord({formName, recordId})}
+        onDeleted={() => {
+          setLinkedRecord(null)
+          refresh()
+        }}
       />}
   </div>
 }
