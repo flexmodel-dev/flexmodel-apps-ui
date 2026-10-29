@@ -18,14 +18,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import {CSS} from '@dnd-kit/utilities'
-import {Folder, GripVertical, Pencil, Plus, ShieldCheck, Trash2} from 'lucide-react'
+import {Folder, GripVertical, Pencil, Plus, Trash2} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Empty} from '@/components/ui/empty'
-import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
-import {DirectoryMemberPicker} from '@/components/rb/DirectoryMemberPicker'
-import type {DirectorySelection} from '@/types/directory'
+import {MenuAuthorizationButton, MenuAuthorizationDialog} from '@/components/biz/MenuAuthorizationDialog'
 import {OptionalIconPicker} from '@/components/biz/IconPicker'
 import {MenuLinkPicker} from '@/components/biz/MenuLinkPicker'
 import {cn, toErrorMessage} from '@/lib/utils'
@@ -115,85 +113,6 @@ function LeftMenuDropArea({
     <div ref={setNodeRef} className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
       {children}
     </div>
-  )
-}
-
-function MenuAuthorizationPopover({
-                                    appId,
-                                    menu,
-                                    disabled,
-                                    onSaved,
-                                  }: {
-  appId: string
-  menu: AppMenu
-  disabled?: boolean
-  onSaved: () => Promise<void>
-}) {
-  const [open, setOpen] = React.useState(false)
-  const [members, setMembers] = React.useState<DirectorySelection[]>(() => menu.members ?? [])
-  const [error, setError] = React.useState<string | null>(null)
-  const [saving, setSaving] = React.useState(false)
-  const memberCount = (menu.members ?? []).length
-
-  React.useEffect(() => {
-    if (!open) return
-    setMembers(menu.members ?? [])
-    setError(null)
-  }, [open, menu.members])
-
-  const save = async () => {
-    if (saving) return
-    setSaving(true)
-    setError(null)
-    try {
-      await updateAppMenu(appId, menu.id, {members}, 'PATCH')
-      setOpen(false)
-      await onSaved()
-    } catch (caught) {
-      setError(toErrorMessage(caught, '保存菜单授权失败，请稍后重试。'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Popover open={open} onOpenChange={(next) => !saving && setOpen(next)}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          title={memberCount > 0 ? `授权（已设置 ${memberCount} 项）` : '授权'}
-          aria-label={'授权：' + menu.name}
-          disabled={disabled}
-        >
-          <ShieldCheck className={cn('h-4 w-4', memberCount > 0 && 'text-primary')}/>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        className="z-[1100] w-80 space-y-3 p-4"
-        aria-label={'菜单授权 · ' + menu.name}
-      >
-        <div className="text-sm font-semibold text-foreground">菜单授权 · {menu.name}</div>
-        {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-        <DirectoryMemberPicker
-          appId={appId}
-          value={members}
-          onChange={setMembers}
-          disabled={saving}
-          multiple
-        />
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" size="sm" disabled={saving}
-                  onClick={() => setOpen(false)}>取消</Button>
-          <Button type="button" size="sm" disabled={saving} onClick={() => void save()}>
-            {saving ? '保存中…' : '保存'}
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
   )
 }
 
@@ -482,6 +401,11 @@ function MenuEditorDialog({
   const [isLoading, setIsLoading] = React.useState(false)
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [isSaving, setIsSaving] = React.useState(false)
+  const [authorization, setAuthorization] = React.useState<AppMenu | null>(null)
+
+  React.useEffect(() => {
+    if (!open) setAuthorization(null)
+  }, [open])
 
   const sensors = useSensors(
     useSensor(PointerSensor, sensorsOptions),
@@ -908,11 +832,10 @@ function MenuEditorDialog({
     const menu = findMenuById(apiMenus, menuId)
     if (!menu) return undefined
     return (
-      <MenuAuthorizationPopover
-        appId={appId}
+      <MenuAuthorizationButton
         menu={menu}
         disabled={isSaving}
-        onSaved={refreshAuthorizedMenus}
+        onClick={() => setAuthorization(menu)}
       />
     )
   }
@@ -1161,6 +1084,16 @@ function MenuEditorDialog({
       >
         <div className="pt-1">{deleteText}</div>
       </BizDialog>
+
+      {appId ? (
+        <MenuAuthorizationDialog
+          appId={appId}
+          menu={authorization}
+          open={authorization !== null}
+          onOpenChange={(next) => !next && setAuthorization(null)}
+          onSaved={refreshAuthorizedMenus}
+        />
+      ) : null}
     </>
   )
 }

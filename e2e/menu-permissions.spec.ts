@@ -1,7 +1,7 @@
 import {test, expect} from '@playwright/test'
 import type {DirectorySelection} from '../src/types/directory'
 
-test('菜单行独立授权使用气泡局部更新并支持多选、取消、回填、失败重试及清空', async ({page}) => {
+test('菜单行独立授权使用弹窗局部更新并支持多选、取消、回填、失败重试及清空', async ({page}) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const root = '/api/apps/menu-test'
@@ -83,5 +83,70 @@ test('菜单行独立授权使用气泡局部更新并支持多选、取消、�
   await popover.getByRole('button', {name: '保存', exact: true}).click()
   await expect(popover).not.toBeVisible()
   expect(writes[1]).toEqual([])
+  expect(errors).toEqual([])
+})
+
+test('设置页菜单管理支持弹窗授权', async ({page}) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  const root = '/api/apps/menu-test'
+  const child = {
+    id: 'child', name: '文件', type: 'ITEM', target: {type: 'LINK', id: 'https://example.com'},
+    parentId: 'top', pageRoute: '/apps/menu-test/child', children: [], members: [] as DirectorySelection[]
+  }
+  const menus = [{id: 'top', name: '团队', type: 'GROUP', children: [child], members: []}]
+  const writes: DirectorySelection[][] = []
+  await page.addInitScript(() => {
+    localStorage.setItem('flexmodel-apps.auth.token', 'menu-test')
+    localStorage.setItem('flexmodel-apps.auth.user', JSON.stringify({id: 'admin', name: 'Admin'}))
+  })
+  await page.route('**/api/**', async route => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    if (path === `${root}/menus/child` && request.method() === 'PATCH') {
+      child.members = (request.postDataJSON() as { members: DirectorySelection[] }).members
+      writes.push(child.members)
+      return route.fulfill({json: child})
+    }
+    if (path === `${root}/menus`) return route.fulfill({json: menus})
+    if (path === `${root}/menus/targets`) return route.fulfill({json: {builtIn: [], forms: []}})
+    if (path === `${root}/directory`) return route.fulfill({
+      json: {
+        members: [{id: 'u1', name: '张三'}, {id: 'u2', name: '李四'}],
+        roles: [{id: 'r1', name: '经理'}], organizations: [{id: 'o1', name: '销售部'}],
+      }
+    })
+    if (path === root) return route.fulfill({
+      json: {
+        id: 'menu-test',
+        projectId: 'menu-test',
+        name: '测试应用',
+        owner: 'Admin',
+        iconName: 'Boxes'
+      }
+    })
+    if (path === '/api/notifications/summary') return route.fulfill({
+      json: {
+        version: '0',
+        unread: 0,
+        byCategory: {},
+        apps: []
+      }
+    })
+    if (path === '/api/notifications') return route.fulfill({json: {list: [], total: 0}})
+    return route.fulfill({json: []})
+  })
+  await page.goto('/#/admin/apps/menu-test/settings/menus', {waitUntil: 'domcontentloaded'})
+  await page.getByRole('button', {name: '授权：文件', exact: true}).click()
+  const popover = page.getByRole('dialog', {name: '菜单授权 · 文件', exact: true})
+  await popover.getByRole('button', {name: '选择用户、角色或组织'}).click()
+  await page.getByRole('checkbox', {name: '张三'}).click()
+  await page.keyboard.press('Escape')
+  await popover.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(popover).not.toBeVisible()
+  expect(writes).toEqual([[{type: 'USER', id: 'u1'}]])
+  await expect(page.getByRole('button', {name: '授权：文件', exact: true}))
+    .toHaveAttribute('title', '授权（已设置 1 项）')
+  await page.screenshot({path: 'artifacts/settings-menu-authorization.png', animations: 'disabled'})
   expect(errors).toEqual([])
 })

@@ -22,6 +22,7 @@ import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {OptionalIconPicker} from '@/components/biz/IconPicker'
 import {AppLoading} from '@/components/biz/AppLoading'
+import {MenuAuthorizationButton, MenuAuthorizationDialog} from '@/components/biz/MenuAuthorizationDialog'
 import {Empty} from '@/components/ui/empty'
 import {
   Select,
@@ -86,12 +87,14 @@ function MenuRow({
                    menu,
                    scope,
                    targetLabel,
+                   onAuthorize,
                    onEdit,
                    onDelete,
                  }: {
   menu: AppMenu
   scope: 'root' | 'child'
   targetLabel?: string
+  onAuthorize: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -124,12 +127,15 @@ function MenuRow({
           </span>
         </span>
       </button>
-      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="编辑菜单" onClick={onEdit}>
-        <Pencil className="h-4 w-4"/>
-      </Button>
-      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="删除菜单" onClick={onDelete}>
-        <Trash2 className="h-4 w-4"/>
-      </Button>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <MenuAuthorizationButton menu={menu} onClick={onAuthorize}/>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="编辑菜单" onClick={onEdit}>
+          <Pencil className="h-4 w-4"/>
+        </Button>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="删除菜单" onClick={onDelete}>
+          <Trash2 className="h-4 w-4"/>
+        </Button>
+      </div>
     </div>
   )
 }
@@ -157,6 +163,7 @@ export function AppMenuManager({
   const [isSaving, setIsSaving] = React.useState(false)
   const [deleteTarget, setDeleteTarget] = React.useState<AppMenu | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [authorization, setAuthorization] = React.useState<AppMenu | null>(null)
 
   const loadMenus = React.useCallback(async (): Promise<AppMenu[]> => {
     setIsLoading(true)
@@ -180,6 +187,16 @@ export function AppMenuManager({
   React.useEffect(() => {
     void loadMenus()
   }, [loadMenus])
+
+  const refreshMenus = async () => {
+    try {
+      const loadedMenus = await getAppMenus(appId)
+      setMenus(loadedMenus)
+      onMenusChange?.(loadedMenus)
+    } catch (caught) {
+      setError(toErrorMessage(caught, '刷新菜单授权失败，请稍后重试。'))
+    }
+  }
 
   const allTargets = [...targets.builtIn, ...targets.forms]
   const targetLabel = (value: string) => {
@@ -338,6 +355,7 @@ export function AppMenuManager({
                     menu={menu}
                     scope="root"
                     targetLabel={menu.target ? targetLabel(targetValue(menu.target)) : undefined}
+                    onAuthorize={() => setAuthorization(menu)}
                     onEdit={() => startEdit(menu)}
                     onDelete={() => setDeleteTarget(menu)}
                   />
@@ -358,6 +376,7 @@ export function AppMenuManager({
                               menu={child}
                               scope="child"
                               targetLabel={child.target ? targetLabel(targetValue(child.target)) : undefined}
+                              onAuthorize={() => setAuthorization(child)}
                               onEdit={() => startEdit(child)}
                               onDelete={() => setDeleteTarget(child)}
                             />
@@ -505,6 +524,14 @@ export function AppMenuManager({
         busy={isDeleting}
         confirmText="删除"
         onConfirm={confirmDelete}
+      />
+
+      <MenuAuthorizationDialog
+        appId={appId}
+        menu={authorization}
+        open={authorization !== null}
+        onOpenChange={(open) => !open && setAuthorization(null)}
+        onSaved={refreshMenus}
       />
     </div>
   )
