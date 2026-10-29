@@ -64,10 +64,6 @@ function TopHeaderShell({
   }
   const hasNavigation = mobileNavs.length > 0 || (topNavs?.length ?? 0) > 0
 
-  React.useEffect(() => {
-    document.documentElement.dataset.primary = 'blue'
-  }, [])
-
   return (
     <header
       className={cn(

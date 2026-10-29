@@ -3,7 +3,6 @@ import {useLocation} from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {getTopNavIdByPath, topNavs} from '@/data/mock'
 import {getAppById, type App} from '@/services/apps'
-import {applyAppPrimaryColor} from '@/theme/appPrimaryColors'
 import {getAppMenus, type AppMenu} from '@/services/appMenus'
 import {
   findFormMenuTargets,
@@ -83,13 +82,6 @@ export function AppLayout({
     const nextTopId = getTopNavIdByPath(location.pathname, activeTopId)
     if (nextTopId !== activeTopId) setActiveTopId(nextTopId)
   }, [appId, routeTopId, appMenus, location.pathname, activeTopId, menuVersion, hideNavigation])
-
-  React.useEffect(() => {
-    applyAppPrimaryColor(app?.primaryColor)
-    return () => {
-      applyAppPrimaryColor()
-    }
-  }, [app?.primaryColor])
 
   React.useEffect(() => {
     if (appId && (isAppLoading || !app || (Boolean(routeMenuId) && isMenusLoading))) {

@@ -1,6 +1,11 @@
 import {requestJson} from '@/services/http'
 import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
-import {getAppPrimaryColor, type AppPrimaryColor} from '@/theme/appPrimaryColors'
+import {
+  cacheAppPrimaryColor,
+  getAppPrimaryColor,
+  removeCachedAppPrimaryColor,
+  type AppPrimaryColor,
+} from '@/theme/appPrimaryColors'
 import {resolveAppIconName, type AppIconName} from '@/data/appIcons'
 
 export interface App {
@@ -56,7 +61,7 @@ function formatDateTime(value?: string): string {
 }
 
 function normalizeApp(payload: AppPayload): App {
-  return {
+  const app: App = {
     id: payload.id ?? payload.projectId ?? '',
     projectId: payload.projectId ?? payload.id ?? '',
     name: payload.name ?? '',
@@ -68,6 +73,8 @@ function normalizeApp(payload: AppPayload): App {
     createdAt: formatDateTime(payload.createdAt),
     updatedAt: formatDateTime(payload.updatedAt),
   }
+  cacheAppPrimaryColor(app.id, app.primaryColor)
+  return app
 }
 
 export function getApps(): Promise<App[]> {
@@ -117,6 +124,7 @@ export async function updateApp(appId: string, input: AppInput): Promise<App> {
 export async function deleteApp(appId: string): Promise<void> {
   await requestJson<null>(`${API_BASE}/${appId}`, {method: 'DELETE'})
   appCache.delete(appId)
+  removeCachedAppPrimaryColor(appId)
   const cachedAppsRequest = appsCache.get('')
   if (cachedAppsRequest) {
     appsCache.set('', cachedAppsRequest.then((cachedApps) => cachedApps.filter((app) => app.id !== appId)))

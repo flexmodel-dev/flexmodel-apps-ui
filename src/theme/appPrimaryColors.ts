@@ -63,6 +63,38 @@ export function applyAppPrimaryColor(value?: string | null): void {
   document.documentElement.dataset.primary = getAppPrimaryColor(value).value
 }
 
+const PRIMARY_COLOR_STORAGE_PREFIX = 'flexmodel-apps.primary-color.'
+const primaryColorCache = new Map<string, AppPrimaryColor>()
+
+export function getCachedAppPrimaryColor(appId: string): AppPrimaryColor | undefined {
+  const cached = primaryColorCache.get(appId)
+  if (cached) return cached
+  try {
+    const stored = window.localStorage.getItem(PRIMARY_COLOR_STORAGE_PREFIX + appId)
+    if (stored && entryMap.has(stored as AppPrimaryColor)) return stored as AppPrimaryColor
+  } catch {
+    // 禁用本地存储时仍可使用会话内主色缓存。
+  }
+}
+
+export function cacheAppPrimaryColor(appId: string, value: AppPrimaryColor): void {
+  primaryColorCache.set(appId, value)
+  try {
+    window.localStorage.setItem(PRIMARY_COLOR_STORAGE_PREFIX + appId, value)
+  } catch {
+    // 配色缓存失败不影响应用接口返回和页面加载。
+  }
+}
+
+export function removeCachedAppPrimaryColor(appId: string): void {
+  primaryColorCache.delete(appId)
+  try {
+    window.localStorage.removeItem(PRIMARY_COLOR_STORAGE_PREFIX + appId)
+  } catch {
+    // 本地存储可能不可用。
+  }
+}
+
 function declarations(entry: AppPrimaryColorEntry, dark: boolean): string {
   const primary = dark ? entry.primaryDark : entry.primary
   const parts = [

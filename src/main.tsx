@@ -2,7 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import {HashRouter, Routes, Route, Navigate, Outlet, useLocation} from 'react-router-dom'
 import './index.css'
-import '@/theme/appPrimaryColors'
+import {AppTheme} from '@/theme/AppTheme'
+import {initializeDarkMode} from '@/lib/useDarkMode'
 
 import Login from '@/pages/Login'
 import AppManagement from '@/pages/AppManagement'
@@ -49,10 +50,13 @@ function RequireAuth() {
   return <NotificationProvider><Outlet/></NotificationProvider>
 }
 
+initializeDarkMode()
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <MessageViewport/>
     <HashRouter>
+      <AppTheme>
       <Routes>
         <Route path="/" element={<Navigate to="/admin/apps" replace/>}/>
         <Route path="/login" element={<Login />} />
@@ -95,6 +99,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         {/* 兜底 */}
         <Route path="*" element={<Navigate to="/admin/apps" replace/>}/>
       </Routes>
+      </AppTheme>
     </HashRouter>
   </React.StrictMode>
 )
