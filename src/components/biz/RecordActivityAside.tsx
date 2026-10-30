@@ -193,19 +193,21 @@ function HistoryChangeRows({changes}: { changes: RecordHistoryChange[] }) {
 
 type HistoryEntryState = { loading: boolean; detail?: RecordHistoryDetail; error?: string }
 
-function HistoryEntry({appId, formName, recordId, item, expanded, onToggleExpand}: {
+function HistoryEntry({appId, formName, recordId, item, expanded, onToggleExpand, last}: {
   appId: string;
   formName: string;
   recordId: string;
   item: RecordHistoryItem;
   expanded: HistoryEntryState | undefined;
   onToggleExpand: (item: RecordHistoryItem) => void;
+  last: boolean;
 }) {
   const Icon = historyIcons[item.eventType] ?? Pencil
   const tone = historyTones[item.eventType] ?? 'border-border bg-muted text-muted-foreground'
   const comment = typeof expanded?.detail?.context?.comment === 'string'
     ? expanded.detail.context.comment : undefined
   return <li className="relative flex gap-3 pb-4 last:pb-0">
+    {!last && <span aria-hidden="true" className="absolute bottom-0 left-3 top-7 w-px bg-border"/>}
     <span aria-hidden="true"
           className={cn('relative z-[1] mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border', tone)}>
       <Icon className="h-3 w-3"/>
@@ -292,7 +294,7 @@ function HistoryPanel({appId, formName, recordId, history}: {
             {groupHistory(history.items).map(group => <section key={group.key}>
               <h4 className="mb-3 text-[11px] font-medium tracking-wide text-muted-foreground">{group.label}</h4>
               <ol>
-                {group.items.map(item => <HistoryEntry
+                {group.items.map((item, index) => <HistoryEntry
                   key={item.id}
                   appId={appId}
                   formName={formName}
@@ -300,6 +302,7 @@ function HistoryPanel({appId, formName, recordId, history}: {
                   item={item}
                   expanded={expanded[item.id]}
                   onToggleExpand={toggleExpand}
+                  last={index === group.items.length - 1}
                 />)}
               </ol>
             </section>)}
