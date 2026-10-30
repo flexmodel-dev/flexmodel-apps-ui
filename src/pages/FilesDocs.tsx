@@ -29,6 +29,7 @@ import {
   type StorageObject,
 } from '@/services/attachments'
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   Download,
@@ -43,7 +44,6 @@ import {
   Pencil,
   Presentation,
   Search,
-  Share,
   ShieldCheck,
   Trash2,
   Upload,
@@ -51,6 +51,16 @@ import {
 } from 'lucide-react'
 
 type TabKey = 'files' | 'attachments'
+type FileSort = 'default' | 'newest' | 'oldest' | 'largest' | 'nameAsc' | 'nameDesc'
+
+const SORT_OPTIONS: Array<{value: FileSort; label: string}> = [
+  {value: 'newest', label: '最近上传'},
+  {value: 'oldest', label: '最早上传'},
+  {value: 'largest', label: '较大文件'},
+  {value: 'nameAsc', label: '文件名称 (A-Z)'},
+  {value: 'nameDesc', label: '文件名称 (Z-A)'},
+]
+const fileNameCollator = new Intl.Collator('zh-CN', {numeric: true, sensitivity: 'base'})
 
 interface StorageNode {
   id: string
@@ -157,6 +167,7 @@ export default function FilesDocs() {
   const [error, setError] = React.useState('')
   const [selected, setSelected] = React.useState<string[]>([])
   const [keyword, setKeyword] = React.useState('')
+  const [sortBy, setSortBy] = React.useState<FileSort>('default')
   const [busy, setBusy] = React.useState(false)
   const [actionsOpen, setActionsOpen] = React.useState(false)
   const [folderDialogOpen, setFolderDialogOpen] = React.useState(false)
@@ -313,10 +324,23 @@ export default function FilesDocs() {
 
   const nodes = React.useMemo(() => {
     const list = tree[current] ?? []
-    return keyword
+    const filtered = keyword
       ? list.filter((item) => item.name.toLowerCase().includes(keyword.toLowerCase()))
       : list
-  }, [tree, current, keyword])
+    if (sortBy === 'default') return filtered
+    return [...filtered].sort((left, right) => {
+      const byName = fileNameCollator.compare(left.name, right.name) || left.path.localeCompare(right.path)
+      if (sortBy === 'nameAsc') return byName
+      if (sortBy === 'nameDesc') return -byName
+      const leftValue = sortBy === 'largest' ? left.size : Date.parse(left.modifiedOn ?? '')
+      const rightValue = sortBy === 'largest' ? right.size : Date.parse(right.modifiedOn ?? '')
+      if (leftValue === null || !Number.isFinite(leftValue)) {
+        return rightValue === null || !Number.isFinite(rightValue) ? byName : 1
+      }
+      if (rightValue === null || !Number.isFinite(rightValue)) return -1
+      return (leftValue - rightValue) * (sortBy === 'oldest' ? 1 : -1) || byName
+    })
+  }, [tree, current, keyword, sortBy])
 
   const folders = nodes.filter((item) => item.type === 'folder')
   const files = nodes.filter((item) => item.type === 'file')
@@ -910,8 +934,23 @@ export default function FilesDocs() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="secondary">默认排序 <ChevronDown className="h-4 w-4" /></Button>
-                <Button variant="secondary"><Share className="h-4 w-4" /> 分享列表</Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" aria-label="文件排序">
+                      {SORT_OPTIONS.find(option => option.value === sortBy)?.label ?? '默认排序'}
+                      <ChevronDown className="h-4 w-4"/>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    {SORT_OPTIONS.map(option => (
+                      <DropdownMenuItem key={option.value} onSelect={() => setSortBy(option.value)}
+                        className={cn('justify-between', sortBy === option.value && 'bg-accent')}>
+                        {option.label}
+                        {sortBy === option.value && <Check className="h-4 w-4"/>}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>

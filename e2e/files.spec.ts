@@ -145,3 +145,69 @@ for (const dark of [false, true]) {
     expect(errors).toEqual([])
   })
 }
+
+for (const dark of [false, true]) {
+  test('文件排序与移除分享列表（' + (dark ? '夜间' : '浅色') + '）', async ({page}) => {
+    const app = {id: 'sort_app', projectId: 'sort_app', name: '排序验证', enabled: true, primaryColor: 'blue'}
+    const entries = [
+      {name: 'B.txt', size: 10, lastModified: '2026-02-01T00:00:00Z'},
+      {name: 'a.txt', size: 300, lastModified: '2026-01-01T00:00:00Z'},
+      {name: 'C.txt', size: 20, lastModified: '2026-03-01T00:00:00Z'},
+      {name: 'empty.txt', size: null, lastModified: null},
+      {name: 'file10.txt', size: 0, lastModified: 'invalid'},
+      {name: 'file2.txt', size: 25, lastModified: '2026-04-01T00:00:00Z'},
+    ].map(item => ({...item, type: 'file', path: item.name}))
+    let objectReads = 0
+    await page.addInitScript(dark => {
+      localStorage.setItem('flexmodel-apps.auth.token', 'sort-test')
+      localStorage.setItem('flexmodel-apps.auth.user', JSON.stringify({id: 'admin', name: 'Admin'}))
+      localStorage.setItem('night', String(dark))
+    }, dark)
+    await page.route('**/api/**', async route => {
+      const url = new URL(route.request().url())
+      const path = url.pathname
+      if (path.endsWith('/objects')) {
+        objectReads += 1
+        const prefix = url.searchParams.get('prefix')
+        return route.fulfill({json: prefix === '目录' ? [] : [...entries, {name: '目录', path: '目录', type: 'folder'}]})
+      }
+      const json = path === '/api/apps/sort_app' ? app : path === '/api/apps' ? [app]
+        : path.endsWith('/menus') ? [{id: 'files', type: 'ITEM', name: '文件', target: {type: 'BUILTIN', id: 'files'}, children: []}]
+          : path.endsWith('/buckets') ? [{name: 'default'}]
+            : path.endsWith('/summary') ? {version: '0', unread: 0, byCategory: {}, apps: []}
+              : path === '/api/notifications' ? {list: [], total: 0} : []
+      return route.fulfill({json})
+    })
+    await page.goto('/#/apps/sort_app/files')
+    const names = page.locator('.file-viewport .group .truncate')
+    await expect(names).toHaveText(['目录', ...entries.map(item => item.name)])
+    await expect(page.locator('aside .tabular-nums')).toHaveText('0')
+    await expect(page.getByRole('button', {name: '分享列表'})).toHaveCount(0)
+    const readsBeforeSort = objectReads
+    const options: Array<[string, string[]]> = [
+      ['最近上传', ['file2.txt', 'C.txt', 'B.txt', 'a.txt', 'empty.txt', 'file10.txt']],
+      ['最早上传', ['a.txt', 'B.txt', 'C.txt', 'file2.txt', 'empty.txt', 'file10.txt']],
+      ['较大文件', ['a.txt', 'file2.txt', 'C.txt', 'B.txt', 'file10.txt', 'empty.txt']],
+      ['文件名称 (A-Z)', ['a.txt', 'B.txt', 'C.txt', 'empty.txt', 'file2.txt', 'file10.txt']],
+      ['文件名称 (Z-A)', ['file10.txt', 'file2.txt', 'empty.txt', 'C.txt', 'B.txt', 'a.txt']],
+    ]
+    for (const [label, expected] of options) {
+      await page.getByRole('button', {name: '文件排序'}).click()
+      await expect(page.getByRole('menuitem')).toHaveCount(5)
+      await page.getByRole('menuitem', {name: label, exact: true}).click()
+      await expect(names).toHaveText(['目录', ...expected])
+      await expect(page.getByRole('button', {name: '文件排序'})).toContainText(label)
+    }
+    expect(objectReads).toBe(readsBeforeSort)
+    await page.getByRole('button', {name: '文件排序'}).click()
+    await expect(page.getByRole('menu')).toHaveCSS('opacity', '1')
+    await page.screenshot({path: 'artifacts/files-sort-' + (dark ? 'dark' : 'light') + '.png'})
+    await page.keyboard.press('Escape')
+    await page.getByPlaceholder('搜索').fill('file')
+    await expect(names).toHaveText(['file10.txt', 'file2.txt'])
+    await page.getByPlaceholder('搜索').fill('')
+    await page.getByText('附件', {exact: true}).click()
+    await expect(names).toHaveText(['目录', ...options[4][1]])
+    await expect(page.getByRole('button', {name: '上传文件'})).toBeDisabled()
+  })
+}
