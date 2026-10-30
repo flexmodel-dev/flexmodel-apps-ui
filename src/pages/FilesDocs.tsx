@@ -9,6 +9,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {AppLoading} from '@/components/biz/AppLoading'
@@ -43,6 +45,7 @@ import {
   MoreHorizontal,
   Pencil,
   Presentation,
+  RotateCcw,
   Search,
   ShieldCheck,
   Trash2,
@@ -51,7 +54,8 @@ import {
 } from 'lucide-react'
 
 type TabKey = 'files' | 'attachments'
-type FileSort = 'default' | 'newest' | 'oldest' | 'largest' | 'nameAsc' | 'nameDesc'
+type FileSort = 'newest' | 'oldest' | 'largest' | 'nameAsc' | 'nameDesc'
+const DEFAULT_SORT: FileSort = 'newest'
 
 const SORT_OPTIONS: Array<{value: FileSort; label: string}> = [
   {value: 'newest', label: '最近上传'},
@@ -167,7 +171,7 @@ export default function FilesDocs() {
   const [error, setError] = React.useState('')
   const [selected, setSelected] = React.useState<string[]>([])
   const [keyword, setKeyword] = React.useState('')
-  const [sortBy, setSortBy] = React.useState<FileSort>('default')
+  const [sortBy, setSortBy] = React.useState<FileSort>(DEFAULT_SORT)
   const [busy, setBusy] = React.useState(false)
   const [actionsOpen, setActionsOpen] = React.useState(false)
   const [folderDialogOpen, setFolderDialogOpen] = React.useState(false)
@@ -327,7 +331,6 @@ export default function FilesDocs() {
     const filtered = keyword
       ? list.filter((item) => item.name.toLowerCase().includes(keyword.toLowerCase()))
       : list
-    if (sortBy === 'default') return filtered
     return [...filtered].sort((left, right) => {
       const byName = fileNameCollator.compare(left.name, right.name) || left.path.localeCompare(right.path)
       if (sortBy === 'nameAsc') return byName
@@ -936,19 +939,30 @@ export default function FilesDocs() {
                 </DropdownMenu>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" aria-label="文件排序">
-                      {SORT_OPTIONS.find(option => option.value === sortBy)?.label ?? '默认排序'}
+                    <Button variant="secondary" aria-label="文件排序" title="排序方式（默认：最近上传）">
+                      {SORT_OPTIONS.find(option => option.value === sortBy)?.label}
                       <ChevronDown className="h-4 w-4"/>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuLabel
+                      className="text-xs font-normal text-muted-foreground">目录始终在前</DropdownMenuLabel>
                     {SORT_OPTIONS.map(option => (
                       <DropdownMenuItem key={option.value} onSelect={() => setSortBy(option.value)}
+                                        aria-label={option.label}
                         className={cn('justify-between', sortBy === option.value && 'bg-accent')}>
-                        {option.label}
+                        <span className="flex items-center gap-2">
+                          {option.label}
+                          {option.value === DEFAULT_SORT &&
+                            <span aria-hidden="true" className="text-xs text-muted-foreground">默认</span>}
+                        </span>
                         {sortBy === option.value && <Check className="h-4 w-4"/>}
                       </DropdownMenuItem>
                     ))}
+                    <DropdownMenuSeparator/>
+                    <DropdownMenuItem disabled={sortBy === DEFAULT_SORT} onSelect={() => setSortBy(DEFAULT_SORT)}>
+                      <RotateCcw className="h-4 w-4"/> 恢复默认排序
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
