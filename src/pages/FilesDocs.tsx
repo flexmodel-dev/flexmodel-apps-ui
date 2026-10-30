@@ -172,13 +172,13 @@ export default function FilesDocs() {
   const [moveLoading, setMoveLoading] = React.useState(false)
   const [moveError, setMoveError] = React.useState('')
   const [detailNode, setDetailNode] = React.useState<StorageNode | null>(null)
-  const [editingFolder, setEditingFolder] = React.useState<StorageNode | null>(null)
+  const [editingNode, setEditingNode] = React.useState<StorageNode | null>(null)
   const [editName, setEditName] = React.useState('')
   const [editMembers, setEditMembers] = React.useState<DirectorySelection[]>([])
-  const [editLoading, setEditLoading] = React.useState(false)
   const [editReady, setEditReady] = React.useState(false)
-  const [editError, setEditError] = React.useState('')
+  const [editLoading, setEditLoading] = React.useState(false)
   const editRequestRef = React.useRef(0)
+  const [editError, setEditError] = React.useState('')
   const showTree = true
   const requestRef = React.useRef(0)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -463,27 +463,29 @@ export default function FilesDocs() {
 
   const openDeleteDialog = (targets: StorageNode[]) => {
     if (readOnly) return
+    cancelMenuClose()
     setMenuFor(null)
     setDeleteTargets(targets)
     setDeleteError('')
     setDeleteDialogOpen(true)
   }
 
-  const openEditFolder = async (folder: StorageNode) => {
+  const openEditNode = async (node: StorageNode) => {
     if (!projectId || readOnly) return
+    cancelMenuClose()
+    setMenuFor(null)
     const requestId = ++editRequestRef.current
-    setEditingFolder(folder)
-    setEditName(folder.name)
+    setEditingNode(node)
+    setEditName(pathName(node.path))
     setEditMembers([])
     setEditError('')
-    setEditLoading(true)
-    setEditReady(false)
+    setEditReady(node.type === 'file')
+    setEditLoading(node.type === 'folder')
+    if (node.type === 'file') return
     try {
-      const members = await getStorageFolderMembers(projectId, folder.path)
-      if (requestId === editRequestRef.current) {
-        setEditMembers(members)
-        setEditReady(true)
-      }
+      const members = await getStorageFolderMembers(projectId, node.path)
+      if (!Array.isArray(members)) throw new Error('加载目录权限失败')
+      if (requestId === editRequestRef.current) {setEditMembers(members); setEditReady(true)}
     } catch (caught) {
       if (requestId === editRequestRef.current) setEditError(toErrorMessage(caught, '加载目录权限失败'))
     } finally {
@@ -491,11 +493,11 @@ export default function FilesDocs() {
     }
   }
 
-  const handleEditFolder = async () => {
-    if (!projectId || !editingFolder || readOnly || busy || !editReady) return
+  const handleEditNode = async () => {
+    if (!projectId || !editingNode || readOnly || busy || !editReady) return
     const name = editName.trim()
     if (!name || /[\\/\u0000-\u001f\u007f]/.test(name) || name === '.' || name === '..') {
-      setEditError('请输入有效的目录名称，不能包含斜杠等特殊字符')
+      setEditError('请输入有效的名称，不能包含斜杠等特殊字符')
       return
     }
     setBusy(true)
@@ -503,23 +505,24 @@ export default function FilesDocs() {
     setError('')
     let saved = false
     try {
-      await updateStorageFolder(projectId, editingFolder.path, name, editMembers)
+      const parent = editingNode.path.split('/').slice(0, -1).join('/')
+      const target = parent ? parent + '/' + name : name
+      if (editingNode.type === 'folder') await updateStorageFolder(projectId, editingNode.path, name, editMembers)
+      else if (target !== editingNode.path) await moveStorageObject(projectId, editingNode.path, target)
       saved = true
-      const parent = editingFolder.path.split('/').slice(0, -1).join('/')
-      const target = parent ? `${parent}/${name}` : name
-      const nextCurrent = current === editingFolder.path || current.startsWith(`${editingFolder.path}/`)
-        ? target + current.slice(editingFolder.path.length) : current
+      const nextCurrent = editingNode.type === 'folder' && (current === editingNode.path || current.startsWith(`${editingNode.path}/`))
+        ? target + current.slice(editingNode.path.length) : current
       ++requestRef.current
       setCurrent(nextCurrent)
       setSelected([])
       setTree({})
-      setEditingFolder(null)
+      setEditingNode(null)
       const paths = [...new Set(['', parent, nextCurrent])]
       const entries = await Promise.all(paths.map(async path => [path, await fetchNodes(path)] as const))
       setTree(Object.fromEntries(entries))
     } catch (caught) {
-      const message = toErrorMessage(caught, '保存目录失败')
-      if (saved) setError('目录已保存，但刷新失败，请重新打开目录')
+      const message = toErrorMessage(caught, '保存失败')
+      if (saved) setError('已保存，但刷新失败，请重新打开目录')
       else setEditError(message)
     } finally {
       setBusy(false)
@@ -668,13 +671,12 @@ export default function FilesDocs() {
     )
 
   const renderTreeFolder = (folder: StorageNode, nested = false) => {
-    const editing = editingFolder?.path === folder.path
+    const editing = editingNode?.path === folder.path
     const deleting = deleteDialogOpen && deleteTargets.some(target => target.path === folder.path)
-    const actionClassName = 'h-5 w-5 border border-transparent text-foreground hover:border-border hover:text-foreground focus-visible:border-border'
     return (
       <div key={folder.id} className={cn('group relative flex items-center rounded-lg hover:bg-accent',
         current === folder.path && 'bg-primary/10 text-primary')}>
-        <button type="button" className={cn('flex min-w-0 flex-1 items-center gap-2 py-2 pr-12 text-left', nested ? 'pl-9' : 'pl-3')}
+        <button type="button" className={cn('flex min-w-0 flex-1 items-center gap-2 py-2 pr-10 text-left', nested ? 'pl-9' : 'pl-3')}
           onClick={() => openFolder(folder.path)}>
           <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]"/>
           <span className="flex min-w-0 items-center gap-0.5">
@@ -685,75 +687,78 @@ export default function FilesDocs() {
           </span>
           {tree[folder.path] !== undefined && <span className={cn('absolute right-3 top-1/2 -translate-y-1/2 text-xs tabular-nums text-muted-foreground',
             !readOnly && 'group-hover:invisible group-focus-within:invisible [@media(hover:none)]:invisible',
-            (editing || deleting) && 'invisible')}>{fileCount(folder.path)}</span>}
+            (editing || deleting || menuFor === `tree:${folder.path}`) && 'invisible')}>{fileCount(folder.path)}</span>}
         </button>
-        {!readOnly && <div className={cn('absolute right-2 top-1/2 flex -translate-y-1/2 items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100',
-          (editing || deleting) && 'opacity-100')}>
-          <Button variant="ghost" size="icon" className={cn(actionClassName, editing && 'border-border bg-accent')} title="编辑目录" aria-label={`编辑目录：${folder.name}`}
-            aria-haspopup="dialog" aria-expanded={editing}
-            disabled={busy} onClick={() => void openEditFolder(folder)}><Pencil className="h-3 w-3"/></Button>
-          <Button variant="ghost" size="icon" className={cn(actionClassName, deleting && 'border-border bg-accent')} title="删除目录" aria-label={`删除目录：${folder.name}`}
-            aria-haspopup="dialog" aria-expanded={deleting}
-            disabled={busy} onClick={() => openDeleteDialog([folder])}><Trash2 className="h-3 w-3"/></Button>
-        </div>}
+        {!readOnly && renderObjectMenu(folder, 'tree')}
       </div>
     )
   }
 
-  const renderCardMenu = (item: StorageNode) => (
-    <div className="absolute right-1.5 top-1/2 -translate-y-1/2" onClick={(event) => event.stopPropagation()}>
-      <DropdownMenu
-        open={menuFor === item.path}
-        modal={false}
-        onOpenChange={(open) => {
-          cancelMenuClose()
-          setMenuFor(open ? item.path : null)
-        }}
-      >
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            title="更多操作"
-            className={cn(
-              'rounded p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100',
-              menuFor === item.path && 'opacity-100',
-            )}
-            onMouseEnter={() => {
-              cancelMenuClose()
-              setMenuFor(item.path)
-            }}
+  const renderObjectMenu = (item: StorageNode, location: 'tree' | 'card' = 'card') => {
+    const menuId = `${location}:${item.path}`
+    const active = menuFor === menuId || editingNode?.path === item.path
+      || deleteDialogOpen && deleteTargets.some(target => target.path === item.path)
+    return (
+      <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center" onClick={(event) => event.stopPropagation()}>
+        <DropdownMenu
+          open={menuFor === menuId}
+          modal={false}
+          onOpenChange={(open) => {
+            cancelMenuClose()
+            setMenuFor(open ? menuId : null)
+          }}
+        >
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              title="更多操作"
+              aria-label={`更多操作：${item.name}`}
+              disabled={busy}
+              className={cn(
+                'rounded p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100',
+                active && 'opacity-100',
+              )}
+              onMouseEnter={() => {
+                cancelMenuClose()
+                setMenuFor(menuId)
+              }}
+              onMouseLeave={scheduleMenuClose}
+            >
+              <MoreHorizontal className="h-4 w-4"/>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-32"
+            onMouseEnter={cancelMenuClose}
             onMouseLeave={scheduleMenuClose}
           >
-            <MoreHorizontal className="h-4 w-4"/>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="w-32"
-          onMouseEnter={cancelMenuClose}
-          onMouseLeave={scheduleMenuClose}
-        >
-          <DropdownMenuItem
-            onSelect={() => {
-              cancelMenuClose()
-              setMenuFor(null)
-              setDetailNode(item)
-            }}
-          >
-            <Info className="h-4 w-4"/> 详情
-          </DropdownMenuItem>
-          {!readOnly && (
             <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onSelect={() => openDeleteDialog([item])}
+              onSelect={() => {
+                cancelMenuClose()
+                setMenuFor(null)
+                setDetailNode(item)
+              }}
             >
-              <Trash2 className="h-4 w-4"/> 删除文件
+              <Info className="h-4 w-4"/> 详情
             </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
+            {!readOnly && (
+              <DropdownMenuItem onSelect={() => void openEditNode(item)}>
+                <Pencil className="h-4 w-4"/> 编辑
+              </DropdownMenuItem>
+            )}
+            {!readOnly && (
+              <DropdownMenuItem
+                onSelect={() => openDeleteDialog([item])}
+              >
+                <Trash2 className="h-4 w-4"/> 删除
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    )
+  }
 
   return (
     <AppLayout noPadding noOuterScroll contentClassName="h-full min-h-0">
@@ -892,7 +897,7 @@ export default function FilesDocs() {
                         openDeleteDialog(selectedNodes)
                       }}
                     >
-                      <Trash2 className="h-4 w-4"/> 删除文件
+                      <Trash2 className="h-4 w-4"/> 删除
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       disabled={!selectedNodes.length}
@@ -938,7 +943,7 @@ export default function FilesDocs() {
                           {tree[item.path] === undefined ? '文件夹' : `${fileCount(item.path)} 个文件`}
                         </div>
                       </div>
-                      {renderCardMenu(item)}
+                      {renderObjectMenu(item)}
                     </div>
                   ))}
                 </div>
@@ -965,7 +970,7 @@ export default function FilesDocs() {
                           {formatSize(item.size)} · {(item.modifiedOn ?? '').slice(0, 10)}
                         </div>
                       </div>
-                      {renderCardMenu(item)}
+                      {renderObjectMenu(item)}
                     </div>
                   ))}
                 </div>
@@ -1004,31 +1009,32 @@ export default function FilesDocs() {
       </BizDialog>
 
       <BizDialog
-        open={editingFolder !== null}
+        open={editingNode !== null}
         onOpenChange={open => {
           if (!open && !busy) {
             ++editRequestRef.current
-            setEditingFolder(null)
+            setEditingNode(null)
           }
         }}
-        title="编辑目录"
+        title="编辑"
         width={480}
         footer={<>
-          <Button variant="secondary" disabled={busy} onClick={() => { ++editRequestRef.current; setEditingFolder(null) }}>取消</Button>
-          <Button disabled={busy || !editReady} onClick={() => void handleEditFolder()}>{busy ? '保存中…' : '保存'}</Button>
+          <Button variant="secondary" disabled={busy} onClick={() => { ++editRequestRef.current; setEditingNode(null) }}>取消</Button>
+          <Button disabled={busy || !editReady} onClick={() => void handleEditNode()}>{busy ? '保存中…' : '保存'}</Button>
         </>}
       >
         <div className="space-y-4">
-          <label className="block space-y-2 text-sm">目录名称
+          <label className="block space-y-2 text-sm">名称
             <Input autoFocus value={editName} disabled={busy || editLoading}
               onChange={event => { setEditName(event.target.value); setEditError('') }}/>
           </label>
-          <div className="space-y-2">
+
+          {editingNode?.type === 'folder' && <div className="space-y-2">
             <p className="text-sm font-medium">可见成员</p>
             {editLoading ? <p className="text-sm text-muted-foreground">加载权限中…</p> :
               <DirectoryMemberPicker appId={appId} value={editMembers} onChange={setEditMembers} disabled={busy || !editReady}/>}
             <p className="text-xs text-muted-foreground">未选择成员时对所有应用用户可见。子目录同时受父目录限制，所有者和管理员始终可见。</p>
-          </div>
+          </div>}
           {editError && <p role="alert" className="text-sm text-destructive">{editError}</p>}
         </div>
       </BizDialog>
@@ -1039,7 +1045,7 @@ export default function FilesDocs() {
           setDeleteDialogOpen(open)
           if (!open) setDeleteTargets([])
         }}
-        title="删除文件"
+        title="删除"
         message={
           <div className="space-y-2">
             <p>确定删除选中的 {deleteTargets.length} 项吗？此操作不可恢复。</p>
