@@ -12,11 +12,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {AppLoading} from '@/components/biz/AppLoading'
+import {DirectoryMemberPicker} from '@/components/biz/DirectoryMemberPicker'
+import type {DirectorySelection} from '@/types/directory'
 import {attachmentName} from '@/lib/attachments'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {getAppById} from '@/services/apps'
 import {
   createStorageFolder,
+  getStorageFolderMembers,
+  updateStorageFolder,
   deleteStorageObject,
   downloadStorageObject,
   listStorageObjects,
@@ -36,6 +40,7 @@ import {
   Image,
   Info,
   MoreHorizontal,
+  Pencil,
   Presentation,
   Search,
   Share,
@@ -164,6 +169,13 @@ export default function FilesDocs() {
   const [moveLoading, setMoveLoading] = React.useState(false)
   const [moveError, setMoveError] = React.useState('')
   const [detailNode, setDetailNode] = React.useState<StorageNode | null>(null)
+  const [editingFolder, setEditingFolder] = React.useState<StorageNode | null>(null)
+  const [editName, setEditName] = React.useState('')
+  const [editMembers, setEditMembers] = React.useState<DirectorySelection[]>([])
+  const [editLoading, setEditLoading] = React.useState(false)
+  const [editReady, setEditReady] = React.useState(false)
+  const [editError, setEditError] = React.useState('')
+  const editRequestRef = React.useRef(0)
   const showTree = true
   const requestRef = React.useRef(0)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -454,6 +466,63 @@ export default function FilesDocs() {
     setDeleteDialogOpen(true)
   }
 
+  const openEditFolder = async (folder: StorageNode) => {
+    if (!projectId || readOnly) return
+    const requestId = ++editRequestRef.current
+    setEditingFolder(folder)
+    setEditName(folder.name)
+    setEditMembers([])
+    setEditError('')
+    setEditLoading(true)
+    setEditReady(false)
+    try {
+      const members = await getStorageFolderMembers(projectId, folder.path)
+      if (requestId === editRequestRef.current) {
+        setEditMembers(members)
+        setEditReady(true)
+      }
+    } catch (caught) {
+      if (requestId === editRequestRef.current) setEditError(toErrorMessage(caught, '加载目录权限失败'))
+    } finally {
+      if (requestId === editRequestRef.current) setEditLoading(false)
+    }
+  }
+
+  const handleEditFolder = async () => {
+    if (!projectId || !editingFolder || readOnly || busy || !editReady) return
+    const name = editName.trim()
+    if (!name || /[\\/\u0000-\u001f\u007f]/.test(name) || name === '.' || name === '..') {
+      setEditError('请输入有效的目录名称，不能包含斜杠等特殊字符')
+      return
+    }
+    setBusy(true)
+    setEditError('')
+    setError('')
+    let saved = false
+    try {
+      await updateStorageFolder(projectId, editingFolder.path, name, editMembers)
+      saved = true
+      const parent = editingFolder.path.split('/').slice(0, -1).join('/')
+      const target = parent ? `${parent}/${name}` : name
+      const nextCurrent = current === editingFolder.path || current.startsWith(`${editingFolder.path}/`)
+        ? target + current.slice(editingFolder.path.length) : current
+      ++requestRef.current
+      setCurrent(nextCurrent)
+      setSelected([])
+      setTree({})
+      setEditingFolder(null)
+      const paths = [...new Set(['', parent, nextCurrent])]
+      const entries = await Promise.all(paths.map(async path => [path, await fetchNodes(path)] as const))
+      setTree(Object.fromEntries(entries))
+    } catch (caught) {
+      const message = toErrorMessage(caught, '保存目录失败')
+      if (saved) setError('目录已保存，但刷新失败，请重新打开目录')
+      else setEditError(message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handleDelete = async () => {
     if (!projectId || !deleteTargets.length || readOnly) return
     setBusy(true)
@@ -474,7 +543,14 @@ export default function FilesDocs() {
     invalidatePaths(removed)
     setSelected(failed.map((node) => node.id))
     try {
-      await refreshPath(current)
+      const removedCurrent = removed.find(path => current === path || current.startsWith(`${path}/`))
+      const nextCurrent = removedCurrent ? removedCurrent.split('/').slice(0, -1).join('/') : current
+      if (removedCurrent) {
+        ++requestRef.current
+        setCurrent(nextCurrent)
+      }
+      const parents = removed.map(path => path.split('/').slice(0, -1).join('/'))
+      await Promise.all([...new Set([nextCurrent, ...parents])].map(refreshPath))
     } catch {
       // 列表刷新失败时保留已有内容，删除结果以错误提示为准
     }
@@ -588,6 +664,24 @@ export default function FilesDocs() {
         : [...previous, id],
     )
 
+  const renderTreeFolder = (folder: StorageNode, nested = false) => (
+    <div key={folder.id} className={cn('group flex items-center rounded-lg hover:bg-accent',
+      current === folder.path && 'bg-primary/10 text-primary')}>
+      <button type="button" className={cn('flex min-w-0 flex-1 items-center gap-2 py-2 text-left', nested ? 'pl-9 pr-1' : 'pl-3 pr-1')}
+        onClick={() => openFolder(folder.path)}>
+        <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]"/>
+        <span className="min-w-0 flex-1 truncate">{folder.name}</span>
+        {tree[folder.path] !== undefined && <span className="shrink-0 text-xs text-muted-foreground">{fileCount(folder.path)}</span>}
+      </button>
+      {!readOnly && <div className="flex shrink-0 items-center pr-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+        <Button variant="ghost" size="icon" className="h-7 w-7" title="编辑目录" aria-label={`编辑目录：${folder.name}`}
+          disabled={busy} onClick={() => void openEditFolder(folder)}><Pencil className="h-3.5 w-3.5"/></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="删除目录" aria-label={`删除目录：${folder.name}`}
+          disabled={busy} onClick={() => openDeleteDialog([folder])}><Trash2 className="h-3.5 w-3.5"/></Button>
+      </div>}
+    </div>
+  )
+
   const renderCardMenu = (item: StorageNode) => (
     <div className="absolute right-1.5 top-1/2 -translate-y-1/2" onClick={(event) => event.stopPropagation()}>
       <DropdownMenu
@@ -688,40 +782,8 @@ export default function FilesDocs() {
               .filter((item) => item.type === 'folder')
               .map((folder) => (
                 <div key={folder.id}>
-                  <button
-                    type="button"
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent',
-                      current === folder.path && 'bg-primary/10 text-primary',
-                    )}
-                    onClick={() => openFolder(folder.path)}
-                  >
-                    <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]" />
-                    <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-                    {tree[folder.path] !== undefined && (
-                      <span className="shrink-0 text-xs text-muted-foreground">{fileCount(folder.path)}</span>
-                    )}
-                  </button>
-
-                  {(tree[folder.path] ?? [])
-                    .filter((item) => item.type === 'folder')
-                    .map((child) => (
-                      <button
-                        key={child.id}
-                        type="button"
-                        className={cn(
-                          'flex w-full items-center gap-2 rounded-lg py-2 pl-9 pr-3 text-left transition-colors hover:bg-accent',
-                          current === child.path && 'bg-primary/10 text-primary',
-                        )}
-                        onClick={() => openFolder(child.path)}
-                      >
-                        <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]" />
-                        <span className="min-w-0 flex-1 truncate">{child.name}</span>
-                        {tree[child.path] !== undefined && (
-                          <span className="shrink-0 text-xs text-muted-foreground">{fileCount(child.path)}</span>
-                        )}
-                      </button>
-                    ))}
+                  {renderTreeFolder(folder)}
+                  {(tree[folder.path] ?? []).filter(item => item.type === 'folder').map(child => renderTreeFolder(child, true))}
                 </div>
               ))}
           </div>
@@ -920,6 +982,36 @@ export default function FilesDocs() {
             }}
           />
           {folderError && <p className="text-sm text-destructive">{folderError}</p>}
+        </div>
+      </BizDialog>
+
+      <BizDialog
+        open={editingFolder !== null}
+        onOpenChange={open => {
+          if (!open && !busy) {
+            ++editRequestRef.current
+            setEditingFolder(null)
+          }
+        }}
+        title="编辑目录"
+        width={480}
+        footer={<>
+          <Button variant="secondary" disabled={busy} onClick={() => { ++editRequestRef.current; setEditingFolder(null) }}>取消</Button>
+          <Button disabled={busy || !editReady} onClick={() => void handleEditFolder()}>{busy ? '保存中…' : '保存'}</Button>
+        </>}
+      >
+        <div className="space-y-4">
+          <label className="block space-y-2 text-sm">目录名称
+            <Input autoFocus value={editName} disabled={busy || editLoading}
+              onChange={event => { setEditName(event.target.value); setEditError('') }}/>
+          </label>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">可见成员</p>
+            {editLoading ? <p className="text-sm text-muted-foreground">加载权限中…</p> :
+              <DirectoryMemberPicker appId={appId} value={editMembers} onChange={setEditMembers} disabled={busy || !editReady}/>}
+            <p className="text-xs text-muted-foreground">未选择成员时对所有应用用户可见。子目录同时受父目录限制，所有者和管理员始终可见。</p>
+          </div>
+          {editError && <p role="alert" className="text-sm text-destructive">{editError}</p>}
         </div>
       </BizDialog>
 

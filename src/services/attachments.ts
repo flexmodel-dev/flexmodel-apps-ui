@@ -3,9 +3,22 @@ import {getAuthToken} from '@/services/auth'
 import {requestJson} from '@/services/http'
 import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
 import {attachmentPreviewType, isAttachmentUrl} from '@/lib/attachments'
+import type {DirectorySelection} from '@/types/directory'
 
 interface Bucket {name: string; maxFileSize?: number}
 interface UploadedObject {url: string; path: string; name: string}
+
+export async function getStorageFolderMembers(projectId: string, path: string): Promise<DirectorySelection[]> {
+  const bucket = await ensureBucket(projectId)
+  return requestJson<DirectorySelection[]>(`${bucketBase(projectId)}/${encodeURIComponent(bucket.name)}/folder?path=${encodeURIComponent(path)}`)
+}
+
+export async function updateStorageFolder(projectId: string, path: string, name: string, members: DirectorySelection[]): Promise<void> {
+  const bucket = await ensureBucket(projectId)
+  await requestJson(`${bucketBase(projectId)}/${encodeURIComponent(bucket.name)}/folder?path=${encodeURIComponent(path)}`, {
+    method: 'PUT', body: JSON.stringify({name, members}),
+  })
+}
 
 export interface StorageObject {
   name: string
