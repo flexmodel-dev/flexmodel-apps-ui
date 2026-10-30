@@ -44,6 +44,7 @@ import {
   Presentation,
   Search,
   Share,
+  ShieldCheck,
   Trash2,
   Upload,
   type LucideIcon,
@@ -58,6 +59,7 @@ interface StorageNode {
   path: string
   size: number | null
   modifiedOn: string | null
+  restricted: boolean
 }
 
 const ROOT_LABEL: Record<TabKey, string> = {
@@ -78,6 +80,7 @@ function toNode(item: StorageObject): StorageNode {
     name: item.type === 'file' ? attachmentName(item.name) : item.name,
     size: item.size,
     modifiedOn: item.lastModified,
+    restricted: item.restricted === true,
   }
 }
 
@@ -664,23 +667,38 @@ export default function FilesDocs() {
         : [...previous, id],
     )
 
-  const renderTreeFolder = (folder: StorageNode, nested = false) => (
-    <div key={folder.id} className={cn('group flex items-center rounded-lg hover:bg-accent',
-      current === folder.path && 'bg-primary/10 text-primary')}>
-      <button type="button" className={cn('flex min-w-0 flex-1 items-center gap-2 py-2 text-left', nested ? 'pl-9 pr-1' : 'pl-3 pr-1')}
-        onClick={() => openFolder(folder.path)}>
-        <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]"/>
-        <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-        {tree[folder.path] !== undefined && <span className="shrink-0 text-xs text-muted-foreground">{fileCount(folder.path)}</span>}
-      </button>
-      {!readOnly && <div className="flex shrink-0 items-center pr-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-        <Button variant="ghost" size="icon" className="h-7 w-7" title="编辑目录" aria-label={`编辑目录：${folder.name}`}
-          disabled={busy} onClick={() => void openEditFolder(folder)}><Pencil className="h-3.5 w-3.5"/></Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="删除目录" aria-label={`删除目录：${folder.name}`}
-          disabled={busy} onClick={() => openDeleteDialog([folder])}><Trash2 className="h-3.5 w-3.5"/></Button>
-      </div>}
-    </div>
-  )
+  const renderTreeFolder = (folder: StorageNode, nested = false) => {
+    const editing = editingFolder?.path === folder.path
+    const deleting = deleteDialogOpen && deleteTargets.some(target => target.path === folder.path)
+    const actionClassName = 'h-5 w-5 border border-transparent text-foreground hover:border-border hover:text-foreground focus-visible:border-border'
+    return (
+      <div key={folder.id} className={cn('group relative flex items-center rounded-lg hover:bg-accent',
+        current === folder.path && 'bg-primary/10 text-primary')}>
+        <button type="button" className={cn('flex min-w-0 flex-1 items-center gap-2 py-2 pr-12 text-left', nested ? 'pl-9' : 'pl-3')}
+          onClick={() => openFolder(folder.path)}>
+          <Folder className="h-4 w-4 shrink-0 text-[#fbbc05]"/>
+          <span className="flex min-w-0 items-center gap-0.5">
+            <span className="truncate">{folder.name}</span>
+            {folder.restricted && <span role="img" aria-label="已配置权限" title="已配置权限" className="shrink-0 text-muted-foreground">
+              <ShieldCheck className="h-3 w-3" aria-hidden="true"/>
+            </span>}
+          </span>
+          {tree[folder.path] !== undefined && <span className={cn('absolute right-3 top-1/2 -translate-y-1/2 text-xs tabular-nums text-muted-foreground',
+            !readOnly && 'group-hover:invisible group-focus-within:invisible [@media(hover:none)]:invisible',
+            (editing || deleting) && 'invisible')}>{fileCount(folder.path)}</span>}
+        </button>
+        {!readOnly && <div className={cn('absolute right-2 top-1/2 flex -translate-y-1/2 items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100',
+          (editing || deleting) && 'opacity-100')}>
+          <Button variant="ghost" size="icon" className={cn(actionClassName, editing && 'border-border bg-accent')} title="编辑目录" aria-label={`编辑目录：${folder.name}`}
+            aria-haspopup="dialog" aria-expanded={editing}
+            disabled={busy} onClick={() => void openEditFolder(folder)}><Pencil className="h-3 w-3"/></Button>
+          <Button variant="ghost" size="icon" className={cn(actionClassName, deleting && 'border-border bg-accent')} title="删除目录" aria-label={`删除目录：${folder.name}`}
+            aria-haspopup="dialog" aria-expanded={deleting}
+            disabled={busy} onClick={() => openDeleteDialog([folder])}><Trash2 className="h-3 w-3"/></Button>
+        </div>}
+      </div>
+    )
+  }
 
   const renderCardMenu = (item: StorageNode) => (
     <div className="absolute right-1.5 top-1/2 -translate-y-1/2" onClick={(event) => event.stopPropagation()}>

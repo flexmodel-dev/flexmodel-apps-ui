@@ -26,6 +26,7 @@ export interface StorageObject {
   size: number | null
   lastModified: string | null
   path: string
+  restricted?: boolean
 }
 
 const bucketCache = createAppDataCache<Bucket>()
