@@ -1,5 +1,10 @@
 import {Popover, PopoverTrigger} from '@/components/ui/popover'
-import {ConditionValueControl, viewTabOperatorLabels, viewTabOperators, type ViewTabConditionDraft} from '@/components/biz/RecordFilterControls'
+import {
+  ConditionValueControl,
+  viewTabOperatorLabels,
+  viewTabOperators,
+  type ViewTabConditionDraft
+} from '@/components/biz/RecordFilterControls'
 import {RecordQueryPopover, type RecordQuery} from '@/components/biz/RecordQueryPopover'
 import * as React from 'react'
 import {formatFieldValue} from '@/lib/fieldConfig'
@@ -476,18 +481,19 @@ export default function RecordList({formName}: { formName?: string }) {
                     size="icon"
                     className="h-8 w-8 text-muted-foreground"
                     aria-pressed={Boolean(advancedQuery)}
+                    data-active={Boolean(advancedQuery)}
                     title="高级查询"
                     aria-label="高级查询"
                   >
-                    <Filter className={cn('h-4 w-4', advancedQuery && 'text-primary')}/>
+                    <Filter className={cn("h-4 w-4", advancedQuery && "text-primary")}/>
                   </Button>
                 </PopoverTrigger>
                 <RecordQueryPopover open={queryOpen} onOpenChange={setQueryOpen}
-                  fields={availableFilterFields} value={advancedQuery} onApply={value => {
-                    setAdvancedQuery(value)
-                    setPage(1)
-                    setSelected([])
-                  }}/>
+                                    fields={availableFilterFields} value={advancedQuery} onApply={value => {
+                  setAdvancedQuery(value);
+                  setPage(1);
+                  setSelected([])
+                }}/>
               </Popover>
             </div>
             <Button
@@ -511,7 +517,9 @@ export default function RecordList({formName}: { formName?: string }) {
             已启用高级查询：{advancedQuery.conditions.length} 个条件（{advancedQuery.logic === '_and' ? '全部满足' : '任一满足'}）
           </button>
           <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
-            setAdvancedQuery(null); setPage(1); setSelected([])
+            setAdvancedQuery(null);
+            setPage(1);
+            setSelected([])
           }}>清空查询</Button>
         </div>}
         <div className="flex items-end justify-between border-b px-3">
@@ -723,7 +731,8 @@ export default function RecordList({formName}: { formName?: string }) {
       </div>
 
       {transfer && <AppTransferDialog key={`${appId}:${resolvedFormName}:${transfer}`} appId={appId} currentForm={form}
-        mode={transfer} selectedIds={selected} query={{search: debouncedQ, viewTabId: activeTabId, filter: advancedQuery?.filter,
+                                      mode={transfer} selectedIds={selected} query={{
+        search: debouncedQ, viewTabId: activeTabId, filter: advancedQuery?.filter,
           sortField: sortKey || undefined, sortOrder: sortKey ? (sortAsc ? 'ASC' : 'DESC') : undefined}}
         onClose={() => setTransfer(null)} onImported={() => {setSelected([]); refresh()}}/>}
 
