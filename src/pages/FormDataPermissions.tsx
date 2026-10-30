@@ -3,26 +3,27 @@ import {useNavigate, useParams} from 'react-router-dom'
 import {Pencil, Plus, Trash2} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
-import {FormSettingsNav, formSettingsBackPath} from '@/components/biz/FormSettingsNav'
+import {formSettingsBackPath, FormSettingsNav} from '@/components/biz/FormSettingsNav'
 import {DirectoryMemberPicker} from '@/components/biz/DirectoryMemberPicker'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {ConfirmDialog} from '@/components/ui/dialog'
 import {BizDrawer} from '@/components/ui/drawer'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {getAppForm, getAppForms, type AppForm, type AppFormField} from '@/services/appForms'
+import {type AppForm, type AppFormField, getAppForm, getAppForms} from '@/services/appForms'
 import {
-  deleteDataAuthorization,
-  emptyControl,
-  fromDirectorySelections,
-  listDataAuthorizations,
-  saveDataAuthorization,
-  toDirectorySelections,
   type DataAuthorization,
   type DataAuthorizationInput,
+  deleteDataAuthorization,
+  emptyControl,
   type FormPermissionControl,
+  fromDirectorySelections,
+  listDataAuthorizations,
   type PermissionCondition,
+  saveDataAuthorization,
   type ScopeType,
+  toDirectorySelections,
 } from '@/services/dataAuthorization'
 import {toErrorMessage} from '@/lib/utils'
 
@@ -208,7 +209,7 @@ export default function FormDataPermissions() {
       </SettingsPageHeader>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        {loading ? <p role="status" className="text-sm text-muted-foreground">加载中…</p> : root && <>
+        {loading ? <AppLoading center label="正在加载授权规则"/> : root && <>
           <p className="rounded-md border p-4 text-sm text-muted-foreground">当前仅保存权限配置，尚未参与运行时数据访问控制。</p>
           {!rules.length && <p className="py-6 text-center text-sm text-muted-foreground">暂无授权规则</p>}
           {rules.map(rule => <div key={rule.id}

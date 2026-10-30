@@ -2,6 +2,7 @@ import * as React from 'react'
 import {AtSign} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {UserAvatar} from '@/components/ui/avatar'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {getAuthSession} from '@/services/auth'
 import {getDirectory} from '@/services/directory'
 import type {DirectoryMember} from '@/types/directory'
@@ -122,7 +123,7 @@ export function DiscussionComposer({appId, replyTo, submitting, onSubmit}: {
     {mention?.open && <div
       className="absolute left-0 top-full z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border bg-popover p-1 shadow-lg">
       {directoryError ? <p className="px-2 py-2 text-xs text-muted-foreground">{directoryError}</p>
-        : !members.length ? <p className="px-2 py-2 text-xs text-muted-foreground">正在加载成员…</p>
+        : !members.length ? <AppLoading size="sm" className="px-2 py-2" label="正在加载成员"/>
           : !candidates.length ? <p className="px-2 py-2 text-xs text-muted-foreground">没有匹配的成员</p>
             : candidates.map((member, index) => <button
               key={member.id}

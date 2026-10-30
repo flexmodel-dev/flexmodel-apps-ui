@@ -32,9 +32,7 @@ export function AppTheme({children}: {children: React.ReactNode}) {
   }, [appId])
 
   if (pending) {
-    return <div role="status" aria-label="应用加载中" className="h-screen bg-background text-foreground">
-      <AppLoading center className="h-full"/>
-    </div>
+    return <AppLoading center label="应用加载中" className="h-screen bg-background text-foreground"/>
   }
   return children
 }

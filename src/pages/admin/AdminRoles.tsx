@@ -1,19 +1,16 @@
 import * as React from 'react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
 import {Empty} from '@/components/ui/empty'
 import {BizDialog} from '@/components/ui/dialog'
 import {SystemRecordFormModal} from '@/components/biz/SystemRecordFormModal'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {CirclePlus, Pencil, Trash2} from 'lucide-react'
 import {
-  createSystemRecord,
   deleteSystemRecord,
   getSystemForm,
   getSystemRecords,
-  updateSystemRecord,
   type SystemForm,
-  type SystemPermissionResource,
   type SystemRecord,
 } from '@/services/systemForms'
 import {toErrorMessage} from '@/lib/utils'
@@ -111,7 +108,7 @@ export function AdminRoles() {
         </div>
 
         {loading ? (
-          <div className="rounded-lg border p-8 text-sm text-muted-foreground">正在加载角色…</div>
+          <AppLoading className="rounded-lg border p-8" label="正在加载角色"/>
         ) : error ? (
           <div className="rounded-lg border p-8 text-sm text-destructive">{error}</div>
         ) : roles.length === 0 ? (

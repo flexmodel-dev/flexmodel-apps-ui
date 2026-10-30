@@ -3,6 +3,7 @@ import {Check, ChevronDown, Search, X} from 'lucide-react'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {getDirectory} from '@/services/directory'
 import {cn, toErrorMessage} from '@/lib/utils'
 import type {Directory, DirectoryEntityType, DirectorySelection} from '@/types/directory'
@@ -119,7 +120,7 @@ export function DirectoryMemberPicker({
         <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"/>
           <Input aria-label="搜索目录" placeholder="搜索名称" className="pl-8" value={search}
                  onChange={event => setSearch(event.target.value)}/></div>
-        {loading && <p className="text-sm text-muted-foreground" role="status">加载中…</p>}
+        {loading && <AppLoading size="sm" className="py-3" label="正在加载目录成员"/>}
         {error && <div role="alert" className="space-y-2 text-sm text-destructive">{error}<Button type="button"
                                                                                                   variant="secondary"
                                                                                                   onClick={() => setRetry(n => n + 1)}>重试</Button>

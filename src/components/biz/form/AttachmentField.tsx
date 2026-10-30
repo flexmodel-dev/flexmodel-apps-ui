@@ -4,6 +4,7 @@ import {Button} from '@/components/ui/button'
 import {BizDialog} from '@/components/ui/dialog'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {attachmentName, attachmentPreviewType, attachmentUrls, isAttachmentUrl} from '@/lib/attachments'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {toErrorMessage} from '@/lib/utils'
 import {loadAttachment, uploadAttachment} from '@/services/attachments'
 
@@ -44,7 +45,7 @@ function AttachmentPreview({url, onClose}: {url: string; onClose: () => void}) {
   const name = attachmentName(url)
   return <BizDialog open onOpenChange={open => { if (!open) onClose() }} title={name} width={880}>
     {error ? <p role="alert" className="text-destructive">{error}</p>
-      : !source ? <div role="status" className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/>正在加载预览…</div>
+      : !source ? <AppLoading size="sm" label="正在加载预览"/>
         : type.startsWith('image/') ? <img src={source} alt={name} className="mx-auto max-h-[60vh] max-w-full object-contain"/>
           : type === 'application/pdf' ? <iframe src={source} title={name} className="h-[60vh] w-full rounded border"/>
             : type.startsWith('video/') ? <video src={source} controls className="max-h-[60vh] w-full"/>

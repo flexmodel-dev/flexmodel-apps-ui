@@ -3,12 +3,13 @@ import {Bell} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuItem,
-  DropdownMenuSeparator
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {useNotifications} from './NotificationProvider'
 
 export function NotificationBell({className}: { className?: string }) {
@@ -26,7 +27,7 @@ export function NotificationBell({className}: { className?: string }) {
       event.preventDefault();
       refresh()
     }}>加载失败，点击重试</DropdownMenuItem> : !summary ?
-      <p className="p-4 text-sm text-muted-foreground">正在加载…</p> : recent.length ? recent.map(item =>
+      <AppLoading size="sm" className="p-4" label="正在加载通知"/> : recent.length ? recent.map(item =>
         <DropdownMenuItem key={item.id} asChild><Link to={`/notifications?open=${encodeURIComponent(item.id)}`}
                                                       className="block"><p className="truncate text-sm">{item.title}</p>
           <p

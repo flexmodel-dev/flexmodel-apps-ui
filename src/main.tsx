@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import {HashRouter, Routes, Route, Navigate, Outlet, useLocation} from 'react-router-dom'
+import {HashRouter, Navigate, Outlet, Route, Routes, useLocation} from 'react-router-dom'
 import './index.css'
 import {AppTheme} from '@/theme/AppTheme'
 import {initializeDarkMode} from '@/lib/useDarkMode'
@@ -11,7 +11,6 @@ import AppSettings from '@/pages/AppSettings'
 import AppHome from '@/pages/AppHome'
 import AppMenuPage from '@/pages/AppMenuPage'
 import AppRecordView from '@/pages/AppRecordView'
-import RecordList from '@/pages/RecordList'
 import MenuPlaceholder from '@/pages/MenuPlaceholder'
 import ApprovalHome from '@/pages/ApprovalHome'
 import FeedsHome from '@/pages/FeedsHome'
@@ -23,12 +22,9 @@ import UserSettings from '@/pages/UserSettings'
 import FormDesign from '@/pages/FormDesign'
 import FormSettings from '@/pages/FormSettings'
 import FormDataPermissions from '@/pages/FormDataPermissions'
-import {
-  AdminUsers,
-  AdminRoles,
-  AdminApprovals,
-} from '@/pages/admin'
+import {AdminApprovals, AdminRoles, AdminUsers,} from '@/pages/admin'
 import {MessageViewport} from '@/components/ui/message'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {getAuthSession} from '@/services/auth'
 import {NotificationProvider} from '@/components/notifications/NotificationProvider'
 
@@ -36,8 +32,8 @@ const ApprovalDesigner = React.lazy(() => import('@/pages/Approvals/ApprovalDesi
 
 function ApprovalDesignerRoute() {
   const current = useLocation()
-  return <React.Suspense fallback={<div
-    className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">正在加载流程设计器…</div>}><ApprovalDesigner
+  return <React.Suspense
+    fallback={<AppLoading className="h-screen bg-background" label="正在加载流程设计器"/>}><ApprovalDesigner
     key={current.pathname}/></React.Suspense>
 }
 

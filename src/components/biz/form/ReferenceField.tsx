@@ -1,12 +1,13 @@
 import * as React from 'react'
-import {Loader2, Search, SquareArrowOutUpRight, X} from 'lucide-react'
+import {Search, SquareArrowOutUpRight, X} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {BizDialog} from '@/components/ui/dialog'
 import {Popover, PopoverAnchor, PopoverContent} from '@/components/ui/popover'
 import {Pagination} from '@/components/biz/Pagination'
-import {getAppForm, type AppForm, type AppFormField} from '@/services/appForms'
-import {getAppRecord, getAppRecords, type AppRecord, type AppRecordPage} from '@/services/appRecords'
+import {AppLoading} from '@/components/biz/AppLoading'
+import {type AppForm, type AppFormField, getAppForm} from '@/services/appForms'
+import {type AppRecord, type AppRecordPage, getAppRecord, getAppRecords} from '@/services/appRecords'
 import {formatFieldValue} from '@/lib/fieldConfig'
 import {formatRecordValue} from '@/lib/recordValue'
 import {cn, toErrorMessage} from '@/lib/utils'
@@ -97,7 +98,7 @@ function ReferenceTable({id, records, columns, selectedId, activeIndex, onSelect
         })}
       </tbody>
     </table>
-    {loading && <div role="status" className="flex items-center justify-center gap-2 p-8 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>加载中…</div>}
+    {loading && <AppLoading className="p-8" label="正在加载引用数据"/>}
     {error && <div role="alert" className="space-y-2 p-6 text-center text-destructive">{error}<div><Button type="button" variant="secondary" size="sm" onClick={onRetry}>重试</Button></div></div>}
     {!loading && !error && !records.length && <div className="p-8 text-center text-muted-foreground">暂无匹配记录</div>}
   </div>

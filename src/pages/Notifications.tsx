@@ -3,15 +3,16 @@ import {Link, useSearchParams} from 'react-router-dom'
 import {Bell, CheckCheck, RefreshCw} from 'lucide-react'
 import {AppLayout} from '@/components/layout/AppLayout'
 import {Button} from '@/components/ui/button'
-import {Drawer, DrawerContent, DrawerTitle, DrawerDescription} from '@/components/ui/drawer'
+import {Drawer, DrawerContent, DrawerDescription, DrawerTitle} from '@/components/ui/drawer'
 import {Pagination} from '@/components/biz/Pagination'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {useNotifications} from '@/components/notifications/NotificationProvider'
 import {
+  type AppNotification,
   listNotifications,
   notificationDetail,
-  readNotification,
   readAllNotifications,
-  type AppNotification
+  readNotification
 } from '@/services/notifications'
 import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
 import {message} from '@/components/ui/message'
@@ -140,7 +141,7 @@ export default function Notifications() {
                                                                                                     reload();
                                                                                                     refresh()
                                                                                                   }}>重试</Button>
-        </div> : loading ? <p className="p-6 text-sm text-muted-foreground">正在加载通知…</p> : !items.length ?
+        </div> : loading ? <AppLoading center label="正在加载通知"/> : !items.length ?
           <p className="p-12 text-center text-sm text-muted-foreground">暂无通知</p> : items.map(item => <div
             key={item.id}
             className={cn('flex items-start gap-3 border-b p-4', !item.readAt && 'border-l-2 border-l-primary')}><Bell
@@ -163,7 +164,7 @@ export default function Notifications() {
         <div className="min-h-0 flex-1 overflow-auto p-6">{detailError ?
           <p role="alert" className="text-sm text-destructive">{detailError}<Button variant="link"
                                                                                     onClick={reloadDetail}>重试</Button>
-          </p> : !detail ? <p className="text-sm text-muted-foreground">正在加载…</p> :
+          </p> : !detail ? <AppLoading className="py-8" label="正在加载通知详情"/> :
             <p className="whitespace-pre-wrap break-words text-sm leading-7">{detail.content}</p>}</div>
         {detail && <div className="border-t p-4">{detail.canNavigate && detail.approval ?
           <Button

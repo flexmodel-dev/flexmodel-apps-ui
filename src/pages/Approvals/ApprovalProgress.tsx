@@ -1,13 +1,14 @@
-import {AlertCircle, Check, CircleDashed, Clock3, GitBranch, Loader2, Minus, X} from 'lucide-react'
+import {AlertCircle, Check, CircleDashed, Clock3, GitBranch, Minus, X} from 'lucide-react'
 import type {ReactNode} from 'react'
 import {
-  approvalStatus,
   type ApprovalDetail,
   type ApprovalEndingNode,
+  approvalStatus,
   type ApprovalTask,
   type ApprovalUpcomingNode,
 } from '@/services/approvals'
 import {UserAvatar} from '@/components/ui/avatar'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {cn} from '@/lib/utils'
 import {useApprovalDetail} from './useApprovalDetail'
 
@@ -214,9 +215,7 @@ export function ApprovalProgressView({detail, names, avatars = {}, error = '', t
         className="h-4 w-4 shrink-0"/>暂时无法读取流程</p>
       <p className="mt-1 break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{error}</p>
     </div> : !detail ?
-      <div role="status" className="flex items-center gap-2 rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true"/>正在读取审批…
-      </div> : <>
+      <AppLoading size="sm" className="rounded-lg bg-muted/50 p-4" label="正在读取审批"/> : <>
         <div className="space-y-4 border-b pb-5">
           <div className="flex items-center gap-2.5">
             <UserAvatar name={names[detail.initiator] ?? detail.initiator} src={avatars[detail.initiator]} size={32}

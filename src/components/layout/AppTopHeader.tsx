@@ -4,6 +4,7 @@ import {ArrowLeft, Plus, Search, Settings} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {cn} from '@/lib/utils'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +16,7 @@ import {type NavItem, type TopNavItem} from '@/data/mock'
 import {appIcons} from '@/data/appIcons'
 import {type App} from '@/services/apps'
 import {type AppMenu} from '@/services/appMenus'
-import {TopHeaderShell, headerActionClass} from './TopHeaderShell'
+import {headerActionClass, TopHeaderShell} from './TopHeaderShell'
 
 interface SearchSuggestion {
   label: string
@@ -193,7 +194,7 @@ export function AppTopHeader({
                 <div
                   className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md">
                   {isMenusLoading ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">正在加载菜单…</div>
+                    <AppLoading size="sm" className="px-3 py-2" label="正在加载菜单"/>
                   ) : filteredSuggestions.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-muted-foreground">
                       {searchQuery ? '没有匹配的菜单' : '当前应用暂无菜单'}
@@ -229,7 +230,7 @@ export function AppTopHeader({
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>选择表单</DropdownMenuLabel>
               {isAppLoading || isMenusLoading ? (
-                <DropdownMenuItem disabled>加载中…</DropdownMenuItem>
+                <DropdownMenuItem disabled><AppLoading size="sm" className="p-0"/></DropdownMenuItem>
               ) : createRecordItems.length === 0 ? (
                 <DropdownMenuItem disabled>当前应用菜单暂未绑定表单</DropdownMenuItem>
               ) : (

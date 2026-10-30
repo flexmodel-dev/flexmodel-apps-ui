@@ -4,8 +4,7 @@ import {
   Check,
   ChevronDown,
   Clock,
-  ListPlus,
-  Loader2,
+  type LucideIcon,
   MessageSquare,
   Minus,
   MoreHorizontal,
@@ -14,9 +13,9 @@ import {
   Send,
   Trash2,
   X,
-  type LucideIcon,
 } from 'lucide-react'
 import {Button} from '@/components/ui/button'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {ConfirmDialog} from '@/components/ui/dialog'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {message} from '@/components/ui/message'
@@ -229,7 +228,7 @@ function HistoryEntry({appId, formName, recordId, item, expanded, onToggleExpand
                                       className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
                                       onClick={() => onToggleExpand(item)}>
         {expanded
-          ? (expanded.loading ? '加载中…' : '收起变更')
+          ? (expanded.loading ? <AppLoading size="sm" className="p-0" label="正在加载变更"/> : '收起变更')
           : <>展开全部 {item.changeCount} 项变更 <ChevronDown className="h-3 w-3"/></>}
       </button>}
       {expanded?.error && <p className="mt-1 text-[11px] text-destructive">{expanded.error}</p>}
@@ -283,10 +282,7 @@ function HistoryPanel({appId, formName, recordId, history}: {
         </button>
       </div>}
       {history.loading && !history.items.length
-        ? <div role="status"
-               className="flex items-center gap-2 rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin"/>正在加载历史…
-        </div>
+        ? <AppLoading size="sm" className="rounded-lg bg-muted/50 p-4" label="正在加载历史"/>
         : !history.items.length && !history.error
           ? <EmptyState icon={Pencil} title="暂无操作历史"
                         hint="历史功能启用后的操作会记录在这里"/>
@@ -316,7 +312,8 @@ function HistoryPanel({appId, formName, recordId, history}: {
             {history.hasMore && <div className="pt-1 text-center">
               <Button size="xs" variant="ghost" disabled={history.loadingMore}
                       onClick={() => void history.loadMore()}>
-                {history.loadingMore ? '加载中…' : '加载更早的历史'}
+                {history.loadingMore ?
+                  <AppLoading size="sm" className="p-0" label="正在加载更多历史"/> : '加载更早的历史'}
               </Button>
             </div>}
           </div>}
@@ -401,10 +398,7 @@ function DiscussionPanel({
         <button type="button" className="shrink-0 underline-offset-2 hover:underline" onClick={onRetry}>重试</button>
       </div>}
       {loading && !roots.length
-        ? <div role="status"
-               className="flex items-center gap-2 rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin"/>正在加载讨论…
-        </div>
+        ? <AppLoading size="sm" className="rounded-lg bg-muted/50 p-4" label="正在加载讨论"/>
         : !roots.length ?
           <EmptyState icon={MessageSquare} title="还没有讨论" hint="发起第一条讨论，@ 同事一起推进这条记录"/>
           : <div className="space-y-5 pb-1">
@@ -426,7 +420,8 @@ function DiscussionPanel({
             </DiscussionItem>)}
             {hasMore && <div className="pt-1 text-center">
               <Button size="xs" variant="ghost" disabled={loadingMore} onClick={onLoadMore}>
-                {loadingMore ? '加载中…' : `加载更早的讨论（${total}）`}
+                {loadingMore ?
+                  <AppLoading size="sm" className="p-0" label="正在加载更多讨论"/> : `加载更早的讨论（${total}）`}
               </Button>
             </div>}
           </div>}

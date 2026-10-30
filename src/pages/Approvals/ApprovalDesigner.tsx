@@ -33,28 +33,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {message} from '@/components/ui/message'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {getAppById} from '@/services/apps'
 import {
+  getApprovalDirectory,
   getApprovalFlows,
   saveApprovalFlow,
-  getApprovalDirectory,
   setApprovalFlowStatus,
   validateApprovalFlow
 } from '@/services/approvals'
 import {ApprovalDirectoryContext} from './directory'
-import type {MemberDirectory} from '@/types/approval'
-import type {
-  ApprovalDocument,
-  ApprovalFlow,
-  ApprovalNode,
-  ValidationIssue,
-} from '@/types/approval'
-import {
-  cloneNode,
-  createApprovalNode,
-  flattenNodes,
-  validateFlow,
-} from '@/lib/approval'
+import type {ApprovalDocument, ApprovalFlow, ApprovalNode, MemberDirectory, ValidationIssue} from '@/types/approval'
+import {cloneNode, createApprovalNode, flattenNodes, validateFlow,} from '@/lib/approval'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {useDarkMode} from '@/lib/useDarkMode'
 import FlowCanvas, {findNode} from './FlowCanvas'
@@ -261,9 +251,9 @@ export default function ApprovalDesigner() {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-background">
         <Workflow className="h-9 w-9 text-primary"/>
-        <p className="text-sm text-muted-foreground">
-          {loadError || '正在加载流程设计器…'}
-        </p>
+        {loadError
+          ? <p className="text-sm text-muted-foreground">{loadError}</p>
+          : <AppLoading className="p-0" label="正在加载流程设计器"/>}
         {loadError && (
           <Button variant="outline" onClick={() => navigate(backPath)}>
             返回审批流程

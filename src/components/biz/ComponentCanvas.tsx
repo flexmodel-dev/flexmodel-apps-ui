@@ -2,12 +2,9 @@ import * as React from 'react'
 import ReactECharts from 'echarts-for-react'
 import {FileText, type LucideIcon} from 'lucide-react'
 import {ApprovalFeed} from '@/pages/Approvals/ApprovalFeed'
-import type {
-  WorkbenchComponent,
-  WorkbenchComponentData,
-  WorkbenchDataPoint,
-} from '@/services/workbenches'
+import type {WorkbenchComponent, WorkbenchComponentData, WorkbenchDataPoint,} from '@/services/workbenches'
 import {formatRecordValue} from '@/lib/recordValue'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {cn} from '@/lib/utils'
 
 export interface ComponentCanvasColumn {
@@ -113,16 +110,14 @@ export function ComponentCanvas({
   shortcutTargets?: ComponentCanvasShortcut[]
 }) {
   const config = component.config
-  const dataMessage = dataError
-    ? '数据加载失败'
-    : isLoadingData
-      ? '数据加载中...'
-      : null
-  const dataMessageNode = dataMessage ? (
+  const dataErrorNode = dataError ? (
     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-      {dataMessage}
+      数据加载失败
     </div>
   ) : null
+  const dataMessageNode = dataErrorNode ?? (isLoadingData
+    ? <AppLoading className="h-full" label="数据加载中"/>
+    : null)
 
   if (config.type === 'metric') {
     if (dataMessageNode) return dataMessageNode

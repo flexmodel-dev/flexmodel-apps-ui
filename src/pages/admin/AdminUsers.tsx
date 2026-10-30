@@ -9,6 +9,7 @@ import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {message} from '@/components/ui/message'
 import {SystemRecordFormModal} from '@/components/biz/SystemRecordFormModal'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {SearchInput} from '@/components/biz/SearchInput'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {Building2, ChevronRight, CirclePlus, MoreVertical, Pencil, Power, Trash2, Users} from 'lucide-react'
@@ -18,10 +19,10 @@ import {
   getSystemForm,
   getSystemOptions,
   getSystemRecords,
-  updateSystemRecord,
   type SystemForm,
   type SystemOption,
   type SystemRecord,
+  updateSystemRecord,
 } from '@/services/systemForms'
 
 interface TreeNode extends SystemOption {
@@ -354,7 +355,7 @@ export function AdminUsers() {
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-4">
             {(loading || usersLoading) ? (
-              <div className="rounded-lg border p-8 text-sm text-muted-foreground">正在加载…</div>
+              <AppLoading className="rounded-lg border p-8" label="正在加载用户"/>
             ) : error ? (
               <div className="rounded-lg border p-8 text-sm text-destructive">{error}</div>
             ) : rows.length === 0 ? (

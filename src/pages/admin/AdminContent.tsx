@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link } from 'react-router-dom'
+import {Link} from 'react-router-dom'
 import {Plus} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
@@ -7,7 +7,7 @@ import {BizDialog} from '@/components/ui/dialog'
 import {Input} from '@/components/ui/input'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {Empty} from '@/components/ui/empty'
-import {createAppForm, getAppForms, type AppForm} from '@/services/appForms'
+import {type AppForm, createAppForm, getAppForms} from '@/services/appForms'
 import {toErrorMessage} from '@/lib/utils'
 import {Checkbox} from '@/components/ui/checkbox'
 
@@ -80,7 +80,9 @@ export function FormManagementContent({appId}: { appId?: string }) {
     <div className="space-y-4" id="businessObjectList">
       <div>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="mb-0 text-xs text-muted-foreground">{isLoading ? '正在加载表单…' : `共 ${forms.length} 个表单`}</p>
+          {isLoading
+            ? <AppLoading size="sm" className="justify-start p-0" label="正在加载表单"/>
+            : <p className="mb-0 text-xs text-muted-foreground">共 {forms.length} 个表单</p>}
           <Button onClick={() => { setError(null); setCreateOpen(true) }}><Plus className="h-4 w-4"/>新建表单</Button>
         </div>
         {isLoading ? (

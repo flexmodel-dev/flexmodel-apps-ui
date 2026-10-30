@@ -1,22 +1,22 @@
 import * as React from 'react'
-import {Camera, Check, Copy, KeyRound, Mail, ShieldCheck, Timer, UserRound} from 'lucide-react'
-import { AppLayout } from '@/components/layout/AppLayout'
+import {Camera, Check, KeyRound, Mail, ShieldCheck, Timer, UserRound} from 'lucide-react'
+import {AppLayout} from '@/components/layout/AppLayout'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {BizDialog} from '@/components/ui/dialog'
-import { UserAvatar } from '@/components/ui/avatar'
+import {AppLoading} from '@/components/biz/AppLoading'
+import {UserAvatar} from '@/components/ui/avatar'
 import {getAuthSession, updateAuthUser} from '@/services/auth'
 import {
   getCurrentProfile,
   getLoginLogs,
+  type LoginLogEntry,
   updateCurrentProfile,
   uploadUserAvatar,
-  type LoginLogEntry,
   type UserProfile,
 } from '@/services/profile'
 import {loadAttachment} from '@/services/attachments'
-import {cn, toErrorMessage} from '@/lib/utils'
+import {toErrorMessage} from '@/lib/utils'
 
 type SecurityRow = {
   key: string
@@ -440,7 +440,8 @@ export default function UserSettings() {
                   </div>
                   {loginLogs.length === 0 && (
                     <div className="py-10 text-center text-sm text-muted-foreground">
-                      {logsLoading ? '加载中…' : logsError || '暂无登录日志'}
+                      {logsLoading ?
+                        <AppLoading className="p-0" label="正在加载登录日志"/> : logsError || '暂无登录日志'}
                     </div>
                   )}
                 </div>

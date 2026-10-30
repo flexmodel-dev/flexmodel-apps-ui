@@ -4,9 +4,10 @@ import {ClipboardCheck, RefreshCw} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Pagination} from '@/components/biz/Pagination'
 import {SearchInput} from '@/components/biz/SearchInput'
-import {approvalStatus, getApprovalMemberNames, listPersonalApprovals, type ApprovalItem} from '@/services/approvals'
-import {getApps, type App} from '@/services/apps'
+import {type ApprovalItem, approvalStatus, getApprovalMemberNames, listPersonalApprovals} from '@/services/approvals'
+import {type App, getApps} from '@/services/apps'
 import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {cn, toErrorMessage} from '@/lib/utils'
 
 export function ApprovalFeed({appId, compact = false, showAppFilter = false}: {
@@ -116,7 +117,7 @@ export function ApprovalFeed({appId, compact = false, showAppFilter = false}: {
     <div className="min-h-0 flex-1 overflow-auto">{error ?
       <div role="alert" className="p-6 text-sm text-destructive">{error}<Button variant="link"
                                                                                 onClick={refresh}>重试</Button>
-      </div> : loading ? <p className="p-6 text-sm text-muted-foreground">正在读取审批…</p> : !items.length ?
+      </div> : loading ? <AppLoading center label="正在读取审批"/> : !items.length ?
         <div className="py-12 text-center text-sm text-muted-foreground"><ClipboardCheck
           className="mx-auto mb-3 h-8 w-8 opacity-40"/>暂无审批记录</div> : items.map(item => <button
           key={item.taskId ?? item.id} onClick={() => setSelected(item)}

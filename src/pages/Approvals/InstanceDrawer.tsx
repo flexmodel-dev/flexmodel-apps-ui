@@ -1,20 +1,21 @@
 import * as React from 'react'
-import {Check, X, RefreshCw, ShieldCheck} from 'lucide-react'
-import {Drawer, DrawerContent, DrawerTitle, DrawerDescription} from '@/components/ui/drawer'
+import {Check, RefreshCw, ShieldCheck, X} from 'lucide-react'
+import {Drawer, DrawerContent, DrawerDescription, DrawerTitle} from '@/components/ui/drawer'
 import {Button} from '@/components/ui/button'
 import {Textarea} from '@/components/ui/textarea'
 import {message} from '@/components/ui/message'
 import {getAuthSession} from '@/services/auth'
 import {
+  type ApprovalItem,
   approvalStatus,
   FINISHED_STATUS,
   manageApproval,
-  retryApprovalNotifications,
-  type ApprovalItem
+  retryApprovalNotifications
 } from '@/services/approvals'
 import {ApprovalTimeline} from './ApprovalProgress'
 import {useApprovalDetail} from './useApprovalDetail'
 import {useApprovalDecision} from '@/components/biz/approvalDecision'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {toErrorMessage} from '@/lib/utils'
 
 export function InstanceDrawer({item, onClose, onChanged}: {
@@ -57,7 +58,7 @@ export function InstanceDrawer({item, onClose, onChanged}: {
     <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
       {error &&
         <p role="alert" className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
-      {!detail && !error && <p className="text-sm text-muted-foreground">正在读取审批…</p>}
+      {!detail && !error && <AppLoading className="py-8" label="正在读取审批"/>}
       {detail && <>
         <div className="flex items-center justify-between rounded-lg border bg-card p-4">
           <div><p className="font-medium">{approvalStatus[detail.status] ?? detail.status}</p><p
