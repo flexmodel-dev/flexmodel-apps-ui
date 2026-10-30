@@ -19,8 +19,7 @@ import 'gridstack/dist/gridstack.min.css'
 import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
 import {ComponentDesigner, type SavedComponentDesignerResult} from '@/components/biz/ComponentDesigner'
 import {getAppForms, type AppForm} from '@/services/appForms'
-import {getAppMenus, type AppMenu} from '@/services/appMenus'
-import {menuIcon} from '@/services/appMenuNavigation'
+import {getAppNavigation, navIcon, type AppNav} from '@/services/appNavigation'
 import {
   createWorkbench,
   deleteWorkbench,
@@ -184,7 +183,7 @@ export default function WorkbenchHome() {
   const [selectedWorkbenchId, setSelectedWorkbenchId] = React.useState<string | undefined>()
   const [workbench, setWorkbench] = React.useState<Workbench | null>(null)
   const [forms, setForms] = React.useState<AppForm[]>([])
-  const [menus, setMenus] = React.useState<AppMenu[]>([])
+  const [menus, setMenus] = React.useState<AppNav[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [isSaving, setIsSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -209,7 +208,7 @@ export default function WorkbenchHome() {
     let cancelled = false
     setIsLoading(true)
     setError(null)
-    Promise.all([getWorkbenches(appId), getAppForms(appId), getAppMenus(appId)])
+    Promise.all([getWorkbenches(appId), getAppForms(appId), getAppNavigation(appId)])
       .then(([loadedWorkbenches, loadedForms, loadedMenus]) => {
         if (cancelled) return
         setWorkbenches(loadedWorkbenches)
@@ -499,13 +498,13 @@ export default function WorkbenchHome() {
 
   const displayLayout = editable && draftLayout ? draftLayout : workbench?.layout
   const formMenus = flattenTree(menus).filter(
-    (menu) => menu.type === 'ITEM' && menu.target?.type === 'FORM',
+    (menu) => menu.type === 'ENTRY' && menu.destination?.type === 'FORM',
   )
   const shortcutTargets = formMenus.map((menu) => ({
     id: menu.id,
     label: menu.name,
     to: menu.pageRoute ?? `/apps/${appId}/${menu.id}`,
-    icon: menuIcon(menu.iconName),
+    icon: navIcon(menu.iconName),
   }))
   const currentWorkbenchName = workbenches.find((item) => item.id === selectedWorkbenchId)?.name
     ?? workbench?.name

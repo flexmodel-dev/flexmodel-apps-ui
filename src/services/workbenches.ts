@@ -1,6 +1,6 @@
 import {requestJson} from '@/services/http'
 import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
-import {invalidateAppMenuTargets} from '@/services/appMenus'
+import {invalidateAppNavDestinations} from '@/services/appNavigation'
 
 export const WORKBENCH_SCHEMA_VERSION = 1
 export const WORKBENCH_GRID_COLUMNS = 12
@@ -138,7 +138,7 @@ export interface WorkbenchCapability {
   schemaVersion: number
   components: WorkbenchComponentSpec[]
   forms: WorkbenchFormOption[]
-  shortcutMenus: Array<{ id: string; name: string }>
+  shortcutNavs: Array<{ id: string; name: string }>
   availableValues: Record<string, string[]>
   exampleLayout: WorkbenchLayout
 }
@@ -219,7 +219,7 @@ function invalidateWorkbenchCaches(appId: string, workbenchId?: string) {
   listCache.delete(appId)
   capabilityCache.delete(appId)
   if (workbenchId) detailCache.delete(detailKey(appId, workbenchId))
-  invalidateAppMenuTargets(appId)
+  invalidateAppNavDestinations(appId)
 }
 
 export function getWorkbenches(appId: string): Promise<WorkbenchSummary[]> {

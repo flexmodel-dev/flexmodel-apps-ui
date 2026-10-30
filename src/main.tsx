@@ -59,8 +59,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/settings/user" element={<UserSettings/>}/>
           {/* 业务对象 */}
           <Route path="/apps/:appId" element={<AppHome/>}/>
-          <Route path="/apps/:appId/:menuId" element={<AppMenuPage/>}/>
-          <Route path="/apps/:appId/:menuId/view/:recordId" element={<AppRecordView/>}/>
+          <Route path="/apps/:appId/:navId" element={<AppMenuPage/>}/>
+          <Route path="/apps/:appId/:navId/view/:recordId" element={<AppRecordView/>}/>
           <Route path="/menu/:menuId" element={<MenuPlaceholder/>}/>
           <Route path="/admin/apps" element={<AppManagement/>}/>
           <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic"/>}/>

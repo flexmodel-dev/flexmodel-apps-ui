@@ -1,4 +1,4 @@
-import {test, expect, type Page} from '@playwright/test'
+import {expect, type Page, test} from '@playwright/test'
 import {readFileSync} from 'node:fs'
 import type {RecordDiscussionItem} from '../src/services/recordDiscussions'
 
@@ -339,6 +339,7 @@ for (const dark of [false, true]) test(`讨论行内回复与本人删除菜单�
     expect(route.request().headers().authorization).toBe('Bearer record-edit-test')
     avatarRequests.push(route.request().url())
     if (route.request().url().endsWith('broken.png')) return route.fulfill({status: 404})
+    // @ts-ignore
     return route.fulfill({
       contentType: 'image/png',
       body: readFileSync(new URL('../public/favicon.png', import.meta.url))

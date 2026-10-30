@@ -96,7 +96,7 @@ export function AdminLayout({
         onOpenChange={setMenuEditorOpen}
         activeTopId={activeTopId}
         onActiveTopIdChange={setActiveTopId}
-        onMenusChange={() => undefined}
+        onNavsChange={() => undefined}
       />
 
       {showFormSidebar && (

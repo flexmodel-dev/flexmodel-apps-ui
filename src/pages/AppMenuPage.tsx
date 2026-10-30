@@ -9,20 +9,20 @@ import FeedsHome from '@/pages/FeedsHome'
 import FilesDocs from '@/pages/FilesDocs'
 import Notifications from '@/pages/Notifications'
 import RecordList from '@/pages/RecordList'
-import {getAppMenus, type AppMenu} from '@/services/appMenus'
+import {type AppNav, getAppNavigation} from '@/services/appNavigation'
 import {toErrorMessage} from '@/lib/utils'
 
-function findMenu(menus: AppMenu[], menuId?: string): AppMenu | undefined {
-  for (const menu of menus) {
-    if (menu.id === menuId) return menu
-    const child = findMenu(menu.children ?? [], menuId)
+function findNav(navs: AppNav[], navId?: string): AppNav | undefined {
+  for (const nav of navs) {
+    if (nav.id === navId) return nav
+    const child = findNav(nav.children ?? [], navId)
     if (child) return child
   }
   return undefined
 }
 
-function BuiltinPage({targetId}: { targetId: string }) {
-  switch (targetId) {
+function BuiltinPage({destinationId}: { destinationId: string }) {
+  switch (destinationId) {
     case 'workbench':
       return <WorkbenchHome/>
     case 'feeds':
@@ -45,8 +45,8 @@ function BuiltinPage({targetId}: { targetId: string }) {
 }
 
 export default function AppMenuPage() {
-  const {appId, menuId} = useParams<{ appId: string; menuId: string }>()
-  const [menus, setMenus] = React.useState<AppMenu[]>([])
+  const {appId, navId} = useParams<{ appId: string; navId: string }>()
+  const [navs, setNavs] = React.useState<AppNav[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -55,8 +55,8 @@ export default function AppMenuPage() {
     let cancelled = false
     setIsLoading(true)
     setError(null)
-    getAppMenus(appId)
-      .then((loadedMenus) => !cancelled && setMenus(loadedMenus))
+    getAppNavigation(appId)
+      .then((loadedNavs) => !cancelled && setNavs(loadedNavs))
       .catch((caught: unknown) => {
         if (cancelled) return
         setError(toErrorMessage(caught, '加载应用菜单失败，请稍后重试。'))
@@ -65,7 +65,7 @@ export default function AppMenuPage() {
     return () => {
       cancelled = true
     }
-  }, [appId, menuId])
+  }, [appId, navId])
 
   if (isLoading) {
     return <AppLayout><AppLoading center className="min-h-[400px]"/></AppLayout>
@@ -81,8 +81,8 @@ export default function AppMenuPage() {
     )
   }
 
-  const menu = findMenu(menus, menuId)
-  if (!menu || menu.type !== 'ITEM') {
+  const nav = findNav(navs, navId)
+  if (!nav || nav.type !== 'ENTRY') {
     return (
       <AppLayout>
         <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">菜单不存在或已被删除。</div>
@@ -90,18 +90,18 @@ export default function AppMenuPage() {
     )
   }
 
-  if (menu.target?.type === 'BUILTIN') {
-    return <BuiltinPage targetId={menu.target.id}/>
+  if (nav.destination?.type === 'BUILTIN') {
+    return <BuiltinPage destinationId={nav.destination.id}/>
   }
-  if (menu.target?.type === 'FORM') {
-    return <RecordList formName={menu.target.id}/>
+  if (nav.destination?.type === 'FORM') {
+    return <RecordList formName={nav.destination.id}/>
   }
-  if (menu.target?.type === 'LINK') {
+  if (nav.destination?.type === 'LINK') {
     return (
       <AppLayout noPadding noOuterScroll contentClassName="-mt-4 h-[calc(100vh-4rem)] w-full md:-mt-6">
         <iframe
-          src={menu.target.id}
-          title={menu.name}
+          src={nav.destination.id}
+          title={nav.name}
           className="h-full w-full border-0"
           referrerPolicy="no-referrer"
         />

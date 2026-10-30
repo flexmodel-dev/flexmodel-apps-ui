@@ -1,40 +1,24 @@
 import * as React from 'react'
-import {
-  BarChart3,
-  ClipboardCheck,
-  Gauge,
-  LineChart,
-  PieChart,
-  Star,
-  Table2,
-  type LucideIcon,
-} from 'lucide-react'
+import {BarChart3, ClipboardCheck, Gauge, LineChart, type LucideIcon, PieChart, Star, Table2,} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Checkbox} from '@/components/ui/checkbox'
 import {Input} from '@/components/ui/input'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
-import {getAppForms, type AppForm, type AppFormField} from '@/services/appForms'
-import {getAppMenus, type AppMenu} from '@/services/appMenus'
-import {menuIcon} from '@/services/appMenuNavigation'
+import {type AppForm, type AppFormField, getAppForms} from '@/services/appForms'
+import {type AppNav, getAppNavigation, navIcon} from '@/services/appNavigation'
 import {
   WORKBENCH_GRID_COLUMNS,
   WORKBENCH_MAX_GRID_HEIGHT,
+  type WorkbenchAggregationType,
+  type WorkbenchChartType,
   type WorkbenchComponent,
   type WorkbenchComponentConfig,
   type WorkbenchComponentData,
   type WorkbenchComponentType,
-  type WorkbenchAggregationType,
-  type WorkbenchChartType,
   type WorkbenchPaletteType,
 } from '@/services/workbenches'
 import {cn, flattenTree, toErrorMessage} from '@/lib/utils'
@@ -263,7 +247,7 @@ export function ComponentDesigner({
                                     onClose,
                                   }: ComponentDesignerProps) {
   const [forms, setForms] = React.useState<AppForm[]>([])
-  const [menus, setMenus] = React.useState<AppMenu[]>([])
+  const [menus, setMenus] = React.useState<AppNav[]>([])
   const [isLoading, setIsLoading] = React.useState(false)
   const [loadError, setLoadError] = React.useState<string | null>(null)
   const [result, setResult] = React.useState<ComponentDesignerResult>(() =>
@@ -291,7 +275,7 @@ export function ComponentDesigner({
     let cancelled = false
     setIsLoading(true)
     setLoadError(null)
-    Promise.all([getAppForms(appId), getAppMenus(appId)])
+    Promise.all([getAppForms(appId), getAppNavigation(appId)])
       .then(([loadedForms, loadedMenus]) => {
         if (cancelled) return
         setForms(loadedForms)
@@ -369,13 +353,13 @@ export function ComponentDesigner({
 
   const selectedForm = forms.find((form) => form.name === result.config.formName)
   const formMenus = flattenTree(menus).filter(
-    (menu) => menu.type === 'ITEM' && menu.target?.type === 'FORM',
+    (menu) => menu.type === 'ENTRY' && menu.destination?.type === 'FORM',
   )
   const shortcutTargets = formMenus.map((menu) => ({
     id: menu.id,
     label: menu.name,
     to: menu.pageRoute ?? `/apps/${appId}/${menu.id}`,
-    icon: menuIcon(menu.iconName),
+    icon: navIcon(menu.iconName),
   }))
   const previewComponent: WorkbenchComponent = {
     id: component?.id ?? 'preview',

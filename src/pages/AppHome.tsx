@@ -5,8 +5,8 @@ import {Plus} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Empty} from '@/components/ui/empty'
 import {AppLoading} from '@/components/biz/AppLoading'
-import {findFirstItemRoute, findFirstItemRouteInMenu} from '@/services/appMenuNavigation'
-import {getAppMenus} from '@/services/appMenus'
+import {findFirstEntryRoute, findFirstEntryRouteInNav} from '@/services/appNavigation'
+import {getAppNavigation} from '@/services/appNavigation'
 
 export default function AppHome() {
   const {appId = ''} = useParams<{ appId: string }>()
@@ -19,16 +19,16 @@ export default function AppHome() {
     if (!appId) return
     let cancelled = false
     const selectedTopId = new URLSearchParams(location.search).get('top')
-    getAppMenus(appId)
-      .then((menus) => {
+    getAppNavigation(appId)
+      .then((navs) => {
         if (cancelled) return
         const selectedTop = selectedTopId
-          ? menus.find((menu) => menu.id === selectedTopId)
+          ? navs.find((nav) => nav.id === selectedTopId)
           : undefined
-        const firstItemRoute = selectedTopId
-          ? (selectedTop ? findFirstItemRouteInMenu(selectedTop) : undefined)
-          : findFirstItemRoute(menus)
-        if (firstItemRoute) navigate(firstItemRoute, {replace: true})
+        const firstEntryRoute = selectedTopId
+          ? (selectedTop ? findFirstEntryRouteInNav(selectedTop) : undefined)
+          : findFirstEntryRoute(navs)
+        if (firstEntryRoute) navigate(firstEntryRoute, {replace: true})
         else setIsLoading(false)
       })
       .catch(() => !cancelled && setIsLoading(false))

@@ -1,18 +1,18 @@
 import * as React from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
 import {
+  closestCenter,
   DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
-  closestCenter,
   useDroppable,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext,
   arrayMove,
+  SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
@@ -25,25 +25,24 @@ import {Input} from '@/components/ui/input'
 import {Empty} from '@/components/ui/empty'
 import {MenuAuthorizationButton, MenuAuthorizationDialog} from '@/components/biz/MenuAuthorizationDialog'
 import {OptionalIconPicker} from '@/components/biz/IconPicker'
-import {MenuLinkPicker} from '@/components/biz/MenuLinkPicker'
+import {NavDestinationPicker} from '@/components/biz/NavDestinationPicker'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {
-  createAppMenu,
-  deleteAppMenu,
-  getAppMenus,
+  type AppNav,
+  type AppNavInput,
+  createAppNav,
+  deleteAppNav,
+  findNavById,
+  getAppNavigation,
   isValidHttpUrl,
-  reorderAppMenus,
-  updateAppMenu,
-  type AppMenu,
-  type AppMenuInput,
-  type AppMenuTargetType,
-} from '@/services/appMenus'
-import {
-  menuOrderInput,
-  moveMenuNode,
-  reorderMenuChildren,
+  moveNavNode,
+  type NavDestinationType,
+  navOrderInput,
+  reorderAppNavigation,
+  reorderNavChildren,
   toTopNavigationItem,
-} from '@/services/appMenuNavigation'
+  updateAppNav,
+} from '@/services/appNavigation'
 import {
   createLeftMenu,
   createLeftSubmenu,
@@ -52,25 +51,19 @@ import {
   deleteLeftSubmenu,
   deleteTopMenu,
   getLeftMenuGroup,
-  getTopNavById,
+  type LeftMenuItemType,
+  type NavItem,
   reorderLeftMenus,
   reorderLeftSubmenus,
   reorderTopMenus,
+  type TopMenuItemInput,
+  type TopNavItem,
   topNavs,
   updateLeftMenu,
   updateLeftSubmenu,
   updateTopMenu,
-  type LeftMenuItemType,
-  type NavItem,
-  type TopMenuItemInput,
-  type TopNavItem,
 } from '@/data/mock'
-import {
-  appIcons,
-  appIconOptions,
-  isAppIconName,
-  type AppIconName,
-} from '@/data/appIcons'
+import {type AppIconName, appIconOptions, appIcons, isAppIconName,} from '@/data/appIcons'
 
 type EditorForm =
   | { kind: 'top'; id?: string; text: string }
@@ -351,25 +344,16 @@ function SubmenuRow({
   )
 }
 
-function findMenuById(menus: AppMenu[], menuId: string): AppMenu | undefined {
-  for (const menu of menus) {
-    if (menu.id === menuId) return menu
-    const child = findMenuById(menu.children ?? [], menuId)
-    if (child) return child
-  }
-  return undefined
+function destinationValue(destination?: { type: NavDestinationType; id: string } | null) {
+  return destination ? `${destination.type}:${destination.id}` : undefined
 }
 
-function targetValue(target?: { type: AppMenuTargetType; id: string } | null) {
-  return target ? `${target.type}:${target.id}` : undefined
-}
-
-function targetFromValue(value?: string) {
+function destinationFromValue(value?: string) {
   if (!value) return null
   const separatorIndex = value.indexOf(':')
   if (separatorIndex < 0) return null
   return {
-    type: value.slice(0, separatorIndex) as AppMenuTargetType,
+    type: value.slice(0, separatorIndex) as NavDestinationType,
     id: value.slice(separatorIndex + 1),
   }
 }
@@ -379,7 +363,7 @@ function MenuEditorDialog({
                             onOpenChange,
                             activeTopId,
                             onActiveTopIdChange,
-                            onMenusChange,
+                            onNavsChange,
                             appId,
                             draft,
                           }: {
@@ -387,7 +371,7 @@ function MenuEditorDialog({
   onOpenChange: (open: boolean) => void
   activeTopId: string
   onActiveTopIdChange: (id: string) => void
-  onMenusChange: (menus?: AppMenu[]) => void
+  onNavsChange: (navs?: AppNav[]) => void
   appId?: string
   draft?: MenuEditorDraft | null
 }) {
@@ -397,11 +381,11 @@ function MenuEditorDialog({
   const [form, setForm] = React.useState<EditorForm | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null)
   const wasOpenRef = React.useRef(false)
-  const [apiMenus, setApiMenus] = React.useState<AppMenu[]>([])
+  const [navs, setNavs] = React.useState<AppNav[]>([])
   const [isLoading, setIsLoading] = React.useState(false)
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [isSaving, setIsSaving] = React.useState(false)
-  const [authorization, setAuthorization] = React.useState<AppMenu | null>(null)
+  const [authorization, setAuthorization] = React.useState<AppNav | null>(null)
 
   React.useEffect(() => {
     if (!open) setAuthorization(null)
@@ -428,14 +412,14 @@ function MenuEditorDialog({
     })
   }, [open, appId, draft])
 
-  const loadMenus = React.useCallback(async (): Promise<AppMenu[]> => {
+  const loadNavs = React.useCallback(async (): Promise<AppNav[]> => {
     if (!appId) return []
     setIsLoading(true)
     setActionError(null)
     try {
-      const loadedMenus = await getAppMenus(appId)
-      setApiMenus(loadedMenus)
-      return loadedMenus
+      const loadedNavs = await getAppNavigation(appId)
+      setNavs(loadedNavs)
+      return loadedNavs
     } catch (caught) {
       setActionError(toErrorMessage(caught, '加载应用菜单失败，请稍后重试。'))
       return []
@@ -446,12 +430,12 @@ function MenuEditorDialog({
 
   React.useEffect(() => {
     if (!open || !appId) return
-    void loadMenus()
-  }, [open, appId, loadMenus])
+    void loadNavs()
+  }, [open, appId, loadNavs])
 
   const topMenus = React.useMemo(
-    () => appId ? apiMenus.map((menu) => toTopNavigationItem(menu, appId)) : topNavs,
-    [appId, apiMenus],
+    () => appId ? navs.map((nav) => toTopNavigationItem(nav, appId)) : topNavs,
+    [appId, navs],
   )
   const selectedTop = topMenus.find((menu) => menu.id === selectedTopId)
     ?? topMenus[0]
@@ -469,7 +453,7 @@ function MenuEditorDialog({
       kind: 'left',
       id: item.id,
       text: item.text,
-      link: appId ? targetValue(findMenuById(apiMenus, item.id)?.target) : item.to,
+      link: appId ? destinationValue(findNavById(navs, item.id)?.destination) : item.to,
       icon: iconName(item.icon),
       type: item.sub ? 'group' : 'menu',
     })
@@ -479,7 +463,7 @@ function MenuEditorDialog({
       id: item.id,
       parentId,
       text: item.text,
-      link: appId ? targetValue(findMenuById(apiMenus, item.id)?.target) : item.to,
+      link: appId ? destinationValue(findNavById(navs, item.id)?.destination) : item.to,
       icon: iconName(item.icon),
     })
 
@@ -489,14 +473,14 @@ function MenuEditorDialog({
     if (form.kind === 'left' && !selectedTop.id) return false
     if (form.kind === 'sub' && !form.parentId) return false
     if (appId && form.kind === 'left' && form.type === 'menu') {
-      const target = targetFromValue(form.link)
-      if (!target) return false
-      return target.type !== 'LINK' || isValidHttpUrl(target.id)
+      const destination = destinationFromValue(form.link)
+      if (!destination) return false
+      return destination.type !== 'LINK' || isValidHttpUrl(destination.id)
     }
     if (appId && form.kind === 'sub') {
-      const target = targetFromValue(form.link)
-      if (!target) return false
-      return target.type !== 'LINK' || isValidHttpUrl(target.id)
+      const destination = destinationFromValue(form.link)
+      if (!destination) return false
+      return destination.type !== 'LINK' || isValidHttpUrl(destination.id)
     }
     return true
   })()
@@ -536,7 +520,7 @@ function MenuEditorDialog({
           : createLeftSubmenu(selectedTop.id, form.parentId, values)
         if (saved) editSub(form.parentId, saved)
       }
-      onMenusChange()
+      onNavsChange()
       return
     }
 
@@ -544,34 +528,34 @@ function MenuEditorDialog({
       setIsSaving(true)
       setActionError(null)
       try {
-        let input: AppMenuInput
+        let input: AppNavInput
         if (form.kind === 'top') {
           input = {type: 'GROUP', name: form.text.trim(), iconName: null}
         } else if (form.kind === 'left') {
           input = {
-            type: form.type === 'group' ? 'GROUP' : 'ITEM',
+            type: form.type === 'group' ? 'GROUP' : 'ENTRY',
             name: form.text.trim(),
             iconName: form.icon === 'none' ? null : form.icon,
             parentId: selectedTop.id,
-            target: form.type === 'group' ? null : targetFromValue(form.link),
+            destination: form.type === 'group' ? null : destinationFromValue(form.link),
           }
         } else {
           input = {
-            type: 'ITEM',
+            type: 'ENTRY',
             name: form.text.trim(),
             iconName: form.icon === 'none' ? null : form.icon,
             parentId: form.parentId,
-            target: targetFromValue(form.link),
+            destination: destinationFromValue(form.link),
           }
         }
 
-        const saved = form.id ? await updateAppMenu(appId, form.id, input) : await createAppMenu(appId, input)
+        const saved = form.id ? await updateAppNav(appId, form.id, input) : await createAppNav(appId, input)
         if (form.kind === 'top' && !form.id) {
           setSelectedTopId(saved.id)
           onActiveTopIdChange(saved.id)
         }
-        const nextMenus = await loadMenus()
-        onMenusChange(nextMenus)
+        const nextNavs = await loadNavs()
+        onNavsChange(nextNavs)
 
         if (form.kind === 'top') {
           setForm({kind: 'top', id: saved.id, text: saved.name})
@@ -580,7 +564,7 @@ function MenuEditorDialog({
             kind: 'left',
             id: saved.id,
             text: saved.name,
-            link: targetValue(saved.target),
+            link: destinationValue(saved.destination),
             icon: toIconValue(saved.iconName),
             type: saved.type === 'GROUP' ? 'group' : 'menu',
           })
@@ -590,7 +574,7 @@ function MenuEditorDialog({
             id: saved.id,
             parentId: form.parentId,
             text: saved.name,
-            link: targetValue(saved.target),
+            link: destinationValue(saved.destination),
             icon: toIconValue(saved.iconName),
           })
         }
@@ -636,7 +620,7 @@ function MenuEditorDialog({
         setForm(null)
       }
       setDeleteTarget(null)
-      onMenusChange()
+      onNavsChange()
       return
     }
 
@@ -644,10 +628,10 @@ function MenuEditorDialog({
       setIsSaving(true)
       setActionError(null)
       try {
-        await deleteAppMenu(appId, target.item.id)
-        const nextMenus = await loadMenus()
+        await deleteAppNav(appId, target.item.id)
+        const nextNavs = await loadNavs()
         if (target.kind === 'top') {
-          const nextTopId = nextMenus[0]?.id ?? ''
+          const nextTopId = nextNavs[0]?.id ?? ''
           if (target.item.id === activeTopId) {
             onActiveTopIdChange(nextTopId)
           }
@@ -661,7 +645,7 @@ function MenuEditorDialog({
           setForm(null)
         }
         setDeleteTarget(null)
-        onMenusChange(nextMenus)
+        onNavsChange(nextNavs)
       } catch (caught) {
         setActionError(toErrorMessage(caught, '删除菜单失败，请稍后重试。'))
       } finally {
@@ -671,18 +655,18 @@ function MenuEditorDialog({
     void deleteFromApi()
   }
 
-  const saveOrder = (nextMenus: AppMenu[]) => {
+  const saveOrder = (nextNavs: AppNav[]) => {
     if (!appId) return
     const persistOrder = async () => {
       setIsSaving(true)
       setActionError(null)
       try {
-        const savedMenus = await reorderAppMenus(appId, menuOrderInput(nextMenus))
-        setApiMenus(savedMenus)
-        onMenusChange(savedMenus)
+        const savedNavs = await reorderAppNavigation(appId, navOrderInput(nextNavs))
+        setNavs(savedNavs)
+        onNavsChange(savedNavs)
       } catch (caught) {
         setActionError(toErrorMessage(caught, '保存菜单顺序失败，请稍后重试。'))
-        await loadMenus()
+        await loadNavs()
       } finally {
         setIsSaving(false)
       }
@@ -701,75 +685,75 @@ function MenuEditorDialog({
     const orderedIds = arrayMove(topMenus, oldIndex, newIndex).map((item) => item.id)
     if (!appId) {
       reorderTopMenus(orderedIds)
-      onMenusChange()
+      onNavsChange()
       return
     }
-    const menusById = new Map(apiMenus.map((menu) => [menu.id, menu]))
-    saveOrder(orderedIds.map((id) => menusById.get(id)).filter((menu): menu is AppMenu => Boolean(menu)))
+    const navsById = new Map(navs.map((nav) => [nav.id, nav]))
+    saveOrder(orderedIds.map((id) => navsById.get(id)).filter((nav): nav is AppNav => Boolean(nav)))
   }
 
   const dragInfo = (dragId: string) => {
     const value = String(dragId)
     if (value.startsWith('left-root-')) {
-      return {menuId: undefined, parentId: selectedTop.id, index: undefined}
+      return {navId: undefined, parentId: selectedTop.id, index: undefined}
     }
     if (value.startsWith('left-')) {
-      const menuId = value.slice(5)
+      const navId = value.slice(5)
       return {
-        menuId,
+        navId,
         parentId: selectedTop.id,
-        index: selectedTop.navs.findIndex((item) => item.id === menuId) + 1,
+        index: selectedTop.navs.findIndex((item) => item.id === navId) + 1,
       }
     }
     if (value.startsWith('child-')) {
-      const [parentId, menuId] = value.slice(6).split('__')
-      const group = findMenuById(apiMenus, parentId)
+      const [parentId, navId] = value.slice(6).split('__')
+      const group = findNavById(navs, parentId)
       return {
-        menuId,
+        navId,
         parentId,
-        index: (group?.children ?? []).findIndex((item) => item.id === menuId) + 1,
+        index: (group?.children ?? []).findIndex((item) => item.id === navId) + 1,
       }
     }
     return undefined
   }
 
-  const moveMenuToParent = async (
-    menu: AppMenu,
+  const moveNavToParent = async (
+    nav: AppNav,
     targetParentId: string,
     targetIndex: number,
   ) => {
     setIsSaving(true)
     setActionError(null)
     try {
-      const input: AppMenuInput = {
-        type: menu.type,
-        name: menu.name,
-        iconName: menu.iconName ?? null,
+      const input: AppNavInput = {
+        type: nav.type,
+        name: nav.name,
+        iconName: nav.iconName ?? null,
         parentId: targetParentId,
-        target: menu.target ? {type: menu.target.type, id: menu.target.id} : null,
+        destination: nav.destination ? {type: nav.destination.type, id: nav.destination.id} : null,
       }
-      await updateAppMenu(appId!, menu.id, input)
-      const nextMenus = moveMenuNode(apiMenus, menu.id, targetParentId, targetIndex)
-      const savedMenus = await reorderAppMenus(appId!, menuOrderInput(nextMenus))
-      setApiMenus(savedMenus)
-      onMenusChange(savedMenus)
-      if (form?.id === menu.id) {
+      await updateAppNav(appId!, nav.id, input)
+      const nextNavs = moveNavNode(navs, nav.id, targetParentId, targetIndex)
+      const savedNavs = await reorderAppNavigation(appId!, navOrderInput(nextNavs))
+      setNavs(savedNavs)
+      onNavsChange(savedNavs)
+      if (form?.id === nav.id) {
         setForm(targetParentId === selectedTop.id
           ? {
             kind: 'left',
-            id: menu.id,
-            text: menu.name,
-            link: targetValue(menu.target),
-            icon: toIconValue(menu.iconName),
+            id: nav.id,
+            text: nav.name,
+            link: destinationValue(nav.destination),
+            icon: toIconValue(nav.iconName),
             type: 'menu',
           }
           : {
             kind: 'sub',
-            id: menu.id,
+            id: nav.id,
             parentId: targetParentId,
-            text: menu.name,
-            link: targetValue(menu.target),
-            icon: toIconValue(menu.iconName),
+            text: nav.name,
+            link: destinationValue(nav.destination),
+            icon: toIconValue(nav.iconName),
           })
       }
     } catch (caught) {
@@ -784,58 +768,58 @@ function MenuEditorDialog({
     if (!over) return
     const activeInfo = dragInfo(String(active.id))
     const overInfo = dragInfo(String(over.id))
-    if (!activeInfo?.menuId || !overInfo) return
+    if (!activeInfo?.navId || !overInfo) return
 
-    const activeMenu = appId ? findMenuById(apiMenus, activeInfo.menuId) : undefined
-    const activeParentId = activeMenu?.parentId ?? activeInfo.parentId
+    const activeNav = appId ? findNavById(navs, activeInfo.navId) : undefined
+    const activeParentId = activeNav?.parentId ?? activeInfo.parentId
     if (activeParentId === overInfo.parentId) {
-      if (!overInfo.menuId) return
+      if (!overInfo.navId) return
       const children = appId
-        ? (findMenuById(apiMenus, overInfo.parentId)?.children ?? [])
+        ? (findNavById(navs, overInfo.parentId)?.children ?? [])
         : (getLeftMenuGroup(selectedTop.id, overInfo.parentId)?.sub ?? [])
-      const oldIndex = children.findIndex((item) => item.id === activeInfo.menuId)
-      const newIndex = children.findIndex((item) => item.id === overInfo.menuId)
+      const oldIndex = children.findIndex((item) => item.id === activeInfo.navId)
+      const newIndex = children.findIndex((item) => item.id === overInfo.navId)
       if (oldIndex < 0 || newIndex < 0) return
-      const orderedMenus = [...children]
-      const [movedMenu] = orderedMenus.splice(oldIndex, 1)
-      orderedMenus.splice(newIndex, 0, movedMenu)
-      const orderedIds = orderedMenus.map((item) => item.id)
+      const orderedChildren = [...children]
+      const [movedChild] = orderedChildren.splice(oldIndex, 1)
+      orderedChildren.splice(newIndex, 0, movedChild)
+      const orderedIds = orderedChildren.map((item) => item.id)
       if (!appId) {
         if (overInfo.parentId === selectedTop.id) reorderLeftMenus(selectedTop.id, orderedIds)
         else reorderLeftSubmenus(selectedTop.id, overInfo.parentId, orderedIds)
-        onMenusChange()
+        onNavsChange()
         return
       }
-      saveOrder(reorderMenuChildren(apiMenus, overInfo.parentId, orderedIds))
+      saveOrder(reorderNavChildren(navs, overInfo.parentId, orderedIds))
       return
     }
 
-    if (!appId || !activeMenu || activeMenu.type !== 'ITEM') return
-    const targetParent = findMenuById(apiMenus, overInfo.parentId)
+    if (!appId || !activeNav || activeNav.type !== 'ENTRY') return
+    const targetParent = findNavById(navs, overInfo.parentId)
     const targetIndex = overInfo.index ?? (targetParent?.children.length ?? 0)
-    void moveMenuToParent(activeMenu, overInfo.parentId, targetIndex)
+    void moveNavToParent(activeNav, overInfo.parentId, targetIndex)
   }
 
-  const refreshAuthorizedMenus = async () => {
+  const refreshAuthorizedNavs = async () => {
     if (!appId) return
     try {
-      const menus = await getAppMenus(appId)
-      setApiMenus(menus)
-      onMenusChange(menus)
+      const loadedNavs = await getAppNavigation(appId)
+      setNavs(loadedNavs)
+      onNavsChange(loadedNavs)
     } catch (caught) {
       setActionError(toErrorMessage(caught, '刷新菜单授权失败，请稍后重试。'))
     }
   }
 
-  const authorizationFor = (menuId: string) => {
+  const authorizationFor = (navId: string) => {
     if (!appId) return undefined
-    const menu = findMenuById(apiMenus, menuId)
-    if (!menu) return undefined
+    const nav = findNavById(navs, navId)
+    if (!nav) return undefined
     return (
       <MenuAuthorizationButton
-        menu={menu}
+        nav={nav}
         disabled={isSaving}
-        onClick={() => setAuthorization(menu)}
+        onClick={() => setAuthorization(nav)}
       />
     )
   }
@@ -1024,7 +1008,7 @@ function MenuEditorDialog({
                 {form.kind === 'left' && form.type === 'menu' && (
                   <>
                     <label className="block text-xs font-medium text-foreground">关联项</label>
-                    <MenuLinkPicker
+                    <NavDestinationPicker
                       value={form.link}
                       onChange={(link) => setForm({...form, link})}
                       appId={appId}
@@ -1035,7 +1019,7 @@ function MenuEditorDialog({
                 {form.kind === 'sub' && (
                   <>
                     <label className="block text-xs font-medium text-foreground">关联项</label>
-                    <MenuLinkPicker
+                    <NavDestinationPicker
                       value={form.link}
                       onChange={(link) => setForm({...form, link})}
                       appId={appId}
@@ -1088,10 +1072,10 @@ function MenuEditorDialog({
       {appId ? (
         <MenuAuthorizationDialog
           appId={appId}
-          menu={authorization}
+          nav={authorization}
           open={authorization !== null}
           onOpenChange={(next) => !next && setAuthorization(null)}
-          onSaved={refreshAuthorizedMenus}
+          onSaved={refreshAuthorizedNavs}
         />
       ) : null}
     </>

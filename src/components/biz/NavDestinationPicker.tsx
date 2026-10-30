@@ -11,69 +11,69 @@ import {
 } from '@/components/ui/select'
 import {Input} from '@/components/ui/input'
 import {formMenuLinks, systemMenuLinks} from '@/data/mock'
-import {getAppMenuTargets, isValidHttpUrl, type AppMenuTargets} from '@/services/appMenus'
+import {getAppNavDestinations, isValidHttpUrl, type AppNavDestinations} from '@/services/appNavigation'
 
-interface MenuLinkOption {
+interface NavDestinationOption {
   id: string
   label: string
   value: string
 }
 
-export function MenuLinkPicker({
-                                 value,
-                                 onChange,
-                                 appId,
-                               }: {
+export function NavDestinationPicker({
+                                       value,
+                                       onChange,
+                                       appId,
+                                     }: {
   value?: string
   onChange: (value?: string) => void
   appId?: string
 }) {
-  const [appTargets, setAppTargets] = React.useState<AppMenuTargets>({
+  const [appDestinations, setAppDestinations] = React.useState<AppNavDestinations>({
     builtIn: [],
     forms: [],
   })
 
   React.useEffect(() => {
     if (!appId) {
-      setAppTargets({builtIn: [], forms: []})
+      setAppDestinations({builtIn: [], forms: []})
       return
     }
     let cancelled = false
-    getAppMenuTargets(appId)
-      .then((targets) => !cancelled && setAppTargets(targets))
-      .catch(() => !cancelled && setAppTargets({builtIn: [], forms: []}))
+    getAppNavDestinations(appId)
+      .then((destinations) => !cancelled && setAppDestinations(destinations))
+      .catch(() => !cancelled && setAppDestinations({builtIn: [], forms: []}))
     return () => {
       cancelled = true
     }
   }, [appId])
 
-  const builtInLinks: MenuLinkOption[] = appId
-    ? appTargets.builtIn.map((target) => ({
-      id: target.id,
-      label: target.label ?? target.id,
-      value: `${target.type}:${target.id}`,
+  const builtInDestinations: NavDestinationOption[] = appId
+    ? appDestinations.builtIn.map((destination) => ({
+      id: destination.id,
+      label: destination.label ?? destination.id,
+      value: `${destination.type}:${destination.id}`,
     }))
     : systemMenuLinks.map((link) => ({
       id: link.id,
       label: link.label,
       value: link.to,
     }))
-  const formLinks: MenuLinkOption[] = appId
-    ? appTargets.forms.map((target) => ({
-      id: target.id,
-      label: target.label ?? target.id,
-      value: `${target.type}:${target.id}`,
+  const formDestinations: NavDestinationOption[] = appId
+    ? appDestinations.forms.map((destination) => ({
+      id: destination.id,
+      label: destination.label ?? destination.id,
+      value: `${destination.type}:${destination.id}`,
     }))
     : formMenuLinks.map((link) => ({
       id: link.id,
       label: link.label,
       value: link.to,
     }))
-  const menuLinks = [...builtInLinks, ...formLinks]
+  const navDestinations = [...builtInDestinations, ...formDestinations]
   const isCustomLink = value?.startsWith('LINK:')
   const customLinkUrl = isCustomLink ? value!.slice('LINK:'.length) : ''
   const customLinkValue = `LINK:${customLinkUrl}`
-  const selectedValue = isCustomLink ? customLinkValue : menuLinks.find((link) => link.value === value)?.value
+  const selectedValue = isCustomLink ? customLinkValue : navDestinations.find((link) => link.value === value)?.value
 
   return (
     <div className="space-y-3">
@@ -87,7 +87,7 @@ export function MenuLinkPicker({
         <SelectContent>
           <SelectGroup>
             <SelectLabel>系统内置</SelectLabel>
-            {builtInLinks.map((link) => (
+            {builtInDestinations.map((link) => (
               <SelectItem key={link.id} value={link.value}>
                 {link.label}
               </SelectItem>
@@ -95,7 +95,7 @@ export function MenuLinkPicker({
           </SelectGroup>
           <SelectGroup>
             <SelectLabel>表单</SelectLabel>
-            {formLinks.map((link) => (
+            {formDestinations.map((link) => (
               <SelectItem key={link.id} value={link.value}>
                 {link.label}
               </SelectItem>

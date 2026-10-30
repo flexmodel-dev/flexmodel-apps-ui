@@ -1,6 +1,6 @@
 import {requestJson} from '@/services/http'
 import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
-import {invalidateAppMenuTargets} from '@/services/appMenus'
+import {invalidateAppNavDestinations} from '@/services/appNavigation'
 
 export type AppFormFieldType =
   | 'TEXT'
@@ -200,7 +200,7 @@ function invalidateFormCaches(appId: string, name?: string) {
   if (name) {
     formCache.delete(detailKey(appId, name))
   }
-  invalidateAppMenuTargets(appId)
+  invalidateAppNavDestinations(appId)
 }
 
 export async function createAppForm(appId: string, input: AppFormInput): Promise<AppForm> {

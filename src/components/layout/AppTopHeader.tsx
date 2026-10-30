@@ -15,7 +15,7 @@ import {
 import {type NavItem, type TopNavItem} from '@/data/mock'
 import {appIcons} from '@/data/appIcons'
 import {type App} from '@/services/apps'
-import {type AppMenu} from '@/services/appMenus'
+import {type AppNav} from '@/services/appNavigation'
 import {headerActionClass, TopHeaderShell} from './TopHeaderShell'
 
 interface SearchSuggestion {
@@ -25,18 +25,18 @@ interface SearchSuggestion {
   keywords: string
 }
 
-function collectMenuSearchItems(menus: AppMenu[], appId: string, parentPath: string[] = []): SearchSuggestion[] {
-  return menus.flatMap((menu) => {
-    const path = [...parentPath, menu.name]
-    const item = menu.type === 'ITEM'
+function collectNavSearchItems(navs: AppNav[], appId: string, parentPath: string[] = []): SearchSuggestion[] {
+  return navs.flatMap((nav) => {
+    const path = [...parentPath, nav.name]
+    const item = nav.type === 'ENTRY'
       ? [{
-        label: menu.name,
-        to: menu.pageRoute ?? `/apps/${appId}/${menu.id}`,
+        label: nav.name,
+        to: nav.pageRoute ?? `/apps/${appId}/${nav.id}`,
         hint: parentPath.length ? parentPath.join(' / ') : undefined,
         keywords: path.join(' '),
       }]
       : []
-    return [...item, ...collectMenuSearchItems(menu.children ?? [], appId, path)]
+    return [...item, ...collectNavSearchItems(nav.children ?? [], appId, path)]
   })
 }
 
@@ -46,12 +46,12 @@ export function AppTopHeader({
                                mobileNavs,
                                app,
                                appId,
-                               appMenus = [],
+                               navs = [],
                                topNavItems,
                                showSearch = true,
                                showBack = false,
                                isAppLoading = false,
-                               isMenusLoading = false,
+                               isNavsLoading = false,
                                createRecordItems,
                                onCreateRecord,
                              }: {
@@ -60,12 +60,12 @@ export function AppTopHeader({
   mobileNavs: NavItem[]
   app?: App
   appId?: string
-  appMenus?: AppMenu[]
+  navs?: AppNav[]
   topNavItems?: TopNavItem[]
   showSearch?: boolean
   showBack?: boolean
   isAppLoading?: boolean
-  isMenusLoading?: boolean
+  isNavsLoading?: boolean
   createRecordItems: Array<{ id: string; label: string }>
   onCreateRecord: (formName: string) => void
 }) {
@@ -112,14 +112,14 @@ export function AppTopHeader({
   const brand = currentApp?.name ?? (isAppLoading ? '…' : '应用')
   const LogoIcon = appIcons[currentApp?.iconName ?? 'Boxes'] ?? appIcons.Boxes
 
-  const menuSuggestions = React.useMemo(
-    () => collectMenuSearchItems(appMenus, appId ?? currentApp?.id ?? ''),
-    [appMenus, appId, currentApp?.id],
+  const navSuggestions = React.useMemo(
+    () => collectNavSearchItems(navs, appId ?? currentApp?.id ?? ''),
+    [navs, appId, currentApp?.id],
   )
   const searchQuery = searchValue.trim().toLowerCase()
   const filteredSuggestions = (searchQuery
-      ? menuSuggestions.filter((item) => item.keywords.toLowerCase().includes(searchQuery))
-      : menuSuggestions
+      ? navSuggestions.filter((item) => item.keywords.toLowerCase().includes(searchQuery))
+      : navSuggestions
   ).slice(0, 8)
 
   React.useEffect(() => {
@@ -193,7 +193,7 @@ export function AppTopHeader({
               {searchOpen && (
                 <div
                   className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md">
-                  {isMenusLoading ? (
+                  {isNavsLoading ? (
                     <AppLoading size="sm" className="px-3 py-2" label="正在加载菜单"/>
                   ) : filteredSuggestions.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-muted-foreground">
@@ -229,7 +229,7 @@ export function AppTopHeader({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>选择表单</DropdownMenuLabel>
-              {isAppLoading || isMenusLoading ? (
+              {isAppLoading || isNavsLoading ? (
                 <DropdownMenuItem disabled><AppLoading size="sm" className="p-0"/></DropdownMenuItem>
               ) : createRecordItems.length === 0 ? (
                 <DropdownMenuItem disabled>当前应用菜单暂未绑定表单</DropdownMenuItem>

@@ -1,15 +1,16 @@
 import * as React from 'react'
 import {useLocation} from 'react-router-dom'
-import { cn } from '@/lib/utils'
+import {cn} from '@/lib/utils'
 import {getTopNavIdByPath, topNavs} from '@/data/mock'
-import {getAppById, type App} from '@/services/apps'
-import {getAppMenus, type AppMenu} from '@/services/appMenus'
+import {type App, getAppById} from '@/services/apps'
 import {
-  findFormMenuTargets,
-  findMenuById,
-  findTopMenuIdForMenu,
-  toTopNavigationItem,
-} from '@/services/appMenuNavigation'
+  type AppNav,
+  findFormNavDestinations,
+  findNavById,
+  findTopNavIdForNav,
+  getAppNavigation,
+  toTopNavigationItem
+} from '@/services/appNavigation'
 import {AppRecordCreateDialog} from '@/components/biz/AppRecordCreateDialog'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
@@ -39,16 +40,16 @@ export function AppLayout({
   const location = useLocation()
   const appId = location.pathname.match(/^\/apps\/([^/]+)/)?.[1]
   const routeTopId = appId ? new URLSearchParams(location.search).get('top') : null
-  const routeMenuId = appId ? location.pathname.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1] : null
+  const routeNavId = appId ? location.pathname.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1] : null
   const [collapsed, setCollapsed] = React.useState(false)
   const [activeTopId, setActiveTopId] = React.useState(() => appId ? routeTopId ?? '' : hideNavigation ? '' : getTopNavIdByPath(location.pathname))
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
   const [menuEditorDraft, setMenuEditorDraft] = React.useState<MenuEditorDraft | null>(null)
-  const [menuVersion, setMenuVersion] = React.useState(0)
+  const [navVersion, setNavVersion] = React.useState(0)
   const [app, setApp] = React.useState<App | null>(null)
-  const [appMenus, setAppMenus] = React.useState<AppMenu[]>([])
+  const [navs, setNavs] = React.useState<AppNav[]>([])
   const [isAppLoading, setIsAppLoading] = React.useState(Boolean(appId))
-  const [isMenusLoading, setIsMenusLoading] = React.useState(Boolean(appId))
+  const [isNavsLoading, setIsNavsLoading] = React.useState(Boolean(appId))
   const [recordFormName, setRecordFormName] = React.useState<string | null>(null)
   const [recordFormOpen, setRecordFormOpen] = React.useState(false)
   const effectiveMenuEditorOpen = menuEditorOpenProp ?? menuEditorOpen
@@ -69,11 +70,11 @@ export function AppLayout({
       if (routeTopId) {
         if (routeTopId !== activeTopId) setActiveTopId(routeTopId)
       } else {
-        const menuTopId = findTopMenuIdForMenu(appMenus, routeMenuId ?? undefined)
-        if (menuTopId) {
-          if (menuTopId !== activeTopId) setActiveTopId(menuTopId)
-        } else if (appMenus.length > 0 && !appMenus.some((menu) => menu.id === activeTopId)) {
-          setActiveTopId(appMenus[0].id)
+        const navTopId = findTopNavIdForNav(navs, routeNavId ?? undefined)
+        if (navTopId) {
+          if (navTopId !== activeTopId) setActiveTopId(navTopId)
+        } else if (navs.length > 0 && !navs.some((nav) => nav.id === activeTopId)) {
+          setActiveTopId(navs[0].id)
         }
       }
       return
@@ -81,18 +82,18 @@ export function AppLayout({
     if (hideNavigation) return
     const nextTopId = getTopNavIdByPath(location.pathname, activeTopId)
     if (nextTopId !== activeTopId) setActiveTopId(nextTopId)
-  }, [appId, routeTopId, appMenus, location.pathname, activeTopId, menuVersion, hideNavigation])
+  }, [appId, routeTopId, navs, location.pathname, activeTopId, navVersion, hideNavigation])
 
   React.useEffect(() => {
-    if (appId && (isAppLoading || !app || (Boolean(routeMenuId) && isMenusLoading))) {
+    if (appId && (isAppLoading || !app || (Boolean(routeNavId) && isNavsLoading))) {
       document.title = '应用加载中…'
       return () => {
         document.title = 'Flexmodel Apps'
       }
     }
     if (appId && app) {
-      const menu = routeMenuId ? findMenuById(appMenus, routeMenuId) : undefined
-      document.title = menu ? `${menu.name} - ${app.name}` : app.name
+      const nav = routeNavId ? findNavById(navs, routeNavId) : undefined
+      document.title = nav ? `${nav.name} - ${app.name}` : app.name
       return () => {
         document.title = 'Flexmodel Apps'
       }
@@ -101,7 +102,7 @@ export function AppLayout({
     return () => {
       document.title = 'Flexmodel Apps'
     }
-  }, [appId, routeMenuId, appMenus, app, isAppLoading, isMenusLoading])
+  }, [appId, routeNavId, navs, app, isAppLoading, isNavsLoading])
 
   React.useEffect(() => {
     if (!appId) {
@@ -140,35 +141,35 @@ export function AppLayout({
 
   React.useEffect(() => {
     if (!appId) {
-      setAppMenus([])
-      setIsMenusLoading(false)
+      setNavs([])
+      setIsNavsLoading(false)
       return
     }
     let cancelled = false
-    setAppMenus([])
-    setIsMenusLoading(true)
-    getAppMenus(appId)
-      .then((loadedMenus) => !cancelled && setAppMenus(loadedMenus))
-      .catch(() => !cancelled && setAppMenus([]))
+    setNavs([])
+    setIsNavsLoading(true)
+    getAppNavigation(appId)
+      .then((loadedNavs) => !cancelled && setNavs(loadedNavs))
+      .catch(() => !cancelled && setNavs([]))
       .finally(() => {
-        if (!cancelled) setIsMenusLoading(false)
+        if (!cancelled) setIsNavsLoading(false)
       })
     return () => {
       cancelled = true
     }
-  }, [appId, menuVersion])
+  }, [appId, navVersion])
 
-  const topMenuItems = appId
-    ? appMenus.map((menu) => toTopNavigationItem(menu, appId))
+  const topNavItems = appId
+    ? navs.map((nav) => toTopNavigationItem(nav, appId))
     : hideNavigation
       ? []
       : topNavs
-  const routeMenuTopId = findTopMenuIdForMenu(appMenus, routeMenuId ?? undefined)
-  const resolvedActiveTopId = appId ? routeTopId ?? routeMenuTopId ?? activeTopId : activeTopId
+  const routeNavTopId = findTopNavIdForNav(navs, routeNavId ?? undefined)
+  const resolvedActiveTopId = appId ? routeTopId ?? routeNavTopId ?? activeTopId : activeTopId
   const activeTop = appId
-    ? topMenuItems.find((nav) => nav.id === resolvedActiveTopId) ?? (isMenusLoading ? undefined : topMenuItems[0])
-    : topMenuItems.find((nav) => nav.id === activeTopId) ?? topMenuItems[0]
-  const createRecordItems = React.useMemo(() => findFormMenuTargets(appMenus), [appMenus])
+    ? topNavItems.find((nav) => nav.id === resolvedActiveTopId) ?? (isNavsLoading ? undefined : topNavItems[0])
+    : topNavItems.find((nav) => nav.id === activeTopId) ?? topNavItems[0]
+  const createRecordItems = React.useMemo(() => findFormNavDestinations(navs), [navs])
   const editMenus = (draft?: MenuEditorDraft) => {
     setMenuEditorDraft(draft ?? null)
     setEffectiveMenuEditorOpen(true)
@@ -187,12 +188,12 @@ export function AppLayout({
           mobileNavs={hideNavigation ? [] : activeTop?.navs ?? []}
           app={app ?? undefined}
           appId={appId}
-          appMenus={appMenus}
-          topNavItems={topMenuItems}
+          navs={navs}
+          topNavItems={topNavItems}
           showSearch={!hideNavigation}
           showBack={showBack}
           isAppLoading={isAppLoading}
-          isMenusLoading={isMenusLoading}
+          isNavsLoading={isNavsLoading}
           createRecordItems={createRecordItems}
           onCreateRecord={openRecordForm}
         />
@@ -213,9 +214,9 @@ export function AppLayout({
         onOpenChange={handleMenuEditorOpenChange}
         activeTopId={activeTop?.id ?? ''}
         onActiveTopIdChange={setActiveTopId}
-        onMenusChange={(menus) => {
-          if (menus) setAppMenus(menus)
-          setMenuVersion((version) => version + 1)
+        onNavsChange={(nextNavs) => {
+          if (nextNavs) setNavs(nextNavs)
+          setNavVersion((version) => version + 1)
         }}
         appId={appId}
         draft={menuEditorDraft}
