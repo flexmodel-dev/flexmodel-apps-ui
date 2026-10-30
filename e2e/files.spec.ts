@@ -180,9 +180,15 @@ for (const dark of [false, true]) {
     })
     await page.goto('/#/apps/sort_app/files')
     const names = page.locator('.file-viewport .group .truncate')
-    await expect(names).toHaveText(['目录', ...entries.map(item => item.name)])
+    const defaultOrder = ['目录', 'file2.txt', 'C.txt', 'B.txt', 'a.txt', 'empty.txt', 'file10.txt']
+    await expect(names).toHaveText(defaultOrder)
+    await expect(page.getByRole('button', {name: '文件排序'})).toContainText('最近上传')
     await expect(page.locator('aside .tabular-nums')).toHaveText('0')
     await expect(page.getByRole('button', {name: '分享列表'})).toHaveCount(0)
+    await page.getByRole('button', {name: '文件排序'}).click()
+    await expect(page.getByRole('menuitem', {name: '最近上传', exact: true})).toContainText('默认')
+    await expect(page.getByRole('menuitem', {name: '最近上传', exact: true}).locator('svg')).toHaveCount(1)
+    await page.keyboard.press('Escape')
     const readsBeforeSort = objectReads
     const options: Array<[string, string[]]> = [
       ['最近上传', ['file2.txt', 'C.txt', 'B.txt', 'a.txt', 'empty.txt', 'file10.txt']],
@@ -193,7 +199,7 @@ for (const dark of [false, true]) {
     ]
     for (const [label, expected] of options) {
       await page.getByRole('button', {name: '文件排序'}).click()
-      await expect(page.getByRole('menuitem')).toHaveCount(5)
+      await expect(page.getByRole('menuitem')).toHaveCount(6)
       await page.getByRole('menuitem', {name: label, exact: true}).click()
       await expect(names).toHaveText(['目录', ...expected])
       await expect(page.getByRole('button', {name: '文件排序'})).toContainText(label)
@@ -209,5 +215,17 @@ for (const dark of [false, true]) {
     await page.getByText('附件', {exact: true}).click()
     await expect(names).toHaveText(['目录', ...options[4][1]])
     await expect(page.getByRole('button', {name: '上传文件'})).toBeDisabled()
+    await page.getByRole('button', {name: '文件排序'}).click()
+    await expect(page.getByRole('menuitem', {name: '恢复默认排序'})).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(names).toHaveText(defaultOrder)
+    await expect(page.getByRole('button', {name: '文件排序'})).toContainText('最近上传')
+    await page.getByRole('button', {name: '文件排序'}).click()
+    await expect(page.getByRole('menuitem', {name: '恢复默认排序'})).toHaveAttribute('aria-disabled', 'true')
+    await expect(page.getByRole('menu')).toHaveCSS('opacity', '1')
+    await page.screenshot({path: 'artifacts/files-sort-default-' + (dark ? 'dark' : 'light') + '.png'})
+    await page.getByRole('menuitem', {name: '较大文件', exact: true}).click()
+    await expect(names).toHaveText(['目录', ...options[2][1]])
+    await page.reload()
+    await expect(names).toHaveText(defaultOrder)
   })
 }

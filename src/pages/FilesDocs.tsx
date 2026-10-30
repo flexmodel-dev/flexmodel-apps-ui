@@ -953,16 +953,10 @@ export default function FilesDocs() {
                         className={cn('justify-between', sortBy === option.value && 'bg-accent')}>
                         <span className="flex items-center gap-2">
                           {option.label}
-                          {option.value === DEFAULT_SORT &&
-                            <span aria-hidden="true" className="text-xs text-muted-foreground">默认</span>}
                         </span>
                         {sortBy === option.value && <Check className="h-4 w-4"/>}
                       </DropdownMenuItem>
                     ))}
-                    <DropdownMenuSeparator/>
-                    <DropdownMenuItem disabled={sortBy === DEFAULT_SORT} onSelect={() => setSortBy(DEFAULT_SORT)}>
-                      <RotateCcw className="h-4 w-4"/> 恢复默认排序
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
