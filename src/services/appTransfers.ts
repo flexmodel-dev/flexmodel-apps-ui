@@ -25,7 +25,11 @@ export interface TransferResult {
 
 export interface TransferForm {
   formName: string; scope: 'ALL' | 'FILTERED' | 'IDS'; fields?: string[]; recordIds?: string[]
-  search?: string; viewTabId?: string; sortField?: string; sortOrder?: 'ASC' | 'DESC'
+  filter?: string;
+  search?: string;
+  viewTabId?: string;
+  sortField?: string;
+  sortOrder?: 'ASC' | 'DESC'
 }
 
 export interface TransferExport {

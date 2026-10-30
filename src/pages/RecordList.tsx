@@ -1,3 +1,6 @@
+import {Popover, PopoverTrigger} from '@/components/ui/popover'
+import {ConditionValueControl, viewTabOperatorLabels, viewTabOperators, type ViewTabConditionDraft} from '@/components/biz/RecordFilterControls'
+import {RecordQueryPopover, type RecordQuery} from '@/components/biz/RecordQueryPopover'
 import * as React from 'react'
 import {formatFieldValue} from '@/lib/fieldConfig'
 import {isAttachmentField} from '@/lib/attachments'
@@ -46,7 +49,6 @@ import {
   type AppFormField,
   type AppFormViewTab,
   type AppViewFilterOperator,
-  type AppViewFilterValue,
 } from '@/services/appForms'
 import {
   deleteAppRecord,
@@ -58,109 +60,10 @@ import {cn, toErrorMessage} from '@/lib/utils'
 const compactButtonClass = 'h-8 px-2.5 text-xs'
 const ALL_VIEW_TAB = {id: 'all', label: '全部'}
 
-interface ViewTabConditionDraft {
-  fieldName: string
-  operator: AppViewFilterOperator
-  value: AppViewFilterValue
-}
-
 interface ViewTabDraft {
   id: string
   label: string
   conditions: ViewTabConditionDraft[]
-}
-
-const viewTabOperatorLabels: Record<AppViewFilterOperator, string> = {
-  _eq: '等于',
-  _ne: '不等于',
-  _contains: '包含',
-  _not_contains: '不包含',
-  _starts_with: '开头是',
-  _ends_with: '结尾是',
-  _gt: '大于',
-  _gte: '大于等于',
-  _lt: '小于',
-  _lte: '小于等于',
-}
-
-function viewTabOperators(field: AppFormField): AppViewFilterOperator[] {
-  switch (field.type) {
-    case 'NUMBER':
-    case 'DECIMAL':
-    case 'DATE':
-    case 'DATETIME':
-    case 'TIME':
-      return ['_eq', '_ne', '_gt', '_gte', '_lt', '_lte']
-    case 'BOOL':
-    case 'PICKLIST':
-    case 'SELECT':
-    case 'CLASSIFICATION':
-    case 'MULTISELECT':
-    case 'REFERENCE':
-      return ['_eq', '_ne']
-    default:
-      return ['_eq', '_ne', '_contains', '_not_contains', '_starts_with', '_ends_with']
-  }
-}
-
-function viewTabInputType(field: AppFormField) {
-  if (field.type === 'NUMBER' || field.type === 'DECIMAL') return 'number'
-  if (field.type === 'DATE') return 'date'
-  if (field.type === 'DATETIME') return 'datetime-local'
-  if (field.type === 'TIME') return 'time'
-  return 'text'
-}
-
-function ConditionValueControl({
-                                 field,
-                                 value,
-                                 onChange,
-                               }: {
-  field: AppFormField
-  value: AppViewFilterValue
-  onChange: (value: AppViewFilterValue) => void
-}) {
-  if (field.type === 'BOOL') {
-    return (
-      <Select value={String(value)} onValueChange={(nextValue) => onChange(nextValue === 'true')}>
-        <SelectTrigger className="h-8 w-[180px]">
-          <SelectValue placeholder="请选择"/>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="true">是</SelectItem>
-          <SelectItem value="false">否</SelectItem>
-        </SelectContent>
-      </Select>
-    )
-  }
-  if (field.options?.length) {
-    return (
-      <Select value={String(value)} onValueChange={onChange}>
-        <SelectTrigger className="h-8 w-[180px]">
-          <SelectValue placeholder="请选择"/>
-        </SelectTrigger>
-        <SelectContent>
-          {field.options.map((option) => {
-            const optionValue = option.text ?? option.id ?? ''
-            return (
-              <SelectItem key={option.id ?? optionValue} value={optionValue}>
-                {optionValue}
-              </SelectItem>
-            )
-          })}
-        </SelectContent>
-      </Select>
-    )
-  }
-  return (
-    <Input
-      type={viewTabInputType(field)}
-      value={String(value ?? '')}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-8 w-[180px]"
-      placeholder={field.type === 'REFERENCE' ? '记录 ID' : undefined}
-    />
-  )
 }
 
 function toViewTabDraft(tab: AppFormViewTab): ViewTabDraft {
@@ -183,6 +86,8 @@ export default function RecordList({formName}: { formName?: string }) {
   const [total, setTotal] = React.useState(0)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [queryOpen, setQueryOpen] = React.useState(false)
+  const [advancedQuery, setAdvancedQuery] = React.useState<RecordQuery | null>(null)
   const [q, setQ] = React.useState('')
   const [debouncedQ, setDebouncedQ] = React.useState('')
   const [page, setPage] = React.useState(1)
@@ -269,6 +174,7 @@ export default function RecordList({formName}: { formName?: string }) {
       sortField: sortKey || undefined,
       sortOrder: sortKey ? (sortAsc ? 'ASC' : 'DESC') : undefined,
       viewTabId: activeTabId === 'all' ? undefined : activeTabId,
+      filter: advancedQuery?.filter,
     })
       .then((result) => {
         if (cancelled) return
@@ -283,7 +189,7 @@ export default function RecordList({formName}: { formName?: string }) {
     return () => {
       cancelled = true
     }
-  }, [appId, resolvedFormName, page, size, debouncedQ, sortKey, sortAsc, activeTabId, refreshTick])
+  }, [appId, resolvedFormName, page, size, debouncedQ, sortKey, sortAsc, activeTabId, refreshTick, advancedQuery])
 
   React.useEffect(() => {
     setSelected([])
@@ -292,6 +198,9 @@ export default function RecordList({formName}: { formName?: string }) {
     setLinkedRecord(null)
     setFormOpen(false)
     setQ('')
+    setAdvancedQuery(null)
+    setQueryOpen(false)
+    setActiveTabId('all')
     setDebouncedQ('')
     setSortKey('')
     setSortAsc(true)
@@ -560,15 +469,26 @@ export default function RecordList({formName}: { formName?: string }) {
                   }}
                 />
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground"
-                title="高级查询"
-                aria-label="高级查询"
-              >
-                <Filter className="h-4 w-4"/>
-              </Button>
+              <Popover open={queryOpen} onOpenChange={setQueryOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground"
+                    aria-pressed={Boolean(advancedQuery)}
+                    title="高级查询"
+                    aria-label="高级查询"
+                  >
+                    <Filter className={cn('h-4 w-4', advancedQuery && 'text-primary')}/>
+                  </Button>
+                </PopoverTrigger>
+                <RecordQueryPopover open={queryOpen} onOpenChange={setQueryOpen}
+                  fields={availableFilterFields} value={advancedQuery} onApply={value => {
+                    setAdvancedQuery(value)
+                    setPage(1)
+                    setSelected([])
+                  }}/>
+              </Popover>
             </div>
             <Button
               size="sm"
@@ -586,6 +506,14 @@ export default function RecordList({formName}: { formName?: string }) {
           </div>
         </div>
 
+        {advancedQuery && <div className="flex items-center gap-2 border-b bg-primary/5 px-4 py-2 text-xs">
+          <button className="text-primary hover:underline" onClick={() => setQueryOpen(true)}>
+            已启用高级查询：{advancedQuery.conditions.length} 个条件（{advancedQuery.logic === '_and' ? '全部满足' : '任一满足'}）
+          </button>
+          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
+            setAdvancedQuery(null); setPage(1); setSelected([])
+          }}>清空查询</Button>
+        </div>}
         <div className="flex items-end justify-between border-b px-3">
           <ul className="flex list-none items-center gap-1">
             {viewTabs.map((tab) => (
@@ -795,7 +723,7 @@ export default function RecordList({formName}: { formName?: string }) {
       </div>
 
       {transfer && <AppTransferDialog key={`${appId}:${resolvedFormName}:${transfer}`} appId={appId} currentForm={form}
-        mode={transfer} selectedIds={selected} query={{search: debouncedQ, viewTabId: activeTabId,
+        mode={transfer} selectedIds={selected} query={{search: debouncedQ, viewTabId: activeTabId, filter: advancedQuery?.filter,
           sortField: sortKey || undefined, sortOrder: sortKey ? (sortAsc ? 'ASC' : 'DESC') : undefined}}
         onClose={() => setTransfer(null)} onImported={() => {setSelected([]); refresh()}}/>}
 

@@ -19,6 +19,7 @@ export interface AppRecordQuery {
   search?: string
   sortField?: string
   sortOrder?: 'ASC' | 'DESC'
+  filter?: string
   viewTabId?: string
 }
 
@@ -61,6 +62,7 @@ export async function getAppRecords(
   if (query.sortField) params.set('sortField', query.sortField)
   if (query.sortOrder) params.set('sortOrder', query.sortOrder)
   if (query.viewTabId?.trim()) params.set('viewTabId', query.viewTabId.trim())
+  if (query.filter) params.set('filter', query.filter)
   appendContext(params, context)
   return normalizePage(await requestJson<AppRecordPage>(`${recordsPath(appId, formName)}?${params}`))
 }
