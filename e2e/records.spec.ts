@@ -221,6 +221,44 @@ test('字段较少时表格填满内容区且无需横向滚动', async ({page})
   expect(primary.x).toBeCloseTo(selection.x + selection.width, 0)
 })
 
+test('表头排序箭头位于文字右侧，三次点击取消排序', async ({page}) => {
+  await setupRecords(page)
+  const header = page.locator('thead th').filter({hasText: '申请事由'})
+  const sortRequest = (order?: 'ASC' | 'DESC') => page.waitForRequest(request => {
+    const url = new URL(request.url())
+    if (url.pathname !== recordsPath) return false
+    return order
+      ? url.searchParams.get('sortField') === 'title' && url.searchParams.get('sortOrder') === order
+      : !url.searchParams.has('sortField') && !url.searchParams.has('sortOrder')
+  })
+
+  let next = sortRequest('ASC')
+  await header.click()
+  await next
+  await expect(header.locator('svg.lucide-arrow-down')).toBeVisible()
+
+  const text = await header.evaluate(el => {
+    const range = document.createRange()
+    range.selectNodeContents(el.querySelector('span')!.firstChild!)
+    const rect = range.getBoundingClientRect()
+    return {right: rect.right, top: rect.top, bottom: rect.bottom}
+  })
+  const icon = (await header.locator('svg').boundingBox())!
+  expect(icon.x).toBeGreaterThan(text.right)
+  expect(icon.y).toBeLessThan(text.bottom)
+  expect(icon.y + icon.height).toBeGreaterThan(text.top)
+
+  next = sortRequest('DESC')
+  await header.click()
+  await next
+  await expect(header.locator('svg.lucide-arrow-up')).toBeVisible()
+
+  next = sortRequest()
+  await header.click()
+  await next
+  await expect(header.locator('svg')).toHaveCount(0)
+})
+
 test('列表直接编辑等待记录加载，回填全部字段并在重开时切换到正确记录', async ({page}) => {
   let release!: () => void
   const pending = new Promise<void>((resolve) => { release = resolve })

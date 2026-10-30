@@ -389,9 +389,13 @@ export default function RecordList({formName}: { formName?: string }) {
   const editRecord = (recordId: string) => openRecordDetail(recordId, 'edit')
 
   const sortBy = (key: string) => {
-    if (sortKey === key) setSortAsc((asc) => !asc)
-    else {
+    if (sortKey !== key) {
       setSortKey(key)
+      setSortAsc(true)
+    } else if (sortAsc) {
+      setSortAsc(false)
+    } else {
+      setSortKey('')
       setSortAsc(true)
     }
     setPage(1)
@@ -642,10 +646,14 @@ export default function RecordList({formName}: { formName?: string }) {
                       className={cn('cursor-pointer select-none hover:text-primary', column.name === primaryField?.name && 'record-list-primary')}
                       onClick={() => sortBy(column.name)}
                     >
-                      {form.layout.items.find((item) => item.type === 'FIELD' && item.name === column.name)?.label?.trim() || column.label}
-                      {sortKey === column.name && (
-                        sortAsc ? <ArrowDown className="ml-1 h-3 w-3"/> : <ArrowUp className="ml-1 h-3 w-3"/>
-                      )}
+                      <span className="inline-flex items-center gap-1">
+                        {form.layout.items.find((item) => item.type === 'FIELD' && item.name === column.name)?.label?.trim() || column.label}
+                        <span className="inline-flex h-3 w-3 shrink-0 items-center justify-center">
+                          {sortKey === column.name && (
+                            sortAsc ? <ArrowDown className="h-3 w-3"/> : <ArrowUp className="h-3 w-3"/>
+                          )}
+                        </span>
+                      </span>
                     </th>
                   ))}
                   <th className="record-list-actions">操作</th>
