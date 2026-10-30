@@ -221,8 +221,8 @@ function HistoryEntry({appId, formName, recordId, item, expanded, onToggleExpand
         <time dateTime={item.occurredAt} title={fullTimestamp(item.occurredAt)}
               className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{clock(item.occurredAt)}</time>
       </div>
-      {comment && <p
-        className="mt-1.5 break-words rounded-md bg-muted/60 px-2.5 py-2 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{comment}</p>}
+      {comment && <div
+        className="mt-1.5 whitespace-pre-wrap break-words rounded-md bg-muted/60 px-3 py-2 text-[13px] leading-6 text-foreground/90 [overflow-wrap:anywhere]">{comment}</div>}
       {(expanded?.detail ? expanded.detail.changes : item.changesPreview).length > 0 &&
         <HistoryChangeRows changes={expanded?.detail ? expanded.detail.changes : item.changesPreview}/>}
       {item.hasMoreChanges && <button type="button"
@@ -522,7 +522,7 @@ export function RecordActivityAside({
         onDelete={discussions.remove}
       />
     </TabsContent>
-    <TabsContent value="history" className="min-h-0 flex-1 pt-3 lg:overflow-y-auto">
+    <TabsContent value="history" className="min-h-0 flex-1 pt-4">
       <HistoryPanel appId={appId} formName={formName} recordId={recordId} history={history}/>
     </TabsContent>
   </Tabs>
