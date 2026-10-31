@@ -57,6 +57,8 @@ export type AppPackageImportStatus = 'COMMITTING' | 'COMPENSATING' | 'COMMITTED'
 export interface AppPackageImportResult {
   uploadId: string
   status: AppPackageImportStatus
+  /** 执行阶段：provision/forms/references/layouts/navigation/workbenches/approvals/authorizations/records/activating/done */
+  phase?: string | null
   appId: string | null
   appName: string | null
   importedAt: string

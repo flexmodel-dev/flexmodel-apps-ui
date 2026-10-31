@@ -40,6 +40,25 @@ interface Props {
 const steps = ['选择应用包', '导入预览', '完成']
 const importSteps = ['创建应用与业务库', '重建表单与字段', '重建导航与工作台', '重建审批与数据权限', '写入业务记录', '激活应用']
 
+/** 后端执行阶段到步骤索引的映射，用于轮询进度高亮。 */
+const phaseSteps: Record<string, number> = {
+  provision: 0,
+  forms: 1,
+  references: 1,
+  layouts: 1,
+  navigation: 2,
+  workbenches: 2,
+  approvals: 3,
+  authorizations: 3,
+  records: 4,
+  activating: 5,
+  done: importSteps.length,
+}
+
+function progressStep(phase: string | null) {
+  return phase ? phaseSteps[phase] ?? 0 : 0
+}
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`
@@ -98,10 +117,12 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
   const [newName, setNewName] = React.useState('')
   const [isUploading, setIsUploading] = React.useState(false)
   const [isCommitting, setIsCommitting] = React.useState(false)
+  const [phase, setPhase] = React.useState<string | null>(null)
   const [dragging, setDragging] = React.useState(false)
   const [error, setError] = React.useState('')
 
   const busy = isUploading || isCommitting
+  const currentStep = progressStep(phase)
 
   const reset = React.useCallback(() => {
     setStep(0)
@@ -110,6 +131,7 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
     setNewName('')
     setIsUploading(false)
     setIsCommitting(false)
+    setPhase(null)
     setDragging(false)
     setError('')
   }, [])
@@ -152,6 +174,7 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
       const status = await getAppPackageImport(uploadId).catch(() => null)
       if (isAppPackageImportResult(status)) {
         if (status.status === 'COMMITTING' || status.status === 'COMPENSATING') {
+          setPhase(status.phase ?? null)
           await new Promise(resolve => setTimeout(resolve, 3000))
           continue
         }
@@ -166,18 +189,33 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
     if (!preview) return
     setError('')
     setIsCommitting(true)
+    setPhase('provision')
+    const uploadId = preview.uploadId
+    // 提交请求是同步执行的，期间轮询状态接口获取当前阶段。
+    const timer = window.setInterval(() => {
+      void getAppPackageImport(uploadId)
+        .then(status => {
+          if (isAppPackageImportResult(status)
+            && (status.status === 'COMMITTING' || status.status === 'COMPENSATING')) {
+            setPhase(status.phase ?? null)
+          }
+        })
+        .catch(() => undefined)
+    }, 1000)
     try {
-      const next = await commitAppPackage(preview.uploadId, {name: newName.trim(), planHash: preview.planHash})
+      const next = await commitAppPackage(uploadId, {name: newName.trim(), planHash: preview.planHash})
       settle(next)
     } catch (caught) {
-      const recovered = await pollImportResult(preview.uploadId)
+      const recovered = await pollImportResult(uploadId)
       if (recovered) {
         settle(recovered)
         return
       }
       setError(toErrorMessage(caught, '导入结果未知，请稍后在应用列表确认，勿重复提交。'))
     } finally {
+      window.clearInterval(timer)
       setIsCommitting(false)
+      setPhase(null)
     }
   }
 
@@ -432,16 +470,30 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
             {isCommitting ? (
               <div role="status" aria-live="polite" className="rounded-lg border border-primary/30 bg-primary/5 p-4">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary"/>正在导入
+                  <Loader2 className="h-4 w-4 animate-spin text-primary"/>
+                  {currentStep < importSteps.length ? `正在${importSteps[currentStep]}…` : '正在完成导入…'}
                 </div>
-                <ul className="mb-0 mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                  {importSteps.map((label, index) => (
-                    <li key={label} className="flex items-center gap-2">
-                      <span
-                        className="flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px]">{index + 1}</span>
-                      {label}
-                    </li>
-                  ))}
+                <ul className="mb-0 mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                  {importSteps.map((label, index) => {
+                    const finished = index < currentStep
+                    const active = index === currentStep
+                    return (
+                      <li key={label} className={cn('flex items-center gap-2',
+                        active ? 'font-medium text-foreground'
+                          : finished ? 'text-muted-foreground' : 'text-muted-foreground/70')}>
+                        <span className={cn(
+                          'flex h-4 w-4 items-center justify-center rounded-full border text-[10px]',
+                          finished ? 'border-primary bg-primary text-primary-foreground'
+                            : active ? 'border-primary text-primary' : 'border-border',
+                        )}>
+                          {finished
+                            ? <Check className="h-2.5 w-2.5" strokeWidth={3}/>
+                            : active ? <Loader2 className="h-2.5 w-2.5 animate-spin"/> : index + 1}
+                        </span>
+                        {label}
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
             ) : null}
