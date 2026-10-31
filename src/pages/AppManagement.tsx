@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Link, useNavigate} from 'react-router-dom'
-import {Download, MoreVertical, Pencil, Plus, Trash2, Upload} from 'lucide-react'
+import {Boxes, Download, FilePlus2, MoreVertical, Pencil, Plus, Trash2, Upload} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -8,6 +8,7 @@ import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {AppPackageExportDialog} from '@/components/biz/AppPackageExportDialog'
 import {AppPackageImportDialog} from '@/components/biz/AppPackageImportDialog'
+import {AppTemplateGalleryDialog} from '@/components/biz/AppTemplateGalleryDialog'
 import {Empty} from '@/components/ui/empty'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {IconPicker} from '@/components/biz/IconPicker'
@@ -15,6 +16,8 @@ import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 import {type AppIconName, appIcons} from '@/data/appIcons'
 import {type App, createApp, deleteApp, getApps, invalidateAppCaches, updateApp,} from '@/services/apps'
 import {type AppPrimaryColor, getAppPrimaryColor} from '@/theme/appPrimaryColors'
+import type {AppPackagePreview} from '@/services/appPackages'
+import {listAppTemplates} from '@/services/appTemplates'
 import {toErrorMessage} from '@/lib/utils'
 
 interface AppFormValues {
@@ -88,6 +91,10 @@ export default function AppManagement() {
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
   const [exportTarget, setExportTarget] = React.useState<App | null>(null)
+  const [galleryOpen, setGalleryOpen] = React.useState(false)
+  const [templatePreview, setTemplatePreview] = React.useState<AppPackagePreview | null>(null)
+  const [templateCount, setTemplateCount] = React.useState<number | null>(null)
+  const showTemplateEntry = templateCount !== 0
 
   const loadApps = React.useCallback(async () => {
     setIsLoading(true)
@@ -105,6 +112,13 @@ export default function AppManagement() {
   React.useEffect(() => {
     void loadApps()
   }, [loadApps])
+
+  React.useEffect(() => {
+    // 目录为空时隐藏模板入口；请求失败保留入口，由画廊展示错误与重试。
+    listAppTemplates()
+      .then(list => setTemplateCount(list.length))
+      .catch(() => setTemplateCount(null))
+  }, [])
 
   const openCreate = () => {
     setEditingId(null)
@@ -162,9 +176,23 @@ export default function AppManagement() {
             <Button variant="secondary" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4"/> 导入应用
             </Button>
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4"/> 新建应用
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4"/> 新建应用
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openCreate}>
+                  <FilePlus2 className="h-4 w-4"/> 空白应用
+                </DropdownMenuItem>
+                {showTemplateEntry ? (
+                  <DropdownMenuItem onClick={() => setGalleryOpen(true)}>
+                    <Boxes className="h-4 w-4"/> 从模板创建
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -263,10 +291,28 @@ export default function AppManagement() {
         appName={exportTarget?.name ?? ''}
       />
 
-      <AppPackageImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => {
-        invalidateAppCaches()
-        void loadApps()
-      }}/>
+      <AppTemplateGalleryDialog
+        open={galleryOpen}
+        onOpenChange={setGalleryOpen}
+        onReady={preview => {
+          setGalleryOpen(false)
+          setTemplatePreview(preview)
+          setImportOpen(true)
+        }}
+      />
+
+      <AppPackageImportDialog
+        open={importOpen}
+        onOpenChange={next => {
+          setImportOpen(next)
+          if (!next) setTemplatePreview(null)
+        }}
+        onImported={() => {
+          invalidateAppCaches()
+          void loadApps()
+        }}
+        initialPreview={templatePreview}
+      />
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}

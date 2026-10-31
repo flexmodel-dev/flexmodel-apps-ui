@@ -32,6 +32,17 @@ const resources = [
   {key: 'records', label: '记录数据', count: totalRecords, detail: '保留业务主键与业务引用', included: true},
 ]
 
+const template = {
+  id: 'erp-system',
+  name: 'ERP 管理系统',
+  description: '企业资源计划管理应用：供应商与物料基础数据、采购订单主子表管理、订单审批流程与经营看板',
+  category: '企业管理',
+  iconName: 'Container',
+  formCount: 4,
+  includesData: true,
+  exportedAt: '2026-10-30T09:56:31Z',
+}
+
 function previewOf(uploadId: string, invalid: boolean) {
   return {
     uploadId,
@@ -69,7 +80,18 @@ function previewOf(uploadId: string, invalid: boolean) {
   }
 }
 
-async function setup(page: Page, dark = false) {
+function templatePreviewOf() {
+  const preview = previewOf('upload_template', false)
+  return {
+    ...preview,
+    templateId: template.id,
+    defaultAppName: template.name,
+    package: {...preview.package, fileName: 'erp-system.flexmodel.zip', size: 35870},
+    source: {...preview.source, appId: 'erp_system', appName: 'ERP管理系统'},
+  }
+}
+
+async function setup(page: Page, dark = false, templates: unknown[] = [template]) {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(({dark}) => {
@@ -94,6 +116,12 @@ async function setup(page: Page, dark = false) {
         },
         body: Buffer.from('mock-zip-content'),
       })
+    }
+    if (pathname === '/api/app-packages/templates' && route.request().method() === 'GET') {
+      return route.fulfill({json: templates})
+    }
+    if (pathname === '/api/app-packages/templates/erp-system/imports' && route.request().method() === 'POST') {
+      return route.fulfill({json: templatePreviewOf()})
     }
     if (pathname === '/api/app-packages/imports' && route.request().method() === 'POST') {
       const body = route.request().postDataBuffer()?.toString('latin1') ?? ''
@@ -204,6 +232,43 @@ test('导入向导：上传、预览、确认并完成，INVALID 阻断确认', 
   await expect(dialog.getByRole('alert')).toContainText('role_sales_lead')
   await page.screenshot({path: 'artifacts/app-packages-import-invalid-light.png', animations: 'disabled'})
   await dialog.getByRole('button', {name: '取消'}).click()
+  expect(errors).toEqual([])
+})
+
+test('从模板创建：入口、画廊、预览直达与提交', async ({page}) => {
+  const errors = await setup(page)
+  await page.goto('/#/admin/apps')
+  await page.getByRole('button', {name: '新建应用'}).click()
+  await page.getByRole('menuitem', {name: '从模板创建'}).click()
+
+  const gallery = page.getByRole('dialog')
+  await expect(gallery.getByRole('heading', {name: '从模板创建应用'})).toBeVisible()
+  await expect(gallery.getByText(template.name)).toBeVisible()
+  await expect(gallery.getByText('4 个表单')).toBeVisible()
+  await expect(gallery.getByText('含示例数据')).toBeVisible()
+  await page.screenshot({path: 'artifacts/app-templates-gallery-light.png', animations: 'disabled'})
+
+  await gallery.getByRole('button').filter({hasText: template.name}).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', {name: '创建应用'})).toBeVisible()
+  await expect(dialog.getByRole('button', {name: '重新选择'})).toHaveCount(0)
+  await expect(dialog.getByText('校验通过')).toBeVisible()
+  await expect(dialog.getByLabel('新应用名称')).toHaveValue(template.name)
+  await page.screenshot({path: 'artifacts/app-templates-preview-light.png', animations: 'disabled'})
+
+  await dialog.getByRole('button', {name: '确认导入'}).click()
+  await expect(dialog.getByRole('heading', {name: '创建完成'})).toBeVisible()
+  await dialog.getByRole('button', {name: '完成'}).click()
+  await expect(dialog).toBeHidden()
+  expect(errors).toEqual([])
+})
+
+test('模板目录为空时隐藏从模板创建入口', async ({page}) => {
+  const errors = await setup(page, false, [])
+  await page.goto('/#/admin/apps')
+  await page.getByRole('button', {name: '新建应用'}).click()
+  await expect(page.getByRole('menuitem', {name: '空白应用'})).toBeVisible()
+  await expect(page.getByRole('menuitem', {name: '从模板创建'})).toHaveCount(0)
   expect(errors).toEqual([])
 })
 

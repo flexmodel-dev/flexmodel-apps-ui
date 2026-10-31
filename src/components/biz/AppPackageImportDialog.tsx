@@ -35,9 +35,10 @@ interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   onImported?: () => void
+  /** 来自内置模板的预览：跳过上传步骤，直接进入预览确认。 */
+  initialPreview?: AppPackagePreview | null
 }
 
-const steps = ['选择应用包', '导入预览', '完成']
 const importSteps = ['创建应用与业务库', '重建表单与字段', '重建导航与工作台', '重建审批与数据权限', '写入业务记录', '激活应用']
 
 /** 后端执行阶段到步骤索引的映射，用于轮询进度高亮。 */
@@ -87,10 +88,10 @@ function resourceIcon(key: string) {
   return FileArchive
 }
 
-function StepIndicator({step}: { step: number }) {
+function StepIndicator({step, labels}: { step: number; labels: string[] }) {
   return (
     <ol className="flex flex-wrap items-center gap-2 text-xs" aria-label="导入步骤">
-      {steps.map((label, index) => {
+      {labels.map((label, index) => {
         const done = index < step || (step === 2 && index === 2)
         const active = index === step && !done
         return (
@@ -102,7 +103,7 @@ function StepIndicator({step}: { step: number }) {
               {done ? <Check className="h-3 w-3" strokeWidth={3}/> : index + 1}
             </span>
             <span className={done || active ? 'font-medium text-foreground' : 'text-muted-foreground'}>{label}</span>
-            {index < steps.length - 1 ? <span className="mx-1 h-px w-6 bg-border"/> : null}
+            {index < labels.length - 1 ? <span className="mx-1 h-px w-6 bg-border"/> : null}
           </li>
         )
       })}
@@ -110,7 +111,9 @@ function StepIndicator({step}: { step: number }) {
   )
 }
 
-export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) {
+export function AppPackageImportDialog({open, onOpenChange, onImported, initialPreview = null}: Props) {
+  const templateMode = Boolean(initialPreview)
+  const steps = templateMode ? ['选择模板', '导入预览', '完成'] : ['选择应用包', '导入预览', '完成']
   const [step, setStep] = React.useState(0)
   const [preview, setPreview] = React.useState<AppPackagePreview | null>(null)
   const [result, setResult] = React.useState<AppPackageImportResult | null>(null)
@@ -137,8 +140,14 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
   }, [])
 
   React.useEffect(() => {
-    if (open) reset()
-  }, [open, reset])
+    if (!open) return
+    reset()
+    if (initialPreview) {
+      setPreview(initialPreview)
+      setNewName(initialPreview.defaultAppName)
+      setStep(1)
+    }
+  }, [open, initialPreview, reset])
 
   const close = (next: boolean) => {
     if (!next && busy) return
@@ -224,9 +233,11 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
   ) : step === 1 ? (
     <>
       <Button variant="secondary" disabled={busy} onClick={() => close(false)}>取消</Button>
-      <Button variant="secondary" disabled={busy} onClick={reset}>
-        <RefreshCw className="h-4 w-4"/> 重新选择
-      </Button>
+      {templateMode ? null : (
+        <Button variant="secondary" disabled={busy} onClick={reset}>
+          <RefreshCw className="h-4 w-4"/> 重新选择
+        </Button>
+      )}
       <Button
         disabled={busy || preview?.status !== 'READY' || !newName.trim()}
         onClick={() => void commit()}
@@ -244,7 +255,7 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
     <BizDialog
       open={open}
       onOpenChange={close}
-      title="导入应用包"
+      title={templateMode ? '创建应用' : '导入应用包'}
       width={900}
       height="min(84vh, 820px)"
       footer={footer}
@@ -257,7 +268,7 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
       )}
     >
       <div className="space-y-5">
-        <StepIndicator step={step}/>
+        <StepIndicator step={step} labels={steps}/>
 
         {error && step !== 2 ? (
           <div role="alert"
@@ -506,7 +517,8 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
               className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="h-8 w-8"/>
             </span>
-            <h3 className="mb-0 mt-4 text-lg font-semibold text-foreground">导入完成</h3>
+            <h3
+              className="mb-0 mt-4 text-lg font-semibold text-foreground">{templateMode ? '创建完成' : '导入完成'}</h3>
             <p className="mb-0 mt-1 text-sm text-muted-foreground">
               已创建应用「<span className="font-medium text-foreground">{result.appName}</span>」
             </p>
@@ -541,7 +553,9 @@ export function AppPackageImportDialog({open, onOpenChange, onImported}: Props) 
             <p className="mb-0 mt-1 max-w-lg text-sm text-muted-foreground">
               {result.status === 'CLEANUP_REQUIRED'
                 ? '目标应用的清理未全部完成，系统将在后台自动重试清理，请勿重复提交该导入任务。'
-                : '目标应用残留已清理完成，请修正问题后重新上传导入。'}
+                : templateMode
+                  ? '目标应用残留已清理完成，请稍后重试。'
+                  : '目标应用残留已清理完成，请修正问题后重新上传导入。'}
             </p>
             {result.error ? (
               <p

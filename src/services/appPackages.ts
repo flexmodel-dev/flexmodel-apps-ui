@@ -50,6 +50,8 @@ export interface AppPackagePreview {
   warnings: string[]
   issues: PackageValidationIssue[]
   defaultAppName: string
+  /** 非空表示该预览来自内置模板。 */
+  templateId?: string | null
 }
 
 export type AppPackageImportStatus = 'COMMITTING' | 'COMPENSATING' | 'COMMITTED' | 'FAILED' | 'CLEANUP_REQUIRED'
