@@ -1,98 +1,35 @@
 import * as React from 'react'
 import {Link, useNavigate} from 'react-router-dom'
-import {Boxes, Download, FilePlus2, MoreVertical, Pencil, Plus, Trash2, Upload} from 'lucide-react'
+import {Download, MoreVertical, Pencil, Plus, Trash2, Upload} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
+import {ConfirmDialog} from '@/components/ui/dialog'
 import {AppLoading} from '@/components/biz/AppLoading'
+import {AppCreateDialog} from '@/components/biz/AppCreateDialog'
 import {AppPackageExportDialog} from '@/components/biz/AppPackageExportDialog'
 import {AppPackageImportDialog} from '@/components/biz/AppPackageImportDialog'
-import {AppTemplateGalleryDialog} from '@/components/biz/AppTemplateGalleryDialog'
 import {Empty} from '@/components/ui/empty'
-import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
-import {IconPicker} from '@/components/biz/IconPicker'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,} from '@/components/ui/dropdown-menu'
-import {type AppIconName, appIcons} from '@/data/appIcons'
-import {type App, createApp, deleteApp, getApps, invalidateAppCaches, updateApp,} from '@/services/apps'
-import {type AppPrimaryColor, getAppPrimaryColor} from '@/theme/appPrimaryColors'
+import {appIcons} from '@/data/appIcons'
+import {type App, deleteApp, getApps, invalidateAppCaches} from '@/services/apps'
+import {getAppPrimaryColor} from '@/theme/appPrimaryColors'
 import type {AppPackagePreview} from '@/services/appPackages'
 import {listAppTemplates} from '@/services/appTemplates'
 import {toErrorMessage} from '@/lib/utils'
-
-interface AppFormValues {
-  name: string
-  iconName: AppIconName
-  primaryColor: AppPrimaryColor
-  description: string
-}
-
-const emptyForm: AppFormValues = {name: '', iconName: 'Boxes', primaryColor: 'blue', description: ''}
-
-function AppForm({
-  value,
-  onChange,
-}: {
-  value: AppFormValues
-  onChange: (value: AppFormValues) => void
-}) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <label htmlFor="app-name" className="mb-1 block text-sm font-medium text-foreground">应用名称</label>
-        <Input
-          id="app-name"
-          value={value.name}
-          placeholder="请输入应用名称"
-          onChange={(event) => onChange({ ...value, name: event.target.value })}
-        />
-      </div>
-      <div>
-        <label htmlFor="app-icon" className="mb-1 block text-sm font-medium text-foreground">应用图标</label>
-        <div id="app-icon">
-          <IconPicker
-            value={value.iconName}
-            onChange={(iconName) => onChange({...value, iconName})}
-          />
-        </div>
-      </div>
-      <div>
-        <label htmlFor="app-description" className="mb-1 block text-sm font-medium text-foreground">应用描述</label>
-        <Input
-          id="app-description"
-          value={value.description}
-          placeholder="请输入应用描述"
-          onChange={(event) => onChange({ ...value, description: event.target.value })}
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-foreground">应用主色</label>
-        <AppPrimaryColorPicker
-          value={value.primaryColor}
-          onChange={(primaryColor) => onChange({...value, primaryColor})}
-        />
-      </div>
-    </div>
-  )
-}
 
 export default function AppManagement() {
   const navigate = useNavigate()
   const [apps, setApps] = React.useState<App[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [listError, setListError] = React.useState<string | null>(null)
-  const [formOpen, setFormOpen] = React.useState(false)
-  const [editingId, setEditingId] = React.useState<string | null>(null)
-  const [formValue, setFormValue] = React.useState<AppFormValues>(emptyForm)
-  const [formError, setFormError] = React.useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [createOpen, setCreateOpen] = React.useState(false)
   const [deleteTarget, setDeleteTarget] = React.useState<App | null>(null)
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
   const [exportTarget, setExportTarget] = React.useState<App | null>(null)
-  const [galleryOpen, setGalleryOpen] = React.useState(false)
   const [templatePreview, setTemplatePreview] = React.useState<AppPackagePreview | null>(null)
+  const [templateName, setTemplateName] = React.useState('')
   const [templateCount, setTemplateCount] = React.useState<number | null>(null)
   const showTemplateEntry = templateCount !== 0
 
@@ -114,40 +51,11 @@ export default function AppManagement() {
   }, [loadApps])
 
   React.useEffect(() => {
-    // 目录为空时隐藏模板入口；请求失败保留入口，由画廊展示错误与重试。
+    // 目录为空时隐藏模板创建方式；请求失败保留入口，由创建弹窗展示错误与重试。
     listAppTemplates()
       .then(list => setTemplateCount(list.length))
       .catch(() => setTemplateCount(null))
   }, [])
-
-  const openCreate = () => {
-    setEditingId(null)
-    setFormValue(emptyForm)
-    setFormOpen(true)
-  }
-
-  const openEdit = (app: App) => {
-    setEditingId(app.id)
-    setFormValue({name: app.name, iconName: app.iconName, primaryColor: app.primaryColor, description: app.description})
-    setFormOpen(true)
-  }
-
-  const submitForm = async () => {
-    if (!formValue.name.trim()) return
-    const values = { ...formValue, name: formValue.name.trim() }
-    setIsSubmitting(true)
-    setFormError(null)
-    try {
-      if (editingId) await updateApp(editingId, values)
-      else await createApp(values)
-      setFormOpen(false)
-      await loadApps()
-    } catch (error) {
-      setFormError(toErrorMessage(error, '保存应用失败，请稍后重试。'))
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   const confirmDelete = async () => {
     if (!deleteTarget) return
@@ -176,23 +84,9 @@ export default function AppManagement() {
             <Button variant="secondary" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4"/> 导入应用
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4"/> 新建应用
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={openCreate}>
-                  <FilePlus2 className="h-4 w-4"/> 空白应用
-                </DropdownMenuItem>
-                {showTemplateEntry ? (
-                  <DropdownMenuItem onClick={() => setGalleryOpen(true)}>
-                    <Boxes className="h-4 w-4"/> 从模板创建
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4"/> 新建应用
+            </Button>
           </div>
         </div>
 
@@ -263,24 +157,19 @@ export default function AppManagement() {
         </div>
       </div>
 
-      <BizDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        title={editingId ? '编辑应用' : '新建应用'}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setFormOpen(false)}>取消</Button>
-            <Button onClick={submitForm} disabled={!formValue.name.trim() || isSubmitting}>
-              {isSubmitting ? '保存中...' : '保存'}
-            </Button>
-          </>
-        }
-      >
-        <AppForm value={formValue} onChange={setFormValue} />
-        {formError ? (
-          <div className="text-sm text-destructive" role="alert">{formError}</div>
-        ) : null}
-      </BizDialog>
+      <AppCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        templateEnabled={showTemplateEntry}
+        onCreated={() => {
+          void loadApps()
+        }}
+        onTemplateReady={(preview, name) => {
+          setTemplatePreview(preview)
+          setTemplateName(name)
+          setImportOpen(true)
+        }}
+      />
 
       <AppPackageExportDialog
         open={Boolean(exportTarget)}
@@ -291,27 +180,21 @@ export default function AppManagement() {
         appName={exportTarget?.name ?? ''}
       />
 
-      <AppTemplateGalleryDialog
-        open={galleryOpen}
-        onOpenChange={setGalleryOpen}
-        onReady={preview => {
-          setGalleryOpen(false)
-          setTemplatePreview(preview)
-          setImportOpen(true)
-        }}
-      />
-
       <AppPackageImportDialog
         open={importOpen}
         onOpenChange={next => {
           setImportOpen(next)
-          if (!next) setTemplatePreview(null)
+          if (!next) {
+            setTemplatePreview(null)
+            setTemplateName('')
+          }
         }}
         onImported={() => {
           invalidateAppCaches()
           void loadApps()
         }}
         initialPreview={templatePreview}
+        initialName={templateName || null}
       />
 
       <ConfirmDialog

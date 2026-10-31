@@ -37,6 +37,8 @@ interface Props {
   onImported?: () => void
   /** 来自内置模板的预览：跳过上传步骤，直接进入预览确认。 */
   initialPreview?: AppPackagePreview | null
+  /** 来自创建弹窗的应用名称，优先于模板默认名。 */
+  initialName?: string | null
 }
 
 const importSteps = ['创建应用与业务库', '重建表单与字段', '重建导航与工作台', '重建审批与数据权限', '写入业务记录', '激活应用']
@@ -111,9 +113,15 @@ function StepIndicator({step, labels}: { step: number; labels: string[] }) {
   )
 }
 
-export function AppPackageImportDialog({open, onOpenChange, onImported, initialPreview = null}: Props) {
+export function AppPackageImportDialog({
+                                         open,
+                                         onOpenChange,
+                                         onImported,
+                                         initialPreview = null,
+                                         initialName = null,
+                                       }: Props) {
   const templateMode = Boolean(initialPreview)
-  const steps = templateMode ? ['选择模板', '导入预览', '完成'] : ['选择应用包', '导入预览', '完成']
+  const steps = templateMode ? ['导入预览', '完成'] : ['选择应用包', '导入预览', '完成']
   const [step, setStep] = React.useState(0)
   const [preview, setPreview] = React.useState<AppPackagePreview | null>(null)
   const [result, setResult] = React.useState<AppPackageImportResult | null>(null)
@@ -144,10 +152,10 @@ export function AppPackageImportDialog({open, onOpenChange, onImported, initialP
     reset()
     if (initialPreview) {
       setPreview(initialPreview)
-      setNewName(initialPreview.defaultAppName)
+      setNewName(initialName ?? initialPreview.defaultAppName)
       setStep(1)
     }
-  }, [open, initialPreview, reset])
+  }, [open, initialPreview, initialName, reset])
 
   const close = (next: boolean) => {
     if (!next && busy) return
@@ -268,7 +276,7 @@ export function AppPackageImportDialog({open, onOpenChange, onImported, initialP
       )}
     >
       <div className="space-y-5">
-        <StepIndicator step={step} labels={steps}/>
+        <StepIndicator step={templateMode ? step - 1 : step} labels={steps}/>
 
         {error && step !== 2 ? (
           <div role="alert"

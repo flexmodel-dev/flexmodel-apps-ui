@@ -101,7 +101,11 @@ async function setup(page: Page, dark = false, templates: unknown[] = [template]
   }, {dark})
   await page.route('**/api/**', async route => {
     const {pathname} = new URL(route.request().url())
-    if (pathname === '/api/apps') return route.fulfill({json: [app]})
+    if (pathname === '/api/apps' && route.request().method() === 'GET') return route.fulfill({json: [app]})
+    if (pathname === '/api/apps' && route.request().method() === 'POST') {
+      const body = JSON.parse(route.request().postData() ?? '{}')
+      return route.fulfill({json: {...app, id: 'app_created', name: body.name}})
+    }
     if (pathname === `/api/apps/${app.id}`) return route.fulfill({json: app})
     if (pathname === '/api/notifications') return route.fulfill({json: {list: [], total: 0}})
     if (pathname === '/api/notifications/summary') {
@@ -235,20 +239,26 @@ test('导入向导：上传、预览、确认并完成，INVALID 阻断确认', 
   expect(errors).toEqual([])
 })
 
-test('从模板创建：入口、画廊、预览直达与提交', async ({page}) => {
+test('从模板创建：名称输入、方式选择、预览直达与提交', async ({page}) => {
   const errors = await setup(page)
   await page.goto('/#/admin/apps')
   await page.getByRole('button', {name: '新建应用'}).click()
-  await page.getByRole('menuitem', {name: '从模板创建'}).click()
 
-  const gallery = page.getByRole('dialog')
-  await expect(gallery.getByRole('heading', {name: '从模板创建应用'})).toBeVisible()
-  await expect(gallery.getByText(template.name)).toBeVisible()
-  await expect(gallery.getByText('4 个表单')).toBeVisible()
-  await expect(gallery.getByText('含示例数据')).toBeVisible()
-  await page.screenshot({path: 'artifacts/app-templates-gallery-light.png', animations: 'disabled'})
+  const create = page.getByRole('dialog')
+  await expect(create.getByRole('heading', {name: '新建应用'})).toBeVisible()
+  await expect(create.getByLabel('应用名称')).toHaveValue('')
+  await create.getByRole('button', {name: /从模板创建/}).click()
+  await expect(create.getByText('应用图标')).toHaveCount(0)
+  const templateCard = create.getByRole('button').filter({hasText: template.name})
+  await expect(templateCard).toBeVisible()
+  await expect(templateCard.getByText('4 个表单')).toBeVisible()
+  await expect(templateCard.getByText('含示例数据')).toBeVisible()
+  await page.screenshot({path: 'artifacts/app-templates-create-light.png', animations: 'disabled'})
 
-  await gallery.getByRole('button').filter({hasText: template.name}).click()
+  await templateCard.click()
+  await expect(create.getByLabel('应用名称')).toHaveValue(template.name)
+  await page.screenshot({path: 'artifacts/app-templates-selected-light.png', animations: 'disabled'})
+  await create.getByRole('button', {name: '预览并创建'}).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('heading', {name: '创建应用'})).toBeVisible()
   await expect(dialog.getByRole('button', {name: '重新选择'})).toHaveCount(0)
@@ -263,12 +273,33 @@ test('从模板创建：入口、画廊、预览直达与提交', async ({page})
   expect(errors).toEqual([])
 })
 
-test('模板目录为空时隐藏从模板创建入口', async ({page}) => {
+test('空白应用：输入名称直接创建并刷新列表', async ({page}) => {
+  const errors = await setup(page)
+  await page.goto('/#/admin/apps')
+  await page.getByRole('button', {name: '新建应用'}).click()
+
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', {name: '新建应用'})).toBeVisible()
+  await expect(dialog.getByText('应用图标')).toBeVisible()
+  await expect(dialog.getByLabel('应用描述')).toBeVisible()
+  await expect(dialog.getByText('应用主色')).toBeVisible()
+  await expect(dialog.getByRole('button', {name: '创建', exact: true})).toBeDisabled()
+  await dialog.getByLabel('应用名称').fill('客户管理')
+  await dialog.getByLabel('应用描述').fill('客户与联系人管理')
+  await page.screenshot({path: 'artifacts/app-create-blank-light.png', animations: 'disabled'})
+  await dialog.getByRole('button', {name: '创建', exact: true}).click()
+  await expect(dialog).toBeHidden()
+  expect(errors).toEqual([])
+})
+
+test('模板目录为空时隐藏从模板创建方式', async ({page}) => {
   const errors = await setup(page, false, [])
   await page.goto('/#/admin/apps')
   await page.getByRole('button', {name: '新建应用'}).click()
-  await expect(page.getByRole('menuitem', {name: '空白应用'})).toBeVisible()
-  await expect(page.getByRole('menuitem', {name: '从模板创建'})).toHaveCount(0)
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', {name: '新建应用'})).toBeVisible()
+  await expect(dialog.getByRole('button', {name: /从模板创建/})).toHaveCount(0)
+  await expect(dialog.getByRole('button', {name: '创建', exact: true})).toBeVisible()
   expect(errors).toEqual([])
 })
 
