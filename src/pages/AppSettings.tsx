@@ -1,19 +1,20 @@
 import * as React from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Pencil, Trash2 } from 'lucide-react'
+import {Link, useNavigate, useParams} from 'react-router-dom'
+import {Download, Pencil, Trash2} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
 import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {IconPicker} from '@/components/biz/IconPicker'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {Empty} from '@/components/ui/empty'
 import {AppMenuManager} from '@/components/biz/AppMenuManager'
+import {AppPackageExportDialog} from '@/components/biz/AppPackageExportDialog'
 import {AdminApprovals, AdminForms} from '@/pages/admin'
-import {appIcons, type AppIconName} from '@/data/appIcons'
-import {getAppPrimaryColor, type AppPrimaryColor} from '@/theme/appPrimaryColors'
-import {deleteApp, getAppById, updateApp, type App} from '@/services/apps'
+import {type AppIconName, appIcons} from '@/data/appIcons'
+import {type AppPrimaryColor, getAppPrimaryColor} from '@/theme/appPrimaryColors'
+import {type App, deleteApp, getAppById, updateApp} from '@/services/apps'
 import {toErrorMessage} from '@/lib/utils'
 import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
 
@@ -51,6 +52,7 @@ export default function AppSettings({ section }: { section: string }) {
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [exportOpen, setExportOpen] = React.useState(false)
 
   React.useEffect(() => {
     if (!appId) {
@@ -153,7 +155,7 @@ export default function AppSettings({ section }: { section: string }) {
             </div>
             <p className="mb-0 mt-1 text-xs text-muted-foreground">应用设置</p>
           </div>
-          <nav className="flex gap-1 overflow-x-auto p-2 lg:flex-col lg:overflow-visible">
+          <nav className="flex flex-wrap gap-1 p-2 lg:flex-col">
             {settingsNavs.map((item) => (
               <Link
                 key={item.key}
@@ -175,9 +177,14 @@ export default function AppSettings({ section }: { section: string }) {
           <SettingsPageHeader title={`${settingsNavs.find(item => item.key === activeSection)?.label}`}
             description={sectionDescriptions[activeSection]} onBack={() => navigate('/admin/apps')} backLabel="返回应用管理"
             actions={activeSection === 'basic' && (
-              <Button onClick={() => setFormOpen(true)}>
-                <Pencil className="h-4 w-4" /> 编辑应用
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="secondary" onClick={() => setExportOpen(true)}>
+                  <Download className="h-4 w-4"/> 导出应用
+                </Button>
+                <Button onClick={() => setFormOpen(true)}>
+                  <Pencil className="h-4 w-4"/> 编辑应用
+                </Button>
+              </div>
             )}/>
 
           <div
@@ -263,6 +270,13 @@ export default function AppSettings({ section }: { section: string }) {
             <div className="text-sm text-destructive" role="alert">{formError}</div>
           ) : null}
         </BizDialog>
+
+        <AppPackageExportDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          appId={app.id}
+          appName={app.name}
+        />
 
         <ConfirmDialog
           open={deleteOpen}

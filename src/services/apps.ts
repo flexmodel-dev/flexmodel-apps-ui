@@ -1,12 +1,12 @@
 import {requestJson} from '@/services/http'
 import {cachedFetch, createAppDataCache} from '@/services/appDataCache'
 import {
+  type AppPrimaryColor,
   cacheAppPrimaryColor,
   getAppPrimaryColor,
   removeCachedAppPrimaryColor,
-  type AppPrimaryColor,
 } from '@/theme/appPrimaryColors'
-import {resolveAppIconName, type AppIconName} from '@/data/appIcons'
+import {type AppIconName, resolveAppIconName} from '@/data/appIcons'
 
 export interface App {
   id: string
@@ -80,6 +80,12 @@ function normalizeApp(payload: AppPayload): App {
 export function getApps(): Promise<App[]> {
   return cachedFetch(appsCache, '', () =>
     requestJson<AppPayload[]>(API_BASE).then((apps) => apps.map(normalizeApp)))
+}
+
+/** 应用包导入等绕过常规接口的变更后，失效列表与详情缓存以重新拉取。 */
+export function invalidateAppCaches() {
+  appsCache.clear()
+  appCache.clear()
 }
 
 export function getAppById(appId: string): Promise<App> {

@@ -10,13 +10,26 @@ export async function requestResponse(path: string, init?: RequestInit): Promise
     headers,
   })
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as unknown
-    const message = typeof payload === 'object' && payload !== null && 'message' in payload
-      ? String((payload as { message?: unknown }).message ?? '')
-      : ''
-    throw new Error(message || `请求失败（${response.status}）`)
+    const body = await response.text().catch(() => '')
+    throw new Error(errorMessage(response.status, body))
   }
   return response
+}
+
+/**
+ * 错误响应优先取 JSON message；非 JSON（网关/开发服务器 HTML 页）至少给出状态码和页面标题，
+ * 避免界面只剩一个没有上下文的“请求失败”。
+ */
+function errorMessage(status: number, body: string): string {
+  try {
+    const payload = JSON.parse(body) as { message?: unknown } | null
+    const message = typeof payload?.message === 'string' ? payload.message.trim() : ''
+    if (message) return message
+  } catch {
+    // 非 JSON 响应，继续走兜底
+  }
+  const title = /<title[^>]*>([^<]*)<\/title>/i.exec(body)?.[1]?.trim()
+  return title ? `请求失败（HTTP ${status}）：${title}` : `请求失败（HTTP ${status}）`
 }
 
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {

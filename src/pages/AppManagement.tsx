@@ -1,29 +1,20 @@
 import * as React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react'
+import {Link, useNavigate} from 'react-router-dom'
+import {Download, MoreVertical, Pencil, Plus, Trash2, Upload} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
 import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {AppLoading} from '@/components/biz/AppLoading'
+import {AppPackageExportDialog} from '@/components/biz/AppPackageExportDialog'
+import {AppPackageImportDialog} from '@/components/biz/AppPackageImportDialog'
 import {Empty} from '@/components/ui/empty'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {IconPicker} from '@/components/biz/IconPicker'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {appIcons, type AppIconName} from '@/data/appIcons'
-import {
-  createApp,
-  deleteApp,
-  getApps,
-  updateApp,
-  type App,
-} from '@/services/apps'
-import {getAppPrimaryColor, type AppPrimaryColor} from '@/theme/appPrimaryColors'
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,} from '@/components/ui/dropdown-menu'
+import {type AppIconName, appIcons} from '@/data/appIcons'
+import {type App, createApp, deleteApp, getApps, invalidateAppCaches, updateApp,} from '@/services/apps'
+import {type AppPrimaryColor, getAppPrimaryColor} from '@/theme/appPrimaryColors'
 import {toErrorMessage} from '@/lib/utils'
 
 interface AppFormValues {
@@ -95,6 +86,8 @@ export default function AppManagement() {
   const [deleteTarget, setDeleteTarget] = React.useState<App | null>(null)
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [importOpen, setImportOpen] = React.useState(false)
+  const [exportTarget, setExportTarget] = React.useState<App | null>(null)
 
   const loadApps = React.useCallback(async () => {
     setIsLoading(true)
@@ -165,9 +158,14 @@ export default function AppManagement() {
             <h4 className="m-0 text-base font-medium">应用管理</h4>
             <p className="mb-0 mt-0.5 text-xs text-muted-foreground">创建独立前台应用，并管理应用菜单与配置</p>
           </div>
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" /> 新建应用
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4"/> 导入应用
+            </Button>
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4"/> 新建应用
+            </Button>
+          </div>
         </div>
 
         <div className="min-w-0 max-w-full p-4">
@@ -220,6 +218,9 @@ export default function AppManagement() {
                           <DropdownMenuItem onClick={() => navigate(`/admin/apps/${app.id}/settings/basic`)}>
                             <Pencil className="h-4 w-4" /> 编辑应用
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setExportTarget(app)}>
+                            <Download className="h-4 w-4"/> 导出应用
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setDeleteTarget(app)}>
                             <Trash2 className="h-4 w-4" /> 删除应用
                           </DropdownMenuItem>
@@ -252,6 +253,20 @@ export default function AppManagement() {
           <div className="text-sm text-destructive" role="alert">{formError}</div>
         ) : null}
       </BizDialog>
+
+      <AppPackageExportDialog
+        open={Boolean(exportTarget)}
+        onOpenChange={open => {
+          if (!open) setExportTarget(null)
+        }}
+        appId={exportTarget?.id ?? ''}
+        appName={exportTarget?.name ?? ''}
+      />
+
+      <AppPackageImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => {
+        invalidateAppCaches()
+        void loadApps()
+      }}/>
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
