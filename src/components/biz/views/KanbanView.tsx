@@ -2,8 +2,10 @@ import * as React from 'react'
 import {
   DndContext,
   type DragEndEvent,
+  DragOverlay,
   type DragStartEvent,
   PointerSensor,
+  pointerWithin,
   useDraggable,
   useDroppable,
   useSensor,
@@ -15,44 +17,47 @@ import {message} from '@/components/ui/message'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {useViewQuery} from '@/components/biz/views/useViewQuery'
 import {type ViewComponentProps, viewDisplayFields, viewTitleValue} from '@/components/biz/views/types'
+import {
+  groupKeyForRecord,
+  groupKeyForValue,
+  layoutFieldLabel,
+  rawGroupValue,
+  recordFieldText,
+} from '@/components/biz/views/viewUtils'
+import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
 import {type AppViewGroup, moveAppViewRecord} from '@/services/appViews'
 import type {AppForm, AppFormField, AppFormViewFilter, AppFormViewTab} from '@/services/appForms'
 import type {AppRecord} from '@/services/appRecords'
-import {formatFieldValue} from '@/lib/fieldConfig'
 import {cn, toErrorMessage} from '@/lib/utils'
 
-/** REFERENCE 等投影对象取原始 id，BOOL/选项保持原值。 */
-function rawGroupValue(value: unknown): unknown {
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'id' in value) {
-    return (value as { id: unknown }).id
-  }
-  return value
-}
-
 function groupKey(group: AppViewGroup): string {
-  return group.empty ? 'ungrouped' : `group-${JSON.stringify(group.value ?? null)}`
+  return group.empty ? 'ungrouped' : groupKeyForValue(group.value)
 }
 
-function summaryText(field: AppFormField, record: AppRecord): string {
-  const value = record[field.name]
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const display = (value as { displayValue?: unknown }).displayValue
-    if (display !== undefined && display !== null) return String(display)
-  }
-  return formatFieldValue(field, value)
+interface MoveEvent {
+  record: AppRecord
+  recordId: string
+  fromKey: string
+  toKey: string
+  sequence: number
+  pending: boolean
 }
 
-interface KanbanCardProps {
+function KanbanCard({
+                      form,
+                      view,
+                      record,
+                      summaryFields,
+                      dragDisabled,
+                      onOpen,
+                    }: {
   form: AppForm
   view: AppFormViewTab
   record: AppRecord
   summaryFields: AppFormField[]
   dragDisabled: boolean
-  isActive: boolean
-  onOpenRecord: (recordId: string) => void
-}
-
-function KanbanCard({form, view, record, summaryFields, dragDisabled, isActive, onOpenRecord}: KanbanCardProps) {
+  onOpen: () => void
+}) {
   const recordId = String(record.id)
   const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
     id: recordId,
@@ -77,7 +82,7 @@ function KanbanCard({form, view, record, summaryFields, dragDisabled, isActive, 
       suppressClickRef.current = false
       return
     }
-    onOpenRecord(recordId)
+    onOpen()
   }
 
   return (
@@ -85,22 +90,33 @@ function KanbanCard({form, view, record, summaryFields, dragDisabled, isActive, 
       ref={setNodeRef}
       {...attributes}
       {...cardListeners}
+      role="button"
+      tabIndex={0}
+      onClick={openRecord}
+      data-kanban-record={recordId}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          onOpen()
+        }
+      }}
       className={cn(
-        'rounded-lg border bg-card p-2.5 text-sm shadow-sm hover:shadow-md',
-        !dragDisabled && 'cursor-grab',
-        (isDragging || isActive) && 'opacity-50',
+        'rounded-lg border bg-card p-2.5 text-sm shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        !dragDisabled && 'cursor-grab active:cursor-grabbing',
+        isDragging && 'opacity-40',
       )}
     >
-      <button type="button" className="block w-full truncate text-left font-medium hover:text-primary"
-              onClick={openRecord}>
+      <div className="truncate text-left font-medium hover:text-primary">
         {viewTitleValue(form, view, record)}
-      </button>
+      </div>
       {summaryFields.length > 0 && (
         <div className="mt-1.5 space-y-1 text-xs">
           {summaryFields.map((field) => (
             <div key={field.name} className="flex gap-1">
-              <span className="shrink-0 text-muted-foreground">{field.label}:</span>
-              <span className="min-w-0 flex-1 truncate">{summaryText(field, record)}</span>
+              <span className="shrink-0 text-muted-foreground">
+                {layoutFieldLabel(form, field.name, field.label)}:
+              </span>
+              <span className="min-w-0 flex-1 truncate">{recordFieldText(field, record[field.name])}</span>
             </div>
           ))}
         </div>
@@ -115,12 +131,13 @@ interface KanbanColumnProps {
   view: AppFormViewTab
   group: AppViewGroup
   columnId: string
+  groupField: string
   search: string
   advancedFilter: AppFormViewFilter | null
   reloadKey: string
   dragDisabled: boolean
-  activeId: string | null
   summaryFields: AppFormField[]
+  moveEvent: MoveEvent | null
   onOpenRecord: (recordId: string) => void
 }
 
@@ -130,17 +147,18 @@ function KanbanColumn({
                         view,
                         group,
                         columnId,
+                        groupField,
                         search,
                         advancedFilter,
                         reloadKey,
                         dragDisabled,
-                        activeId,
                         summaryFields,
+                        moveEvent,
                         onOpenRecord,
                       }: KanbanColumnProps) {
   const [page, setPage] = React.useState(1)
   const [loaded, setLoaded] = React.useState<AppRecord[]>([])
-  const conditionKey = `${reloadKey}|${search}|${JSON.stringify(advancedFilter ?? null)}`
+  const conditionKey = `${view.id}|${groupField}|${search}|${JSON.stringify(advancedFilter ?? null)}`
   const conditionRef = React.useRef(conditionKey)
   const {setNodeRef, isOver} = useDroppable({id: columnId})
 
@@ -152,7 +170,7 @@ function KanbanColumn({
     size: 30,
     search,
     filter: advancedFilter,
-  }, conditionKey)
+  }, reloadKey)
 
   React.useEffect(() => {
     if (conditionRef.current === conditionKey) return
@@ -171,33 +189,49 @@ function KanbanColumn({
     })
   }, [query.data, page])
 
-  const total = query.data?.total ?? 0
+  // 拖拽成功后先在本地移动卡片，等待列数据重载时不会闪回原列。
+  React.useEffect(() => {
+    if (!moveEvent) return
+    setLoaded((previous) => {
+      const without = previous.filter((record) => String(record.id) !== moveEvent.recordId)
+      return moveEvent.toKey === columnId ? [moveEvent.record, ...without] : without
+    })
+  }, [moveEvent, columnId])
+
+  const total = query.data?.total ?? group.total
   const hasMore = loaded.length < total
-  const showingList = !(query.isLoading && page === 1)
+  const isInitialLoading = query.isLoading && !query.data
+  const adjustedTotal = moveEvent?.pending
+    ? total + (moveEvent.toKey === columnId ? 1 : 0) - (moveEvent.fromKey === columnId ? 1 : 0)
+    : total
 
   return (
     <div
       ref={setNodeRef}
+      data-kanban-column={group.label}
       className={cn(
-        'flex h-full w-72 shrink-0 flex-col rounded-lg border bg-muted/30',
-        isOver && !dragDisabled && 'border-primary/50',
+        'flex h-full w-[min(80vw,18rem)] shrink-0 flex-col overflow-hidden rounded-lg border bg-muted/30 transition-colors',
+        isOver && !dragDisabled && 'border-primary/60 ring-1 ring-primary/30',
       )}
     >
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex shrink-0 items-center gap-2 border-b bg-card/80 px-3 py-2 backdrop-blur">
         <span
           className={cn('inline-block h-2 w-2 shrink-0 rounded-full', !group.color && 'bg-muted-foreground/40')}
           style={group.color ? {backgroundColor: group.color} : undefined}
         />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{group.label}</span>
-        <span className="text-xs text-muted-foreground">{group.total}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium" title={group.label}>{group.label}</span>
+        <span className="text-xs tabular-nums text-muted-foreground">{adjustedTotal}</span>
       </div>
-      <div className="record-list-scroll min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
-        {!showingList ? (
-          <AppLoading center className="min-h-[120px]"/>
-        ) : query.error ? (
-          <div className="px-1 py-2 text-xs text-destructive">{query.error}</div>
+      <div className="record-list-scroll relative min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+        <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
+        {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
+        {isInitialLoading ? (
+          <ViewSkeleton variant="list" rows={3}/>
         ) : loaded.length === 0 ? (
-          <div className="px-1 py-2 text-xs text-muted-foreground">暂无记录</div>
+          <div
+            className="flex min-h-[96px] items-center justify-center rounded-lg border border-dashed px-2 text-center text-xs text-muted-foreground">
+            {isOver ? '放到这里' : '暂无记录'}
+          </div>
         ) : (
           loaded.map((record) => (
             <KanbanCard
@@ -207,8 +241,7 @@ function KanbanColumn({
               record={record}
               summaryFields={summaryFields}
               dragDisabled={dragDisabled}
-              isActive={activeId === String(record.id)}
-              onOpenRecord={onOpenRecord}
+              onOpen={() => onOpenRecord(String(record.id))}
             />
           ))
         )}
@@ -218,10 +251,10 @@ function KanbanColumn({
           variant="ghost"
           size="sm"
           className="m-1 mt-0 h-7 text-xs text-muted-foreground"
-          disabled={query.isLoading}
-          onClick={() => setPage(page + 1)}
+          disabled={query.isFetching}
+          onClick={() => setPage((current) => current + 1)}
         >
-          {query.isLoading ? '加载中…' : `加载更多（${loaded.length}/${total}）`}
+          {query.isFetching ? '加载中…' : `加载更多（${loaded.length}/${total}）`}
         </Button>
       )}
     </div>
@@ -230,13 +263,16 @@ function KanbanColumn({
 
 /** 看板视图：按分组列展示记录，支持跨列拖拽更新分组字段。 */
 export function KanbanView(props: ViewComponentProps) {
-  const {appId, form, view, search, advancedFilter, refreshTick, onOpenRecord, onRecordChanged} = props
+  const {appId, form, view, search, advancedFilter, refreshTick, onRecordChanged, onOpenViewSettings} = props
   const groupField = view.config.groupField ?? null
-  const [moveTick, setMoveTick] = React.useState(0)
   const [activeId, setActiveId] = React.useState<string | null>(null)
+  const [activeRecord, setActiveRecord] = React.useState<AppRecord | null>(null)
+  const [moveEvent, setMoveEvent] = React.useState<MoveEvent | null>(null)
+  const [moveTick, setMoveTick] = React.useState(0)
   const [isMoving, setIsMoving] = React.useState(false)
   const isMovingRef = React.useRef(false)
-  const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 4}}))
+  const sequenceRef = React.useRef(0)
+  const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 6}}))
   const reloadKey = `${refreshTick}:${moveTick}`
 
   const groupsQuery = useViewQuery(appId, form.name, view.id, {
@@ -249,10 +285,10 @@ export function KanbanView(props: ViewComponentProps) {
   const draggable = Boolean(groupField) && movable
   const dragDisabled = !draggable || isMoving
   const dragHint = !groupField
-    ? '视图尚未配置分组字段，暂不支持拖拽'
+    ? '当前视图还没有分组字段'
     : movable
       ? null
-      : (groupsQuery.data?.disabledReason ?? '当前视图暂不支持拖拽')
+      : (groupsQuery.data?.disabledReason ?? '当前视图不支持拖拽调整')
 
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
   const titleField = view.config.titleField || form.displayField || 'id'
@@ -265,20 +301,37 @@ export function KanbanView(props: ViewComponentProps) {
 
   const handleDragStart = (event: DragStartEvent) => {
     if (isMovingRef.current) return
+    const record = (event.active.data.current as { record?: AppRecord } | undefined)?.record
     setActiveId(String(event.active.id))
+    setActiveRecord(record ?? null)
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveId(null)
+    setActiveRecord(null)
     if (!groupField || isMovingRef.current) return
     const over = event.over
     if (!over) return
     const targetGroup = columnGroupMap.get(String(over.id))
     const record = (event.active.data.current as { record?: AppRecord } | undefined)?.record
     if (!targetGroup || !record) return
+    const fromKey = groupKeyForRecord(groupField, record)
+    const toKey = groupKey(targetGroup)
+    if (fromKey === toKey) return
     const rawFrom = rawGroupValue(record[groupField])
     const rawTo = targetGroup.empty ? null : targetGroup.value
     if (rawFrom === rawTo) return
+
+    const sequence = ++sequenceRef.current
+    const nextMove: MoveEvent = {
+      record,
+      recordId: String(record.id),
+      fromKey,
+      toKey,
+      sequence,
+      pending: true,
+    }
+    setMoveEvent(nextMove)
     isMovingRef.current = true
     setIsMoving(true)
     try {
@@ -286,9 +339,18 @@ export function KanbanView(props: ViewComponentProps) {
         changes: {[groupField]: {from: rawFrom, to: rawTo}},
       })
       message.success('已移动')
+      setMoveEvent((previous) => previous?.sequence === sequence ? {...previous, pending: false} : previous)
       onRecordChanged()
-    } catch (caught) {
+    } catch (caught: unknown) {
       message.error(toErrorMessage(caught, '移动失败'))
+      setMoveEvent({
+        record,
+        recordId: String(record.id),
+        fromKey: toKey,
+        toKey: fromKey,
+        sequence: ++sequenceRef.current,
+        pending: false,
+      })
       setMoveTick((tick) => tick + 1)
     } finally {
       isMovingRef.current = false
@@ -296,33 +358,54 @@ export function KanbanView(props: ViewComponentProps) {
     }
   }
 
-  if (groupsQuery.isLoading) {
+  if (!groupField) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <AppLoading center className="min-h-[240px]"/>
-      </div>
+      <Empty className="min-h-[240px]" description="看板视图需要先选择分组字段。">
+        {onOpenViewSettings && (
+          <Button size="sm" onClick={onOpenViewSettings}>去设置分组字段</Button>
+        )}
+      </Empty>
     )
   }
 
-  if (groupsQuery.error) {
+  if (groupsQuery.error && !groupsQuery.data) {
+    return <ViewErrorState message={groupsQuery.error} onRetry={groupsQuery.reload}/>
+  }
+
+  if (groupsQuery.isLoading && !groupsQuery.data) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="px-1 py-6 text-sm text-destructive">{groupsQuery.error}</div>
+      <div className="flex min-h-0 flex-1 gap-3">
+        {[0, 1, 2].map((column) => (
+          <div key={column} className="w-[min(80vw,18rem)] shrink-0 rounded-lg border bg-muted/30 p-2">
+            <ViewSkeleton variant="list" rows={4}/>
+          </div>
+        ))}
       </div>
     )
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {dragHint && <div className="pb-2 text-xs text-muted-foreground">{dragHint}</div>}
+      {(dragHint || isMoving) && (
+        <div className="flex flex-wrap items-center gap-2 pb-2 text-xs text-muted-foreground">
+          {isMoving ? <span className="inline-flex items-center gap-1"><AppLoading size="sm" className="min-h-0"/>正在移动…</span> : dragHint}
+        </div>
+      )}
+      {groupsQuery.error && groupsQuery.data && (
+        <ViewInlineError message={groupsQuery.error} onRetry={groupsQuery.reload}/>
+      )}
       <DndContext
         sensors={sensors}
+        collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => setActiveId(null)}
+        onDragCancel={() => {
+          setActiveId(null)
+          setActiveRecord(null)
+        }}
       >
         <div className="record-list-scroll flex min-h-0 flex-1 gap-3 overflow-x-auto pb-1">
-          {groups.length === 0 && <Empty description="暂无分组"/>}
+          {groups.length === 0 && <Empty description="暂无分组数据"/>}
           {groups.map((group) => {
             const key = groupKey(group)
             return (
@@ -333,18 +416,29 @@ export function KanbanView(props: ViewComponentProps) {
                 view={view}
                 group={group}
                 columnId={key}
+                groupField={groupField}
                 search={search}
                 advancedFilter={advancedFilter}
                 reloadKey={reloadKey}
                 dragDisabled={dragDisabled}
-                activeId={activeId}
                 summaryFields={summaryFields}
-                onOpenRecord={onOpenRecord}
+                moveEvent={moveEvent}
+                onOpenRecord={(recordId) => props.onOpenRecord(recordId)}
               />
             )
           })}
         </div>
+        <DragOverlay>
+          {activeRecord ? (
+            <div className="w-[min(80vw,18rem)] rounded-lg border bg-card p-2.5 text-sm shadow-lg">
+              <div className="truncate font-medium">{viewTitleValue(form, view, activeRecord)}</div>
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
+      {activeId && activeRecord && (
+        <span className="sr-only">正在拖动记录 {String(activeRecord.id)}</span>
+      )}
     </div>
   )
 }

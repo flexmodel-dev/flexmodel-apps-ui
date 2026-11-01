@@ -1,21 +1,130 @@
 import * as React from 'react'
-import {ImageOff, Pencil, Trash2} from 'lucide-react'
+import {ImageOff, MoreHorizontal, Pencil, Trash2} from 'lucide-react'
 import {Button} from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {Pagination} from '@/components/biz/Pagination'
 import {Empty} from '@/components/ui/empty'
-import {AppLoading} from '@/components/biz/AppLoading'
 import {useViewQuery} from '@/components/biz/views/useViewQuery'
 import {type ViewComponentProps, viewDisplayFields, viewTitleValue} from '@/components/biz/views/types'
+import {
+  DEFAULT_VIEW_PAGE_SIZE,
+  layoutFieldLabel,
+  recordFieldText,
+  VIEW_PAGE_SIZE_OPTIONS,
+} from '@/components/biz/views/viewUtils'
+import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
 import {attachmentUrls} from '@/lib/attachments'
-import {formatFieldValue} from '@/lib/fieldConfig'
-import type {AppFormField} from '@/services/appForms'
+import type {AppForm, AppFormField, AppFormViewTab} from '@/services/appForms'
+import type {AppRecord} from '@/services/appRecords'
 import {cn} from '@/lib/utils'
+
+function GalleryCard({
+                       form,
+                       view,
+                       record,
+                       summaryFields,
+                       onOpen,
+                       onEdit,
+                       onDelete,
+                     }: {
+  form: AppForm
+  view: AppFormViewTab
+  record: AppRecord
+  summaryFields: AppFormField[]
+  onOpen: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const recordId = String(record.id)
+  const coverField = view.config.coverField
+  const cover = coverField ? attachmentUrls(record[coverField])[0] ?? null : null
+  const [coverFailed, setCoverFailed] = React.useState(false)
+  const fit = view.config.imageFit ?? 'COVER'
+
+  React.useEffect(() => {
+    setCoverFailed(false)
+  }, [cover])
+
+  return (
+    <article
+      className="group/card relative cursor-pointer overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-shadow hover:shadow-md focus-within:ring-1 focus-within:ring-ring"
+      onClick={onOpen}
+      data-record-id={recordId}
+    >
+      <div className="relative h-36 overflow-hidden bg-muted">
+        {cover && !coverFailed ? (
+          <img
+            src={cover}
+            alt={viewTitleValue(form, view, record)}
+            loading="lazy"
+            className={cn('h-full w-full', fit === 'COVER' ? 'object-cover' : 'object-contain')}
+            onError={() => setCoverFailed(true)}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <ImageOff className="h-8 w-8 text-muted-foreground/50"/>
+          </div>
+        )}
+        <div
+          className="absolute right-1.5 top-1.5 opacity-100 transition-opacity md:opacity-0 md:group-hover/card:opacity-100 md:focus-within:opacity-100">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="secondary" size="icon" className="h-7 w-7 border bg-card/90 shadow-sm"
+                aria-label={`记录「${viewTitleValue(form, view, record)}」更多操作`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4"/>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="h-4 w-4"/>编辑
+              </DropdownMenuItem>
+              <DropdownMenuSeparator/>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>
+                <Trash2 className="h-4 w-4"/>删除
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      <div className="space-y-1 p-3">
+        <button
+          type="button"
+          className="block w-full truncate text-left text-sm font-medium text-foreground hover:text-primary hover:underline"
+          onClick={(event) => {
+            event.stopPropagation()
+            onOpen()
+          }}
+        >
+          {viewTitleValue(form, view, record)}
+        </button>
+        {summaryFields.map((field) => {
+          const text = recordFieldText(field, record[field.name])
+          return (
+            <div key={field.name} className="truncate text-xs text-muted-foreground" title={text}>
+              <span className="text-muted-foreground/80">{layoutFieldLabel(form, field.name, field.label)}：</span>
+              {text}
+            </div>
+          )
+        })}
+      </div>
+    </article>
+  )
+}
 
 /** 画廊视图：图片封面卡片网格，自适应列数，无封面时显示占位。 */
 export function GalleryView(props: ViewComponentProps) {
   const {appId, form, view, search, advancedFilter, refreshTick} = props
   const [page, setPage] = React.useState(1)
-  const [size, setSize] = React.useState(30)
+  const [size, setSize] = React.useState(DEFAULT_VIEW_PAGE_SIZE)
 
   const query = useViewQuery(appId, form.name, view.id, {
     scope: 'RECORDS',
@@ -27,115 +136,70 @@ export function GalleryView(props: ViewComponentProps) {
 
   const rows = query.data?.list ?? []
   const total = query.data?.total ?? 0
+  const pages = Math.max(1, Math.ceil(total / size))
+  const isInitialLoading = query.isLoading && !query.data
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
   const summaryFields = viewDisplayFields(form, view)
     .map((name) => fieldMap.get(name))
     .filter((field): field is AppFormField => Boolean(field))
     .filter((field) => field.name !== view.config.coverField)
     .slice(0, 4)
-  const fit = view.config.imageFit ?? 'COVER'
 
-  const coverUrl = (record: Record<string, unknown>): string | null => {
-    const coverField = view.config.coverField
-    if (!coverField) return null
-    const urls = attachmentUrls(record[coverField])
-    return urls[0] ?? null
+  React.useEffect(() => {
+    setPage(1)
+  }, [search, advancedFilter, view.filter])
+
+  React.useEffect(() => {
+    if (page > pages) setPage(pages)
+  }, [page, pages])
+
+  if (query.error && !query.data) {
+    return <ViewErrorState message={query.error} onRetry={query.reload}/>
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="record-list-scroll min-h-0 flex-1 overflow-y-auto pb-1">
-        {query.isLoading ? (
-          <AppLoading center className="min-h-[240px]"/>
-        ) : (
+      <div className="record-list-scroll relative min-h-0 flex-1 overflow-y-auto pb-1">
+        <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
+        {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
+        {isInitialLoading ? (
+          <ViewSkeleton variant="cards" rows={10}/>
+        ) : rows.length ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {rows.map((row) => {
-              const recordId = String(row.id)
-              const cover = coverUrl(row)
-              return (
-                <div
-                  key={recordId}
-                  className="group/card overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-shadow hover:shadow-md"
-                >
-                  <button
-                    type="button"
-                    className="block w-full"
-                    onClick={() => props.onOpenRecord(recordId)}
-                  >
-                    <div className={cn(
-                      'flex h-36 items-center justify-center overflow-hidden bg-muted',
-                      fit === 'COVER' ? 'object-cover' : 'object-contain',
-                    )}>
-                      {cover ? (
-                        <img
-                          src={cover}
-                          alt={viewTitleValue(form, view, row)}
-                          loading="lazy"
-                          className={cn('h-full w-full', fit === 'COVER' ? 'object-cover' : 'object-contain')}
-                          onError={(event) => {
-                            (event.target as HTMLImageElement).style.display = 'none'
-                          }}
-                        />
-                      ) : (
-                        <ImageOff className="h-8 w-8 text-muted-foreground/50"/>
-                      )}
-                    </div>
-                  </button>
-                  <div className="space-y-1 p-3">
-                    <button
-                      type="button"
-                      className="block w-full truncate text-left text-sm font-medium text-primary hover:underline"
-                      onClick={() => props.onOpenRecord(recordId)}
-                    >
-                      {viewTitleValue(form, view, row)}
-                    </button>
-                    {summaryFields.map((field) => {
-                      const value = row[field.name]
-                      const text = value == null || value === '' ? '-' : formatFieldValue(field, value)
-                      return (
-                        <div key={field.name} className="truncate text-xs text-muted-foreground" title={text}>
-                          {field.label}：{text}
-                        </div>
-                      )
-                    })}
-                    <div
-                      className="flex items-center justify-end gap-1 pt-1 opacity-0 transition-opacity group-hover/card:opacity-100">
-                      <Button
-                        variant="ghost" size="icon" className="h-6 w-6" title="编辑"
-                        onClick={() => props.onOpenRecord(recordId, 'edit')}
-                      >
-                        <Pencil className="h-3 w-3"/>
-                      </Button>
-                      <Button
-                        variant="ghost" size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive" title="删除"
-                        onClick={() => props.onRequestDelete(recordId)}
-                      >
-                        <Trash2 className="h-3 w-3"/>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+            {rows.map((row) => (
+              <GalleryCard
+                key={String(row.id)}
+                form={form}
+                view={view}
+                record={row}
+                summaryFields={summaryFields}
+                onOpen={() => props.onOpenRecord(String(row.id))}
+                onEdit={() => props.onOpenRecord(String(row.id), 'edit')}
+                onDelete={() => props.onRequestDelete(String(row.id))}
+              />
+            ))}
           </div>
+        ) : (
+          <Empty className="min-h-[240px]" description="暂无数据"/>
         )}
-        {!query.isLoading && rows.length === 0 && <Empty description="暂无数据"/>}
       </div>
-      <div className="mt-2 flex items-center justify-between">
-        <Pagination
-          page={page}
-          pages={Math.max(1, Math.ceil(total / size))}
-          total={total}
-          size={size}
-          onChange={setPage}
-          onSizeChange={(nextSize) => {
-            setSize(nextSize)
-            setPage(1)
-          }}
-          className="w-full"
-        />
-      </div>
+      {!isInitialLoading && (
+        <div className="mt-2 flex items-center justify-between">
+          <Pagination
+            page={page}
+            pages={pages}
+            total={total}
+            size={size}
+            sizeOptions={VIEW_PAGE_SIZE_OPTIONS}
+            onChange={setPage}
+            onSizeChange={(nextSize) => {
+              setSize(nextSize)
+              setPage(1)
+            }}
+            className="w-full"
+          />
+        </div>
+      )}
     </div>
   )
 }

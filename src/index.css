@@ -65,6 +65,15 @@
   }
 }
 
+@keyframes view-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
 @layer components {
   .app-table {
     @apply w-full border-collapse text-sm leading-6;
@@ -215,5 +224,54 @@
 
   .grid-stack > .grid-stack-item > .ui-resizable-se {
     bottom: calc(var(--gs-item-margin-bottom) - 2px);
+  }
+
+  /* FullCalendar 使用主题变量，保证浅色/夜间模式与卡片背景一致。 */
+  .fc {
+    --fc-border-color: hsl(var(--border));
+    --fc-page-bg-color: hsl(var(--card));
+    --fc-neutral-bg-color: hsl(var(--muted));
+    --fc-neutral-text-color: hsl(var(--muted-foreground));
+    --fc-today-bg-color: hsl(var(--primary) / 0.08);
+    --fc-now-indicator-color: hsl(var(--destructive));
+    --fc-event-bg-color: hsl(var(--primary));
+    --fc-event-border-color: hsl(var(--primary));
+    --fc-event-text-color: hsl(var(--primary-foreground));
+    --fc-highlight-color: hsl(var(--primary) / 0.12);
+  }
+
+  .fc .fc-scrollgrid,
+  .fc .fc-scrollgrid td,
+  .fc .fc-scrollgrid th {
+    border-color: var(--fc-border-color);
+  }
+
+  .fc .fc-col-header-cell-cushion,
+  .fc .fc-daygrid-day-number {
+    color: hsl(var(--foreground));
+  }
+
+  .fc .fc-day-other .fc-daygrid-day-number {
+    color: hsl(var(--muted-foreground) / 0.6);
+  }
+
+  .fc .fc-daygrid-day.fc-day-today {
+    background: var(--fc-today-bg-color);
+  }
+
+  .fc .fc-event {
+    cursor: pointer;
+    border-radius: 4px;
+    border-color: var(--fc-event-border-color);
+    background-color: var(--fc-event-bg-color);
+    color: var(--fc-event-text-color);
+  }
+
+  .fc .fc-daygrid-event {
+    padding: 0 2px;
+  }
+
+  .fc .fc-timegrid-slot {
+    height: 1.6em;
   }
 }

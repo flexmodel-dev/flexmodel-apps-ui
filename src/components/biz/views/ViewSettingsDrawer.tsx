@@ -1,38 +1,34 @@
 import * as React from 'react'
-import {Trash2} from 'lucide-react'
+import {AlertTriangle, Info} from 'lucide-react'
 import {BizDrawer} from '@/components/ui/drawer'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
-import {Checkbox} from '@/components/ui/checkbox'
 import {Label} from '@/components/ui/label'
 import {message} from '@/components/ui/message'
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select'
+import {ConfirmDialog} from '@/components/ui/dialog'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {type ViewTabConditionDraft, viewTabOperators,} from '@/components/biz/RecordFilterControls'
+import {FieldPicker} from '@/components/biz/views/FieldPicker'
+import {ViewDisplayFieldsEditor} from '@/components/biz/views/ViewDisplayFieldsEditor'
+import {ViewFiltersEditor} from '@/components/biz/views/ViewFiltersEditor'
+import {ViewTypeSettings} from '@/components/biz/views/ViewTypeSettings'
+import {VIEW_TYPE_META, VIEW_TYPE_ORDER} from '@/components/biz/views/viewRegistry'
 import {
-  ConditionValueControl,
-  type ViewTabConditionDraft,
-  viewTabOperatorLabels,
-  viewTabOperators,
-} from '@/components/biz/RecordFilterControls'
-import {
-  attachmentFieldCandidates,
+  allDisplayFieldNames,
   dateFieldCandidates,
+  effectiveDisplayFields,
   kanbanGroupFieldCandidates,
+  MAX_VIEW_DISPLAY_FIELDS,
+  MAX_VIEW_FILTER_CONDITIONS,
   selfReferenceFieldCandidates,
-  titleFieldCandidates,
-  VIEW_TYPE_META,
-  VIEW_TYPE_ORDER,
-} from '@/components/biz/views/viewRegistry'
+  viewTypeAvailability,
+} from '@/components/biz/views/viewUtils'
 import {
   type AppForm,
   type AppFormField,
   type AppFormViewFilter,
   type AppFormViewTab,
-  type AppViewCalendarUnit,
   type AppViewConfig,
-  type AppViewDetailMode,
-  type AppViewGanttScale,
-  type AppViewHierarchyMode,
-  type AppViewImageFit,
   type AppViewType,
   patchAppFormViewTabs,
 } from '@/services/appForms'
@@ -44,6 +40,8 @@ export interface ViewSettingsTarget {
   createType: AppViewType | null
 }
 
+type DisplayMode = 'ALL' | 'CUSTOM'
+
 interface ViewDraft {
   id: string
   label: string
@@ -52,99 +50,147 @@ interface ViewDraft {
   conditions: ViewTabConditionDraft[]
   sortField: string
   sortOrder: 'ASC' | 'DESC'
+  displayMode: DisplayMode
   displayFields: string[]
   config: AppViewConfig
 }
 
 const SORTABLE_BUILTIN_FIELDS = ['id', 'created_at', 'updated_at']
 
-function conditionsFromFilter(filter: AppFormViewFilter | null): ViewTabConditionDraft[] {
+function optionValueFor(field: AppFormField, value: unknown): unknown {
+  if (!field.options?.length) return value
+  if (typeof value !== 'string') return value
+  const match = field.options.find((option) => option.id === value || option.text === value)
+  return match?.id ?? value
+}
+
+function conditionsFromFilter(
+  filter: AppFormViewFilter | null,
+  fieldMap: Map<string, AppFormField>,
+): ViewTabConditionDraft[] {
   const list = filter?._and ?? filter?._or ?? []
   return list.map((condition) => {
     const fieldName = Object.keys(condition)[0]
     const operator = Object.keys(condition[fieldName])[0] as ViewTabConditionDraft['operator']
-    return {fieldName, operator, value: condition[fieldName][operator]}
+    const field = fieldMap.get(fieldName)
+    const value = condition[fieldName][operator]
+    return {
+      fieldName,
+      operator,
+      value: field ? optionValueFor(field, value) as ViewTabConditionDraft['value'] : value,
+    }
   }).filter((condition) => Boolean(condition.fieldName))
 }
 
-function draftFromView(view: AppFormViewTab): ViewDraft {
+function draftFromView(form: AppForm, view: AppFormViewTab): ViewDraft {
+  const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
   const filter = view.filter
   return {
     id: view.id,
     label: view.label,
     type: view.type,
     logic: filter?._or ? '_or' : '_and',
-    conditions: conditionsFromFilter(filter),
+    conditions: conditionsFromFilter(filter, fieldMap),
     sortField: view.sort?.field ?? '',
     sortOrder: view.sort?.order ?? 'DESC',
-    displayFields: [...view.displayFields],
+    displayMode: view.displayFields.length ? 'CUSTOM' : 'ALL',
+    displayFields: view.displayFields.length ? [...view.displayFields] : effectiveDisplayFields(form, view),
     config: {...view.config},
   }
 }
 
-function draftForCreate(type: AppViewType, usedLabels: Set<string>): ViewDraft {
-  const base = `${VIEW_TYPE_META[type].label}视图`
+function uniqueLabel(base: string, usedLabels: Set<string>): string {
   let label = base
   let index = 2
   while (usedLabels.has(label)) {
     label = `${base}${index}`
     index++
   }
+  return label
+}
+
+function draftForCreate(form: AppForm, type: AppViewType): ViewDraft {
+  const meta = VIEW_TYPE_META[type]
+  const usedLabels = new Set(form.viewTabs.map((view) => view.label))
   return {
     id: crypto.randomUUID(),
-    label,
+    label: uniqueLabel(`${meta.label}视图`, usedLabels),
     type,
     logic: '_and',
     conditions: [],
     sortField: '',
     sortOrder: 'DESC',
-    displayFields: [],
-    config: VIEW_TYPE_META[type].defaultConfig(),
+    displayMode: 'ALL',
+    displayFields: allDisplayFieldNames(form),
+    config: meta.defaultConfig(form),
   }
 }
 
-function SectionTitle({children}: { children: React.ReactNode }) {
-  return <div className="pt-2 text-sm font-medium text-foreground">{children}</div>
+function draftKey(draft: ViewDraft): string {
+  return JSON.stringify({
+    label: draft.label.trim(),
+    type: draft.type,
+    logic: draft.logic,
+    conditions: draft.conditions,
+    sortField: draft.sortField,
+    sortOrder: draft.sortOrder,
+    displayMode: draft.displayMode,
+    displayFields: draft.displayMode === 'CUSTOM' ? draft.displayFields : [],
+    config: draft.config,
+  })
 }
 
-function FieldRow({label, children, hint}: { label: string; children: React.ReactNode; hint?: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <Label className="w-24 shrink-0 text-right text-muted-foreground">{label}</Label>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        {children}
-        {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
-      </div>
-    </div>
-  )
+function toViewFilter(
+  logic: '_and' | '_or',
+  conditions: ViewTabConditionDraft[],
+  fieldMap: Map<string, AppFormField>,
+): AppFormViewFilter | null {
+  if (!conditions.length) return null
+  const list = conditions.map((condition) => {
+    const field = fieldMap.get(condition.fieldName)!
+    let value: unknown = condition.value
+    if (field.type === 'NUMBER' || field.type === 'DECIMAL') {
+      value = Number(value)
+    } else if (field.type === 'BOOL') {
+      value = value === true || value === 'true'
+    } else if (typeof value === 'string') {
+      value = value.trim()
+    }
+    return {[field.name]: {[condition.operator]: value}}
+  })
+  return {[logic]: list} as AppFormViewFilter
 }
 
-function FieldSelect({
-                       fields,
-                       value,
-                       onChange,
-                       placeholder = '请选择',
-                       allowEmpty,
-                     }: {
-  fields: AppFormField[]
-  value: string | null
-  onChange: (value: string | null) => void
-  placeholder?: string
-  allowEmpty?: boolean
+function Section({
+                   id,
+                   title,
+                   description,
+                   invalid,
+                   sectionRef,
+                   children,
+                 }: {
+  id: string
+  title: React.ReactNode
+  description?: React.ReactNode
+  invalid?: boolean
+  sectionRef: (node: HTMLElement | null) => void
+  children: React.ReactNode
 }) {
-  const normalized = value == null ? (allowEmpty ? 'none' : '') : value
   return (
-    <Select value={normalized} onValueChange={(next) => onChange(!next || next === 'none' ? null : next)}>
-      <SelectTrigger className="h-8 w-[200px]">
-        <SelectValue placeholder={placeholder}/>
-      </SelectTrigger>
-      <SelectContent>
-        {allowEmpty && <SelectItem value="none">不设置</SelectItem>}
-        {fields.map((field) => (
-          <SelectItem key={field.name} value={field.name}>{field.label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <section
+      ref={sectionRef}
+      id={`view-settings-${id}`}
+      className={cn(
+        'space-y-3 rounded-xl border bg-card p-4 transition-colors',
+        invalid && 'border-destructive/60 ring-1 ring-destructive/20',
+      )}
+    >
+      <div className="space-y-0.5">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      </div>
+      {children}
+    </section>
   )
 }
 
@@ -163,109 +209,136 @@ export function ViewSettingsDrawer({
   target: ViewSettingsTarget
   onSaved: (form: AppForm, viewId: string) => void
 }) {
-  const [draft, setDraft] = React.useState<ViewDraft | null>(null)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isSaving, setIsSaving] = React.useState(false)
   const isCreate = !target.view
+  const [draft, setDraft] = React.useState<ViewDraft | null>(null)
+  const [initialKey, setInitialKey] = React.useState('')
+  const [error, setError] = React.useState<string | null>(null)
+  const [errorSection, setErrorSection] = React.useState<string | null>(null)
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [discardOpen, setDiscardOpen] = React.useState(false)
+  const sectionRefs = React.useRef<Record<string, HTMLElement | null>>({})
 
   React.useEffect(() => {
     if (!open) return
+    const nextDraft = target.view
+      ? draftFromView(form, target.view)
+      : draftForCreate(form, target.createType ?? 'TABLE')
+    setDraft(nextDraft)
+    setInitialKey(draftKey(nextDraft))
     setError(null)
-    const usedLabels = new Set(form.viewTabs.map((view) => view.label))
-    setDraft(target.view ? draftFromView(target.view) : draftForCreate(target.createType ?? 'TABLE', usedLabels))
+    setErrorSection(null)
+    setDiscardOpen(false)
   }, [open, target, form])
 
   if (!draft) return null
 
-  const filterFields = form.fields.filter((field) => !field.builtin)
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
-  const titleFields = titleFieldCandidates(form)
-  const dateFields = dateFieldCandidates(form)
-  const groupFields = kanbanGroupFieldCandidates(form)
-  const coverFields = attachmentFieldCandidates(form)
-  const parentFields = selfReferenceFieldCandidates(form)
+  const filterFields = form.fields.filter((field) => !field.builtin)
   const sortFields = [
     ...filterFields,
-    ...SORTABLE_BUILTIN_FIELDS.map((name) => fieldMap.get(name)).filter((field): field is AppFormField => Boolean(field)),
+    ...SORTABLE_BUILTIN_FIELDS
+      .map((name) => fieldMap.get(name))
+      .filter((field): field is AppFormField => Boolean(field)),
   ]
+  const availability = viewTypeAvailability(form)
+  const typeMeta = VIEW_TYPE_META[draft.type]
+  const dirty = draftKey(draft) !== initialKey
 
-  const update = (patch: Partial<ViewDraft>) => setDraft((previous) => previous ? {...previous, ...patch} : previous)
-  const updateConfig = (patch: Partial<AppViewConfig>) =>
-    setDraft((previous) => previous ? {...previous, config: {...previous.config, ...patch}} : previous)
+  const update = (patch: Partial<ViewDraft>) => {
+    setDraft((previous) => previous ? {...previous, ...patch} : previous)
+    setError(null)
+    setErrorSection(null)
+  }
+  const updateConfig = (config: AppViewConfig) => update({config})
 
   const switchType = (type: AppViewType) => {
-    // 切换类型保留名称、筛选、排序与显示字段，重填目标类型专属配置
-    update({type, config: VIEW_TYPE_META[type].defaultConfig()})
+    if (type === draft.type) return
+    update({type, config: VIEW_TYPE_META[type].defaultConfig(form)})
   }
 
-  const toggleDisplayField = (name: string, checked: boolean) => {
-    update({
-      displayFields: checked
-        ? [...draft.displayFields, name]
-        : draft.displayFields.filter((item) => item !== name),
-    })
+  const scrollToSection = (section: string | null) => {
+    if (!section) return
+    window.setTimeout(() => {
+      sectionRefs.current[section]?.scrollIntoView({behavior: 'smooth', block: 'start'})
+    }, 0)
   }
 
-  const updateCondition = (index: number, condition: ViewTabConditionDraft) => {
-    update({conditions: draft.conditions.map((item, i) => (i === index ? condition : item))})
+  const fail = (messageText: string, section: string) => {
+    setError(messageText)
+    setErrorSection(section)
+    scrollToSection(section)
   }
 
-  const validate = (): string | null => {
+  const validate = (): boolean => {
     const label = draft.label.trim()
-    if (!label || label.length > 32) return '视图名称不能为空，且不能超过 32 个字符'
-    const others = form.viewTabs.filter((view) => view.id !== draft.id)
-    if (others.some((view) => view.label === label)) return `视图名称重复：${label}`
-    if (draft.conditions.length > 10) return '筛选条件最多 10 个'
-    const conditionError = draft.conditions.find((condition) => {
+    if (!label || label.length > 32) {
+      fail('视图名称不能为空，且不能超过 32 个字符', 'base')
+      return false
+    }
+    if (form.viewTabs.some((view) => view.id !== draft.id && view.label === label)) {
+      fail(`视图名称重复：${label}`, 'base')
+      return false
+    }
+    if (draft.conditions.length > MAX_VIEW_FILTER_CONDITIONS) {
+      fail(`筛选条件最多 ${MAX_VIEW_FILTER_CONDITIONS} 个`, 'filter')
+      return false
+    }
+    for (const condition of draft.conditions) {
       const field = fieldMap.get(condition.fieldName)
-      return !field || !viewTabOperators(field).includes(condition.operator) || condition.value === '' || condition.value == null
-    })
-    if (conditionError) {
-      const field = fieldMap.get(conditionError.fieldName)
-      return `筛选条件无效：${field?.label ?? conditionError.fieldName}`
-    }
-    switch (draft.type) {
-      case 'KANBAN':
-        if (!draft.config.groupField) return '看板视图需要选择分组字段'
-        break
-      case 'CALENDAR': {
-        if (!draft.config.startField) return '日历视图需要选择开始字段'
-        const start = fieldMap.get(draft.config.startField)
-        if (draft.config.endField) {
-          const end = fieldMap.get(draft.config.endField)
-          if (start?.type !== end?.type) return '日历开始与结束字段必须同为日期或日期时间'
-        }
-        break
+      if (!field) {
+        fail('筛选条件包含不存在的字段，请重新选择', 'filter')
+        return false
       }
-      case 'HIERARCHY':
-        if (!draft.config.parentField) return '层级视图需要选择本表引用字段'
-        break
-      case 'GANTT': {
-        if (!draft.config.startField || !draft.config.endField) return '甘特视图需要选择开始与结束字段'
-        const start = fieldMap.get(draft.config.startField)
-        const end = fieldMap.get(draft.config.endField)
-        if (start?.type !== end?.type) return '甘特开始与结束字段类型必须一致'
-        break
+      if (!viewTabOperators(field).includes(condition.operator)) {
+        fail(`「${field.label}」不支持当前筛选操作符`, 'filter')
+        return false
       }
-      default:
-        break
+      if (condition.value === '' || condition.value === null || condition.value === undefined) {
+        fail(`请填写「${field.label}」的筛选值`, 'filter')
+        return false
+      }
+      if ((field.type === 'NUMBER' || field.type === 'DECIMAL') && !Number.isFinite(Number(condition.value))) {
+        fail(`「${field.label}」需要有效的数字筛选值`, 'filter')
+        return false
+      }
+      if (field.options?.length && !field.options.some((option) =>
+        option.id === condition.value || (option.id == null && option.text === condition.value))) {
+        fail(`请重新选择「${field.label}」的选项值`, 'filter')
+        return false
+      }
     }
-    return null
+    if (draft.sortField && !fieldMap.has(draft.sortField)) {
+      fail('默认排序字段不存在，请重新选择', 'sort')
+      return false
+    }
+    if (draft.displayMode === 'CUSTOM') {
+      if (!draft.displayFields.length) {
+        fail('自定义显示字段至少选择 1 个', 'display')
+        return false
+      }
+      if (draft.displayFields.length > MAX_VIEW_DISPLAY_FIELDS) {
+        fail(`显示字段不能超过 ${MAX_VIEW_DISPLAY_FIELDS} 个`, 'display')
+        return false
+      }
+      if (draft.displayFields.some((name) => !fieldMap.has(name))) {
+        fail('显示字段包含已删除的字段，请重新选择', 'display')
+        return false
+      }
+    }
+    const configError = validateConfig(draft, form)
+    if (configError) {
+      fail(configError, 'type')
+      return false
+    }
+    return true
   }
 
   const save = async () => {
-    const validation = validate()
-    if (validation) {
-      setError(validation)
-      return
-    }
-    setError(null)
+    if (!validate()) return
     setIsSaving(true)
     try {
       const label = draft.label.trim()
-      const filter: AppFormViewFilter | null = draft.conditions.length
-        ? {[draft.logic]: draft.conditions.map((condition) => ({[condition.fieldName]: {[condition.operator]: condition.value}}))}
-        : null
+      const filter = toViewFilter(draft.logic, draft.conditions, fieldMap)
       const sort = draft.sortField ? {field: draft.sortField, order: draft.sortOrder} : null
       const nextView: AppFormViewTab = {
         id: draft.id,
@@ -273,323 +346,284 @@ export function ViewSettingsDrawer({
         type: draft.type,
         filter,
         sort,
-        displayFields: draft.displayFields,
+        displayFields: draft.displayMode === 'CUSTOM' ? draft.displayFields : [],
         config: draft.config,
       }
-      const nextTabs: AppFormViewTab[] = isCreate
+      const nextTabs = isCreate
         ? [...form.viewTabs, nextView]
         : form.viewTabs.map((view) => (view.id === nextView.id ? nextView : view))
       const updatedForm = await patchAppFormViewTabs(appId, form.name, nextTabs)
       message.success(isCreate ? '视图创建成功' : '视图已保存')
+      setIsSaving(false)
       onSaved(updatedForm, nextView.id)
       onOpenChange(false)
     } catch (caught: unknown) {
       setError(toErrorMessage(caught, '保存视图失败'))
-    } finally {
+      setErrorSection(null)
       setIsSaving(false)
     }
   }
 
-  const typeMeta = VIEW_TYPE_META[draft.type]
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      onOpenChange(true)
+      return
+    }
+    if (isSaving) return
+    if (dirty) {
+      setDiscardOpen(true)
+      return
+    }
+    onOpenChange(false)
+  }
 
   return (
-    <BizDrawer
-      open={open}
-      onOpenChange={onOpenChange}
-      title={isCreate ? `新增${typeMeta.label}视图` : `设置视图：${draft.label}`}
-      width="w-[min(92vw,480px)]"
-      footer={
-        <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSaving}>取消</Button>
-          <Button onClick={() => void save()} disabled={isSaving}>{isSaving ? '保存中…' : '保存'}</Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        {error && (
-          <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}</div>
-        )}
-        <FieldRow label="视图名称">
-          <Input
-            value={draft.label}
-            onChange={(event) => update({label: event.target.value})}
-            className="h-8 w-[240px]"
-            placeholder="视图名称"
-            maxLength={32}
-          />
-        </FieldRow>
-        {!isCreate && (
-          <FieldRow label="视图类型">
-            <Select value={draft.type} onValueChange={(value) => switchType(value as AppViewType)}>
-              <SelectTrigger className="h-8 w-[200px]">
-                <SelectValue/>
-              </SelectTrigger>
-              <SelectContent>
-                {VIEW_TYPE_ORDER.map((type) => (
-                  <SelectItem key={type} value={type}>{VIEW_TYPE_META[type].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FieldRow>
-        )}
-
-        <SectionTitle>数据筛选</SectionTitle>
-        <div className="space-y-2 rounded-lg border p-3">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">筛选满足</span>
-            <Select value={draft.logic} onValueChange={(logic) => update({logic: logic as '_and' | '_or'})}>
-              <SelectTrigger className="h-8 w-28"><SelectValue/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_and">全部条件</SelectItem>
-                <SelectItem value="_or">任一条件</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-muted-foreground">的记录，可不设置条件</span>
-          </div>
-          {draft.conditions.map((condition, index) => {
-            const field = fieldMap.get(condition.fieldName)
-            return (
-              <div key={index} className="flex items-center gap-2">
-                <Select
-                  value={condition.fieldName}
-                  onValueChange={(fieldName) => updateCondition(index, {
-                    fieldName,
-                    operator: '_eq',
-                    value: fieldMap.get(fieldName)?.type === 'BOOL' ? false : '',
-                  })}
-                >
-                  <SelectTrigger className="h-8 w-[140px]"><SelectValue placeholder="字段"/></SelectTrigger>
-                  <SelectContent>
-                    {filterFields.map((item) => <SelectItem key={item.name}
-                                                            value={item.name}>{item.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {field && (
-                  <>
-                    <Select
-                      value={condition.operator}
-                      onValueChange={(operator) => updateCondition(index, {
-                        ...condition,
-                        operator: operator as ViewTabConditionDraft['operator']
-                      })}
-                    >
-                      <SelectTrigger className="h-8 w-[110px]"><SelectValue/></SelectTrigger>
-                      <SelectContent>
-                        {viewTabOperators(field).map((operator) => (
-                          <SelectItem key={operator} value={operator}>{viewTabOperatorLabels[operator]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <ConditionValueControl
-                      field={field}
-                      value={condition.value}
-                      onChange={(value) => updateCondition(index, {...condition, value})}
-                    />
-                  </>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label={`删除条件 ${index + 1}`}
-                  onClick={() => update({conditions: draft.conditions.filter((_, i) => i !== index)})}
-                >
-                  <Trash2 className="h-4 w-4"/>
-                </Button>
-              </div>
-            )
-          })}
-          {filterFields.length > 0 && (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="h-7 text-xs"
-              disabled={draft.conditions.length >= 10}
-              onClick={() => update({
-                conditions: [...draft.conditions, {
-                  fieldName: filterFields[0].name,
-                  operator: '_eq',
-                  value: filterFields[0].type === 'BOOL' ? false : '',
-                }]
-              })}
-            >
-              添加条件
-            </Button>
+    <>
+      <BizDrawer
+        open={open}
+        onOpenChange={handleOpenChange}
+        title={isCreate ? `新增${typeMeta.label}视图` : `设置视图：${draft.label}`}
+        width="w-[min(94vw,560px)]"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={isSaving}>取消</Button>
+            <Button onClick={() => void save()} disabled={isSaving}>{isSaving ? '保存中…' : '保存'}</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && (
+            <div
+              className="sticky top-0 z-20 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive shadow-sm"
+              role="alert">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/>
+              <span className="min-w-0 flex-1">{error}</span>
+            </div>
           )}
-        </div>
 
-        <SectionTitle>默认排序</SectionTitle>
-        <FieldRow label="排序字段">
-          <FieldSelect
-            fields={sortFields}
-            value={draft.sortField || null}
-            onChange={(value) => update({sortField: value ?? ''})}
-            placeholder="创建时间倒序"
-            allowEmpty
-          />
-          <Select
-            value={draft.sortOrder}
-            onValueChange={(order) => update({sortOrder: order as 'ASC' | 'DESC'})}
-            disabled={!draft.sortField}
+          <Section
+            id="base"
+            title="基本信息"
+            description="名称用于页签展示；类型决定专属配置和展示方式。"
+            invalid={errorSection === 'base'}
+            sectionRef={(node) => {
+              sectionRefs.current.base = node
+            }}
           >
-            <SelectTrigger className="h-8 w-[100px]"><SelectValue/></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ASC">升序</SelectItem>
-              <SelectItem value="DESC">降序</SelectItem>
-            </SelectContent>
-          </Select>
-        </FieldRow>
-
-        <SectionTitle>显示字段（卡片摘要等区域，详情仍使用表单布局）</SectionTitle>
-        <div className="grid grid-cols-2 gap-2 rounded-lg border p-3 md:grid-cols-3">
-          {filterFields.map((field) => (
-            <label key={field.name} className="flex items-center gap-2 text-sm" title={field.label}>
-              <Checkbox
-                checked={draft.displayFields.includes(field.name)}
-                onCheckedChange={(checked) => toggleDisplayField(field.name, checked === true)}
+            <div className="space-y-1.5">
+              <Label htmlFor="view-name" className="text-sm">视图名称</Label>
+              <Input
+                id="view-name"
+                autoFocus
+                value={draft.label}
+                maxLength={32}
+                placeholder="视图名称"
+                onChange={(event) => update({label: event.target.value})}
               />
-              <span className="truncate">{field.label}</span>
-            </label>
-          ))}
-        </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">视图类型</Label>
+              <Select value={draft.type} onValueChange={(value) => switchType(value as AppViewType)}>
+                <SelectTrigger className="h-9 w-full" aria-label="视图类型"><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  {VIEW_TYPE_ORDER.map((type) => {
+                    const meta = VIEW_TYPE_META[type]
+                    const state = availability[type]
+                    const disabled = !state.enabled && type !== draft.type
+                    return (
+                      <SelectItem key={type} value={type} disabled={disabled}>
+                        {meta.label}{disabled && state.reason ? `（${state.reason}）` : ''}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{typeMeta.description}。切换类型会重置专属设置。</p>
+            </div>
+          </Section>
 
-        <>
-          <SectionTitle>{typeMeta.label}专属设置</SectionTitle>
-          <div className="space-y-3 rounded-lg border p-3">
-            {draft.type === 'KANBAN' && (
-              <>
-                <FieldRow label="分组字段">
-                  <FieldSelect fields={groupFields} value={draft.config.groupField ?? null}
-                               onChange={(value) => updateConfig({groupField: value})}/>
-                </FieldRow>
-                <FieldRow label="卡片标题">
-                  <FieldSelect fields={titleFields} value={draft.config.titleField ?? null}
-                               onChange={(value) => updateConfig({titleField: value})} allowEmpty
-                               placeholder="使用主显字段"/>
-                </FieldRow>
-              </>
-            )}
-            {draft.type === 'CALENDAR' && (
-              <>
-                <FieldRow label="开始字段">
-                  <FieldSelect fields={dateFields} value={draft.config.startField ?? null}
-                               onChange={(value) => updateConfig({startField: value})}/>
-                </FieldRow>
-                <FieldRow label="结束字段">
-                  <FieldSelect fields={dateFields} value={draft.config.endField ?? null}
-                               onChange={(value) => updateConfig({endField: value})} allowEmpty placeholder="可选"/>
-                </FieldRow>
-                <FieldRow label="标题字段">
-                  <FieldSelect fields={titleFields} value={draft.config.titleField ?? null}
-                               onChange={(value) => updateConfig({titleField: value})} allowEmpty
-                               placeholder="使用主显字段"/>
-                </FieldRow>
-                <FieldRow label="默认周期">
-                  <Select value={draft.config.calendarUnit ?? 'MONTH'}
-                          onValueChange={(unit) => updateConfig({calendarUnit: unit as AppViewCalendarUnit})}>
-                    <SelectTrigger className="h-8 w-[120px]"><SelectValue/></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MONTH">月</SelectItem>
-                      <SelectItem value="WEEK">周</SelectItem>
-                      <SelectItem value="DAY">日</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldRow>
-              </>
-            )}
-            {draft.type === 'GALLERY' && (
-              <>
-                <FieldRow label="封面字段">
-                  <FieldSelect fields={coverFields} value={draft.config.coverField ?? null}
-                               onChange={(value) => updateConfig({coverField: value})} allowEmpty placeholder="可选"/>
-                </FieldRow>
-                <FieldRow label="标题字段">
-                  <FieldSelect fields={titleFields} value={draft.config.titleField ?? null}
-                               onChange={(value) => updateConfig({titleField: value})} allowEmpty
-                               placeholder="使用主显字段"/>
-                </FieldRow>
-                <FieldRow label="图片裁切">
-                  <Select value={draft.config.imageFit ?? 'COVER'}
-                          onValueChange={(fit) => updateConfig({imageFit: fit as AppViewImageFit})}>
-                    <SelectTrigger className="h-8 w-[120px]"><SelectValue/></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="COVER">裁切填满</SelectItem>
-                      <SelectItem value="CONTAIN">完整显示</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldRow>
-              </>
-            )}
-            {draft.type === 'DETAIL' && (
-              <FieldRow label="展示模式">
-                <Select value={draft.config.detailMode ?? 'LIST'}
-                        onValueChange={(mode) => updateConfig({detailMode: mode as AppViewDetailMode})}>
-                  <SelectTrigger className="h-8 w-[200px]"><SelectValue/></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LIST">列表 + 详情</SelectItem>
-                    <SelectItem value="SINGLE">仅显示第一条详情</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FieldRow>
-            )}
-            {draft.type === 'HIERARCHY' && (
-              <>
-                <FieldRow label="父节点字段">
-                  {parentFields.length ? (
-                    <FieldSelect fields={parentFields} value={draft.config.parentField ?? null}
-                                 onChange={(value) => updateConfig({parentField: value})}/>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                        当前表单暂无关联本表单的引用字段，请先在表单设计中添加一个“关联记录”字段并选择本表单
-                      </span>
-                  )}
-                </FieldRow>
-                <FieldRow label="展示形态">
-                  <Select value={draft.config.hierarchyMode ?? 'TREE'}
-                          onValueChange={(mode) => updateConfig({hierarchyMode: mode as AppViewHierarchyMode})}>
-                    <SelectTrigger className="h-8 w-[120px]"><SelectValue/></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="TREE">层级树</SelectItem>
-                      <SelectItem value="TABLE">树形表格</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldRow>
-              </>
-            )}
-            {draft.type === 'GANTT' && (
-              <>
-                <FieldRow label="开始字段">
-                  <FieldSelect fields={dateFields} value={draft.config.startField ?? null}
-                               onChange={(value) => updateConfig({startField: value})}/>
-                </FieldRow>
-                <FieldRow label="结束字段">
-                  <FieldSelect fields={dateFields} value={draft.config.endField ?? null}
-                               onChange={(value) => updateConfig({endField: value})}/>
-                </FieldRow>
-                <FieldRow label="标题字段">
-                  <FieldSelect fields={titleFields} value={draft.config.titleField ?? null}
-                               onChange={(value) => updateConfig({titleField: value})} allowEmpty
-                               placeholder="使用主显字段"/>
-                </FieldRow>
-                <FieldRow label="默认刻度">
-                  <Select value={draft.config.ganttScale ?? 'WEEK'}
-                          onValueChange={(scale) => updateConfig({ganttScale: scale as AppViewGanttScale})}>
-                    <SelectTrigger className="h-8 w-[120px]"><SelectValue/></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DAY">日</SelectItem>
-                      <SelectItem value="WEEK">周</SelectItem>
-                      <SelectItem value="MONTH">月</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldRow>
-              </>
-            )}
-          </div>
-        </>
-        <p className={cn('text-xs text-muted-foreground')}>
-          {typeMeta.description}。共享配置在点击“保存”后生效。
-        </p>
-      </div>
-    </BizDrawer>
+          {draft.type !== 'TABLE' && (
+            <Section
+              id="type"
+              title={`${typeMeta.label}专属设置`}
+              description="必填项缺失时无法保存。"
+              invalid={errorSection === 'type'}
+              sectionRef={(node) => {
+                sectionRefs.current.type = node
+              }}
+            >
+              <ViewTypeSettings form={form} type={draft.type} config={draft.config} onChange={updateConfig}/>
+            </Section>
+          )}
+
+          <Section
+            id="filter"
+            title="数据筛选"
+            description="视图筛选会与关键词、临时高级查询同时生效。"
+            invalid={errorSection === 'filter'}
+            sectionRef={(node) => {
+              sectionRefs.current.filter = node
+            }}
+          >
+            <ViewFiltersEditor
+              fields={filterFields}
+              logic={draft.logic}
+              conditions={draft.conditions}
+              onChange={({logic, conditions}) => update({logic, conditions})}
+            />
+          </Section>
+
+          <Section
+            id="sort"
+            title="默认排序"
+            description="未设置时按创建时间倒序；分页会追加记录 ID 保证稳定。"
+            invalid={errorSection === 'sort'}
+            sectionRef={(node) => {
+              sectionRefs.current.sort = node
+            }}
+          >
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px]">
+              <FieldPicker
+                fields={sortFields}
+                value={draft.sortField || null}
+                allowEmpty
+                emptyLabel="创建时间倒序"
+                placeholder="选择排序字段"
+                onChange={(fieldName) => update({sortField: fieldName ?? ''})}
+              />
+              <Select
+                value={draft.sortOrder}
+                onValueChange={(order) => update({sortOrder: order as 'ASC' | 'DESC'})}
+                disabled={!draft.sortField}
+              >
+                <SelectTrigger className="h-9 w-full" aria-label="排序方向"><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ASC">升序</SelectItem>
+                  <SelectItem value="DESC">降序</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </Section>
+
+          <Section
+            id="display"
+            title="显示字段"
+            description="只影响表格列、卡片摘要等区域，完整详情仍使用表单布局。"
+            invalid={errorSection === 'display'}
+            sectionRef={(node) => {
+              sectionRefs.current.display = node
+            }}
+          >
+            <ViewDisplayFieldsEditor
+              form={form}
+              fields={filterFields}
+              mode={draft.displayMode}
+              selected={draft.displayFields}
+              onModeChange={(mode) => {
+                if (mode === 'CUSTOM') {
+                  update({
+                    displayMode: mode,
+                    displayFields: draft.displayFields.length ? draft.displayFields : allDisplayFieldNames(form),
+                  })
+                } else {
+                  update({displayMode: mode})
+                }
+              }}
+              onSelectedChange={(names) => update({displayFields: names})}
+            />
+          </Section>
+
+          <p className="flex items-start gap-1.5 pb-2 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0"/>
+            共享配置在点击“保存”后生效；搜索、临时排序、展开状态等浏览操作不会写入视图配置。
+          </p>
+        </div>
+      </BizDrawer>
+
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="放弃未保存的修改"
+        message="当前视图配置存在未保存的修改，关闭后将丢失。确定继续吗？"
+        confirmText="放弃修改"
+        onConfirm={() => {
+          setDiscardOpen(false)
+          onOpenChange(false)
+        }}
+      />
+    </>
   )
+}
+
+function validateConfig(draft: ViewDraft, form: AppForm): string | null {
+  const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
+  const exists = (name: string | null | undefined) => !!name && fieldMap.has(name)
+  const config = draft.config
+  const validateOptionalField = (name: string | null | undefined, label: string) => {
+    if (name && !fieldMap.has(name)) return `${label}不存在，请重新选择`
+    return null
+  }
+  switch (draft.type) {
+    case 'KANBAN': {
+      if (!exists(config.groupField)) return '看板视图需要选择分组字段'
+      const groupField = fieldMap.get(config.groupField!)!
+      if (!kanbanGroupFieldCandidates(form).some((field) => field.name === groupField.name)) {
+        return '看板分组字段类型不支持'
+      }
+      const titleError = validateOptionalField(config.titleField, '看板标题字段')
+      if (titleError) return titleError
+      break
+    }
+    case 'CALENDAR': {
+      if (!exists(config.startField)) return '日历视图需要选择开始字段'
+      const startField = fieldMap.get(config.startField!)!
+      if (!dateFieldCandidates(form).some((field) => field.name === startField.name)) {
+        return '日历开始字段必须是日期或日期时间'
+      }
+      if (config.endField) {
+        const endField = fieldMap.get(config.endField)
+        if (!endField) return '日历结束字段不存在'
+        if (endField.type !== startField.type) return '日历开始与结束字段必须同为日期或日期时间'
+      }
+      const titleError = validateOptionalField(config.titleField, '日历标题字段')
+      if (titleError) return titleError
+      break
+    }
+    case 'GALLERY': {
+      if (config.coverField) {
+        const coverField = fieldMap.get(config.coverField)
+        if (!coverField) return '画廊封面字段不存在'
+        if (!['FILE', 'IMAGE', 'AVATAR'].includes(coverField.type)) return '画廊封面字段必须是附件、图片或头像字段'
+      }
+      const titleError = validateOptionalField(config.titleField, '画廊标题字段')
+      if (titleError) return titleError
+      break
+    }
+    case 'HIERARCHY': {
+      if (!exists(config.parentField)) return '层级视图需要选择本表引用字段'
+      if (!selfReferenceFieldCandidates(form).some((field) => field.name === config.parentField)) {
+        return '层级父节点字段必须是关联本表单的引用字段'
+      }
+      const titleError = validateOptionalField(config.titleField, '层级标题字段')
+      if (titleError) return titleError
+      break
+    }
+    case 'GANTT': {
+      if (!exists(config.startField) || !exists(config.endField)) return '甘特视图需要选择开始与结束字段'
+      if (config.startField === config.endField) return '甘特开始与结束不能是同一个字段'
+      const startField = fieldMap.get(config.startField!)!
+      const endField = fieldMap.get(config.endField!)!
+      if (!dateFieldCandidates(form).some((field) => field.name === startField.name)
+        || !dateFieldCandidates(form).some((field) => field.name === endField.name)) {
+        return '甘特开始与结束字段必须是日期或日期时间'
+      }
+      if (startField.type !== endField.type) return '甘特开始与结束字段类型必须一致'
+      const titleError = validateOptionalField(config.titleField, '甘特标题字段')
+      if (titleError) return titleError
+      break
+    }
+    default:
+      break
+  }
+  return null
 }

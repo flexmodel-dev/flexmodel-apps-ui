@@ -13,7 +13,7 @@ import {AppLoading} from '@/components/biz/AppLoading'
 import {useNotifications} from './NotificationProvider'
 
 export function NotificationBell({className}: { className?: string }) {
-  const {summary, recent, error, refresh} = useNotifications()
+  const {summary, recent, error, refresh, openNotification} = useNotifications()
   return <DropdownMenu onOpenChange={open => open && refresh()}><DropdownMenuTrigger asChild><Button variant="ghost"
                                                                                                      size="icon"
                                                                                                      title="通知"
@@ -28,11 +28,11 @@ export function NotificationBell({className}: { className?: string }) {
       refresh()
     }}>加载失败，点击重试</DropdownMenuItem> : !summary ?
       <AppLoading size="sm" className="p-4" label="正在加载通知"/> : recent.length ? recent.map(item =>
-        <DropdownMenuItem key={item.id} asChild><Link to={`/notifications?open=${encodeURIComponent(item.id)}`}
-                                                      className="block"><p className="truncate text-sm">{item.title}</p>
+        <DropdownMenuItem key={item.id} onSelect={() => openNotification(item.id)} className="block cursor-pointer"><p
+          className="truncate text-sm">{item.title}</p>
           <p
             className="mt-1 text-xs text-muted-foreground">{item.appName} · {new Date(item.receivedAt).toLocaleString()}</p>
-        </Link></DropdownMenuItem>) : <p className="p-4 text-sm text-muted-foreground">暂无未读通知</p>}
+        </DropdownMenuItem>) : <p className="p-4 text-sm text-muted-foreground">暂无未读通知</p>}
     <DropdownMenuSeparator/><DropdownMenuItem asChild><Link to="/notifications">查看全部</Link></DropdownMenuItem>
   </DropdownMenuContent></DropdownMenu>
 }

@@ -4,11 +4,17 @@ import {Button} from '@/components/ui/button'
 import {Checkbox} from '@/components/ui/checkbox'
 import {Pagination} from '@/components/biz/Pagination'
 import {Empty} from '@/components/ui/empty'
-import {AppLoading} from '@/components/biz/AppLoading'
 import {AttachmentCell} from '@/components/biz/form/AttachmentField'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {useViewQuery} from '@/components/biz/views/useViewQuery'
 import {type ViewComponentProps, viewDisplayFields} from '@/components/biz/views/types'
+import {
+  DEFAULT_VIEW_PAGE_SIZE,
+  layoutFieldLabel,
+  VIEW_PAGE_SIZE_OPTIONS,
+  viewPageCount,
+} from '@/components/biz/views/viewUtils'
+import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
 import {formatFieldValue} from '@/lib/fieldConfig'
 import {isAttachmentField} from '@/lib/attachments'
 import type {AppFormField} from '@/services/appForms'
@@ -19,7 +25,7 @@ import {cn} from '@/lib/utils'
 export function TableView(props: ViewComponentProps) {
   const {appId, form, view, search, advancedFilter, refreshTick, selected = [], onSelectedChange} = props
   const [page, setPage] = React.useState(1)
-  const [size, setSize] = React.useState(30)
+  const [size, setSize] = React.useState(DEFAULT_VIEW_PAGE_SIZE)
   const [sortKey, setSortKey] = React.useState('')
   const [sortAsc, setSortAsc] = React.useState(true)
 
@@ -48,11 +54,30 @@ export function TableView(props: ViewComponentProps) {
 
   const rows = query.data?.list ?? []
   const total = query.data?.total ?? 0
-  const pages = Math.max(1, Math.ceil(total / size))
-  const isLoading = query.isLoading
+  const pages = viewPageCount(total, size)
+  const isInitialLoading = query.isLoading && !query.data
 
-  const toggleAll = () => onSelectedChange?.(
-    selected.length === rows.length ? [] : rows.map((row) => String(row.id)))
+  React.useEffect(() => {
+    setPage(1)
+  }, [search, advancedFilter, view.filter])
+
+  // 勾选只作用于当前页，翻页/改变每页数量时清空，避免对不可见记录执行批量操作。
+  const selectionResetKey = `${page}:${size}`
+  const previousSelectionKey = React.useRef(selectionResetKey)
+  React.useEffect(() => {
+    if (previousSelectionKey.current === selectionResetKey) return
+    previousSelectionKey.current = selectionResetKey
+    onSelectedChange?.([])
+  }, [selectionResetKey, onSelectedChange])
+
+  React.useEffect(() => {
+    if (page > pages) setPage(pages)
+  }, [page, pages])
+
+  const rowIds = rows.map((row) => String(row.id))
+  const allSelected = rowIds.length > 0 && rowIds.every((id) => selected.includes(id))
+  const someSelected = rowIds.some((id) => selected.includes(id))
+  const toggleAll = () => onSelectedChange?.(allSelected ? [] : rowIds)
   const toggleOne = (id: string) => onSelectedChange?.(
     selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id])
 
@@ -106,11 +131,19 @@ export function TableView(props: ViewComponentProps) {
     return formatFieldValue(field, value)
   }
 
+  if (query.error && !query.data) {
+    return <ViewErrorState message={query.error} onRetry={query.reload}/>
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="data-list app-table-scroll record-list-scroll min-h-0 min-w-0 flex-1">
-        {isLoading ? (
-          <AppLoading center className="min-h-[240px]"/>
+      <div className="data-list app-table-scroll record-list-scroll relative min-h-0 min-w-0 flex-1">
+        <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
+        {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
+        {isInitialLoading ? (
+          <ViewSkeleton variant="table" rows={6}/>
+        ) : rows.length === 0 ? (
+          <Empty className="flex-1" description="暂无数据"/>
         ) : (
           <table
             className="app-table record-list-table table-fixed bg-background"
@@ -127,16 +160,22 @@ export function TableView(props: ViewComponentProps) {
             <thead>
             <tr>
               <th className="record-list-selection">
-                <Checkbox checked={rows.length > 0 && selected.length === rows.length} onCheckedChange={toggleAll}/>
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                  onCheckedChange={toggleAll}
+                  aria-label="选择本页全部记录"
+                />
               </th>
               {columns.map((column) => (
                 <th
                   key={column.name}
                   className={cn('cursor-pointer select-none hover:text-primary', column.name === primaryField?.name && 'record-list-primary')}
                   onClick={() => sortBy(column.name)}
+                  aria-sort={sortKey === column.name ? (sortAsc ? 'ascending' : 'descending') : 'none'}
+                  title={`点击切换「${layoutFieldLabel(form, column.name, column.label)}」排序`}
                 >
                 <span className="inline-flex items-center gap-1">
-                  {form.layout.items.find((item) => item.type === 'FIELD' && item.name === column.name)?.label?.trim() || column.label}
+                  {layoutFieldLabel(form, column.name, column.label)}
                   <span className="inline-flex h-3 w-3 shrink-0 items-center justify-center">
                     {sortKey === column.name && (sortAsc ? <ArrowDown className="h-3 w-3"/> :
                       <ArrowUp className="h-3 w-3"/>)}
@@ -161,7 +200,8 @@ export function TableView(props: ViewComponentProps) {
                   onClick={() => props.onOpenRecord(recordId)}
                 >
                   <td className="record-list-selection" onClick={(event) => event.stopPropagation()}>
-                    <Checkbox checked={selected.includes(recordId)} onCheckedChange={() => toggleOne(recordId)}/>
+                    <Checkbox checked={selected.includes(recordId)} onCheckedChange={() => toggleOne(recordId)}
+                              aria-label={`选择第 ${rows.indexOf(row) + 1} 条记录`}/>
                   </td>
                   {columns.map((column) => (
                     <td key={column.name} className={cn(column.name === primaryField?.name && 'record-list-primary')}>
@@ -197,22 +237,24 @@ export function TableView(props: ViewComponentProps) {
             </tbody>
           </table>
         )}
-        {!isLoading && rows.length === 0 && <Empty description="暂无数据"/>}
       </div>
-      <div className="mt-2 flex items-center justify-between">
-        <Pagination
-          page={page}
-          pages={pages}
-          total={total}
-          size={size}
-          onChange={setPage}
-          onSizeChange={(nextSize) => {
-            setSize(nextSize)
-            setPage(1)
-          }}
-          className="w-full"
-        />
-      </div>
+      {!isInitialLoading && (
+        <div className="mt-2 flex items-center justify-between">
+          <Pagination
+            page={page}
+            pages={pages}
+            total={total}
+            size={size}
+            sizeOptions={VIEW_PAGE_SIZE_OPTIONS}
+            onChange={setPage}
+            onSizeChange={(nextSize) => {
+              setSize(nextSize)
+              setPage(1)
+            }}
+            className="w-full"
+          />
+        </div>
+      )}
     </div>
   )
 }

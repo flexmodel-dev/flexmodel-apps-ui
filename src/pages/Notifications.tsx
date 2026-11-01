@@ -3,18 +3,11 @@ import {Link, useSearchParams} from 'react-router-dom'
 import {Bell, CheckCheck, RefreshCw} from 'lucide-react'
 import {AppLayout} from '@/components/layout/AppLayout'
 import {Button} from '@/components/ui/button'
-import {Drawer, DrawerContent, DrawerDescription, DrawerTitle} from '@/components/ui/drawer'
 import {Pagination} from '@/components/biz/Pagination'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {useNotifications} from '@/components/notifications/NotificationProvider'
-import {
-  type AppNotification,
-  listNotifications,
-  notificationDetail,
-  readAllNotifications,
-  readNotification
-} from '@/services/notifications'
-import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
+import {NotificationDetailDrawer} from '@/components/notifications/NotificationDetailDrawer'
+import {type AppNotification, listNotifications, readAllNotifications, readNotification} from '@/services/notifications'
 import {message} from '@/components/ui/message'
 import {cn, toErrorMessage} from '@/lib/utils'
 
@@ -23,10 +16,9 @@ export default function Notifications() {
   const {summary, revision, status: connection, error: summaryError, refresh} = useNotifications()
   const [status, setStatus] = React.useState('unread'), [category, setCategory] = React.useState(''), [appId, setAppId] = React.useState(''), [page, setPage] = React.useState(1)
   const [items, setItems] = React.useState<AppNotification[]>([]), [total, setTotal] = React.useState(0), [error, setError] = React.useState(''), [loading, setLoading] = React.useState(true)
-  const [detail, setDetail] = React.useState<AppNotification | null>(null), [detailError, setDetailError] = React.useState(''), [showApproval, setShowApproval] = React.useState(false), [showDiscussion, setShowDiscussion] = React.useState(false), [busy, setBusy] = React.useState(false)
+  const [busy, setBusy] = React.useState(false)
   const [permission, setPermission] = React.useState(() => 'Notification' in window ? Notification.permission : 'unsupported')
   const [localRevision, reload] = React.useReducer(value => value + 1, 0)
-  const [detailRevision, reloadDetail] = React.useReducer(value => value + 1, 0)
   const open = params.get('open')
   React.useEffect(() => {
     let active = true;
@@ -47,34 +39,6 @@ export default function Notifications() {
       active = false
     }
   }, [status, category, appId, page, revision, localRevision])
-  React.useEffect(() => {
-    if (!open) return;
-    let active = true;
-    setDetail(null);
-    setDetailError('');
-    setShowApproval(false);
-    setShowDiscussion(false)
-    void notificationDetail(open).then(async value => {
-      if (!active) return;
-      setDetail(value);
-      if (!value.readAt) {
-        try {
-          await readNotification(open);
-          if (active) {
-            refresh();
-            reload()
-          }
-        } catch {
-          if (active) message.error('标记已读失败，请重试')
-        }
-      }
-    }).catch(cause => {
-      if (active) setDetailError(toErrorMessage(cause, '读取通知失败'))
-    })
-    return () => {
-      active = false
-    }
-  }, [open, detailRevision])
   const mark = async (id?: string) => {
     setBusy(true);
     try {
@@ -155,50 +119,17 @@ export default function Notifications() {
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => void mark(item.id)}>标记已读</Button>}
           </div>)}</div>
       <Pagination page={page} pages={Math.max(1, Math.ceil(total / 30))} size={30} total={total} onChange={setPage}/>
-      <Drawer open={!!open} onOpenChange={value => {
-        if (!value) setParams({}, {replace: true})
-      }}><DrawerContent className="w-[min(96vw,600px)]">
-        <div className="border-b p-6 pr-12"><DrawerTitle>{detail?.title ?? '通知详情'}</DrawerTitle><DrawerDescription
-          className="mt-2">{detail ? `${detail.appName} · ${new Date(detail.receivedAt).toLocaleString()}` : '查看消息内容'}</DrawerDescription>
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto p-6">{detailError ?
-          <p role="alert" className="text-sm text-destructive">{detailError}<Button variant="link"
-                                                                                    onClick={reloadDetail}>重试</Button>
-          </p> : !detail ? <AppLoading className="py-8" label="正在加载通知详情"/> :
-            <p className="whitespace-pre-wrap break-words text-sm leading-7">{detail.content}</p>}</div>
-        {detail && <div className="border-t p-4">{detail.canNavigate && detail.approval ?
-          <Button
-            onClick={() => setShowApproval(true)}>查看审批</Button> : detail.canNavigate && detail.formName && detail.recordId ?
-            <Button
-              onClick={() => setShowDiscussion(true)}>查看讨论</Button> : detail.instanceId || detail.discussionId ?
-              <p className="text-xs text-muted-foreground">关联内容已不可用或暂无查看权限</p> : null}</div>}
-      </DrawerContent></Drawer>
-      {showApproval && detail?.approval &&
-        <AppRecordDrawer
-          open
-          onOpenChange={(open) => {
-            if (!open) setShowApproval(false)
-          }}
-          appId={detail.approval.appId}
-          formName={detail.approval.formName}
-          recordId={detail.approval.recordId}
-          approvalInstanceId={detail.approval.id}
-          stacked={false}
-          onSaved={reload}
-        />}
-      {showDiscussion && detail?.formName && detail.recordId &&
-        <AppRecordDrawer
-          open
-          onOpenChange={(open) => {
-            if (!open) setShowDiscussion(false)
-          }}
-          appId={detail.appId}
-          formName={detail.formName}
-          recordId={detail.recordId}
-          initialAsideTab="discussion"
-          stacked={false}
-          onSaved={reload}
-        />}
+      <NotificationDetailDrawer
+        notificationId={open}
+        open={Boolean(open)}
+        onOpenChange={(next) => {
+          if (!next) setParams({}, {replace: true})
+        }}
+        onRead={() => {
+          refresh()
+          reload()
+        }}
+      />
     </div>
   </AppLayout>
 }

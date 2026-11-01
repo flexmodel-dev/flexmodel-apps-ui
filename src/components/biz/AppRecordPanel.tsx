@@ -185,7 +185,7 @@ export function AppRecordPanel({
   const renderActions = () => {
     if (mode === 'view') {
       return (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {approvalLocked && (
             <span className="mr-auto inline-flex items-center gap-1 text-xs font-medium text-destructive">
               <LockKeyhole className="h-3.5 w-3.5"/>审批中，记录已锁定

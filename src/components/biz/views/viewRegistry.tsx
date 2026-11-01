@@ -9,14 +9,17 @@ import {
   Network,
   Table,
 } from 'lucide-react'
-import type {AppForm, AppFormField, AppViewConfig, AppViewType} from '@/services/appForms'
+import type {AppForm, AppViewConfig, AppViewType} from '@/services/appForms'
+import {defaultViewConfig} from '@/components/biz/views/viewUtils'
+
+export type {ViewTypeAvailability} from '@/components/biz/views/viewUtils'
 
 export interface ViewTypeMeta {
   type: AppViewType
   label: string
   icon: LucideIcon
   description: string
-  defaultConfig: () => AppViewConfig
+  defaultConfig: (form: AppForm) => AppViewConfig
 }
 
 export const VIEW_TYPE_META: Record<AppViewType, ViewTypeMeta> = {
@@ -25,81 +28,53 @@ export const VIEW_TYPE_META: Record<AppViewType, ViewTypeMeta> = {
     label: '表格',
     icon: Table,
     description: '经典表格分页展示，支持勾选、排序与批量操作',
-    defaultConfig: () => ({}),
+    defaultConfig: (form) => defaultViewConfig(form, 'TABLE'),
   },
   KANBAN: {
     type: 'KANBAN',
     label: '看板',
     icon: KanbanSquare,
     description: '按单值字段分列展示卡片，拖拽卡片修改分组',
-    defaultConfig: () => ({groupField: null, titleField: null}),
+    defaultConfig: (form) => defaultViewConfig(form, 'KANBAN'),
   },
   CALENDAR: {
     type: 'CALENDAR',
     label: '日历',
     icon: CalendarDays,
     description: '按日期查看事件，拖拽调整日程',
-    defaultConfig: () => ({startField: null, endField: null, titleField: null, calendarUnit: 'MONTH'}),
+    defaultConfig: (form) => defaultViewConfig(form, 'CALENDAR'),
   },
   GALLERY: {
     type: 'GALLERY',
     label: '画廊',
     icon: GalleryHorizontalEnd,
     description: '以图片封面卡片网格浏览记录',
-    defaultConfig: () => ({coverField: null, titleField: null, imageFit: 'COVER'}),
+    defaultConfig: (form) => defaultViewConfig(form, 'GALLERY'),
   },
   DETAIL: {
     type: 'DETAIL',
     label: '详情',
     icon: List,
     description: '列表加详情或直接展示首条记录详情',
-    defaultConfig: () => ({detailMode: 'LIST'}),
+    defaultConfig: (form) => defaultViewConfig(form, 'DETAIL'),
   },
   HIERARCHY: {
     type: 'HIERARCHY',
     label: '层级',
     icon: Network,
     description: '按本表父子引用展示层级树或树形表格',
-    defaultConfig: () => ({parentField: null, hierarchyMode: 'TREE'}),
+    defaultConfig: (form) => defaultViewConfig(form, 'HIERARCHY'),
   },
   GANTT: {
     type: 'GANTT',
     label: '甘特',
     icon: GanttChartSquare,
     description: '按起止日期展示排期条，支持整体移动与两端拉伸',
-    defaultConfig: () => ({startField: null, endField: null, titleField: null, ganttScale: 'WEEK'}),
+    defaultConfig: (form) => defaultViewConfig(form, 'GANTT'),
   },
 }
 
 export const VIEW_TYPE_ORDER: AppViewType[] = ['TABLE', 'KANBAN', 'CALENDAR', 'GALLERY', 'DETAIL', 'HIERARCHY', 'GANTT']
-
-const KANBAN_GROUP_FIELD_TYPES = new Set(['PICKLIST', 'SELECT', 'CLASSIFICATION', 'BOOL', 'REFERENCE'])
-const DATE_FIELD_TYPES = new Set(['DATE', 'DATETIME'])
-const ATTACHMENT_FIELD_TYPES = new Set(['FILE', 'IMAGE', 'AVATAR'])
-
-/** 可作为标题的文本型字段。 */
-export function titleFieldCandidates(form: AppForm): AppFormField[] {
-  const preferred = ['TEXT', 'NTEXT', 'PHONE', 'EMAIL', 'URL', 'SERIES', 'BARCODE', 'NUMBER', 'DECIMAL']
-  return form.fields.filter((field) => !field.builtin && preferred.includes(field.type))
-}
-
-export function kanbanGroupFieldCandidates(form: AppForm): AppFormField[] {
-  return form.fields.filter((field) => !field.builtin && KANBAN_GROUP_FIELD_TYPES.has(field.type))
-}
-
-export function dateFieldCandidates(form: AppForm): AppFormField[] {
-  return form.fields.filter((field) => !field.builtin && DATE_FIELD_TYPES.has(field.type))
-}
-
-export function attachmentFieldCandidates(form: AppForm): AppFormField[] {
-  return form.fields.filter((field) => !field.builtin && ATTACHMENT_FIELD_TYPES.has(field.type))
-}
-
-export function selfReferenceFieldCandidates(form: AppForm): AppFormField[] {
-  return form.fields.filter(
-    (field) => !field.builtin && field.type === 'REFERENCE' && field.referenceForm === form.name,
-  )
-}
 
 export function configHint(type: AppViewType): string {
   switch (type) {

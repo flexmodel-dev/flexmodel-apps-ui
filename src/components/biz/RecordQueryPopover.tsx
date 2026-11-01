@@ -6,9 +6,10 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import type {AppFormField, AppViewFilterOperator} from '@/services/appForms'
 import {
   ConditionValueControl,
+  defaultConditionValue,
+  type ViewTabConditionDraft,
   viewTabOperatorLabels,
-  viewTabOperators,
-  type ViewTabConditionDraft
+  viewTabOperators
 } from './RecordFilterControls'
 
 export interface RecordQuery {
@@ -77,11 +78,14 @@ export function RecordQueryPopover({open, onOpenChange, fields, value, onApply}:
         {conditions.map((condition, index) => {
           const field = fields.find(item => item.name === condition.fieldName)
           return <div key={index} className="flex flex-wrap items-center gap-2 rounded-md border p-2">
-            <Select value={condition.fieldName} onValueChange={name => update(index, {
-              fieldName: name,
-              operator: '_eq',
-              value: fields.find(item => item.name === name)?.type === 'BOOL' ? false : '',
-            })}>
+            <Select value={condition.fieldName} onValueChange={name => {
+              const nextField = fields.find(item => item.name === name)
+              update(index, {
+                fieldName: name,
+                operator: '_eq',
+                value: nextField ? defaultConditionValue(nextField) : '',
+              })
+            }}>
               <SelectTrigger aria-label={`查询字段 ${index + 1}`} className="h-8 w-[150px]"><SelectValue
                 placeholder="字段"/></SelectTrigger>
               <SelectContent>{fields.map(item => <SelectItem key={item.name}
@@ -112,7 +116,7 @@ export function RecordQueryPopover({open, onOpenChange, fields, value, onApply}:
           if (field) setConditions(previous => [...previous, {
             fieldName: field.name,
             operator: '_eq',
-            value: field.type === 'BOOL' ? false : ''
+            value: defaultConditionValue(field),
           }])
         }}><Plus className="h-4 w-4"/>添加条件</Button>
         {error && <p role="alert" className="text-destructive">{error}</p>}

@@ -5,11 +5,12 @@ import {Bell, X} from 'lucide-react'
 import {clearAuthSession, getAuthSession} from '@/services/auth'
 import {connectNotifications} from '@/services/notificationConnection'
 import {
+  type AppNotification,
   listNotifications,
   notificationSummary,
-  type AppNotification,
   type NotificationSummary
 } from '@/services/notifications'
+import {NotificationDetailDrawer} from '@/components/notifications/NotificationDetailDrawer'
 import {toErrorMessage} from '@/lib/utils'
 
 interface NotificationState {
@@ -19,6 +20,7 @@ interface NotificationState {
   status: string;
   error: string;
   refresh: () => void
+  openNotification: (id: string) => void
 }
 
 const Context = React.createContext<NotificationState | null>(null)
@@ -38,6 +40,8 @@ export function NotificationProvider({children}: { children: React.ReactNode }) 
   const [status, setStatus] = React.useState('connecting')
   const [error, setError] = React.useState('')
   const [toasts, setToasts] = React.useState<AppNotification[]>([])
+  const [detailId, setDetailId] = React.useState<string | null>(null)
+  const openNotification = React.useCallback((id: string) => setDetailId(id), [])
   const refreshRef = React.useRef<() => void>(() => {
   })
   React.useEffect(() => {
@@ -105,7 +109,7 @@ export function NotificationProvider({children}: { children: React.ReactNode }) 
       className="pointer-events-auto flex items-start gap-3 rounded-lg border bg-card p-4 shadow-lg">
       <Bell className="mt-1 h-4 w-4 shrink-0 text-primary"/>
       <button className="min-w-0 flex-1 text-left" onClick={() => {
-        navigate(`/notifications?open=${encodeURIComponent(toast.id)}`);
+        openNotification(toast.id)
         setToasts(current => current.filter(item => item.id !== toast.id))
       }}><p className="text-sm font-medium">{toast.title}</p><p
         className="mt-1 text-xs text-muted-foreground">{toast.appName} · 点击查看</p></button>
@@ -113,7 +117,15 @@ export function NotificationProvider({children}: { children: React.ReactNode }) 
         <X className="h-4 w-4 text-muted-foreground"/></button>
     </div>)}</div>
   return <Context.Provider
-    value={{summary, recent, revision, status, error, refresh: () => refreshRef.current()}}>{children}
+    value={{summary, recent, revision, status, error, refresh: () => refreshRef.current(), openNotification}}>{children}
     {createPortal(toastLayer, document.body)}
+    <NotificationDetailDrawer
+      notificationId={detailId}
+      open={Boolean(detailId)}
+      onOpenChange={(open) => {
+        if (!open) setDetailId(null)
+      }}
+      onRead={() => refreshRef.current()}
+    />
   </Context.Provider>
 }

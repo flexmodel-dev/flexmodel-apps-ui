@@ -1,5 +1,4 @@
 import type {AppForm, AppFormViewFilter, AppFormViewTab} from '@/services/appForms'
-import type {AppRecord} from '@/services/appRecords'
 
 /** 视图组件共享的记录操作，由容器统一提供。 */
 export interface ViewRecordActions {
@@ -21,26 +20,11 @@ export interface ViewComponentProps extends ViewRecordActions {
   refreshTick: number
   /** 拖拽等写入成功后通知容器刷新共享数据 */
   onRecordChanged: () => void
+  /** 打开当前视图设置，用于缺少专属字段配置时的引导 */
+  onOpenViewSettings?: () => void
   /** 仅表格视图使用：当前勾选的记录 */
   selected?: string[]
   onSelectedChange?: (ids: string[]) => void
 }
 
-/** 视图内单条记录的展示辅助：标题字段值与摘要字段。 */
-export function viewTitleValue(form: AppForm, view: AppFormViewTab, record: AppRecord): string {
-  const fieldName = view.config.titleField || form.displayField || 'id'
-  const value = record[fieldName]
-  if (value === undefined || value === null || value === '') return '未命名'
-  if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
-}
-
-export function viewDisplayFields(form: AppForm, view: AppFormViewTab): string[] {
-  const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
-  const names = view.displayFields.length
-    ? view.displayFields
-    : (form.layout.items.length
-      ? form.layout.items.filter((item) => item.type === 'FIELD' && Boolean(item.name)).map((item) => item.name!)
-      : form.fields.filter((field) => !field.builtin).map((field) => field.name))
-  return names.filter((name) => fieldMap.has(name))
-}
+export {viewTitleValue, effectiveDisplayFields as viewDisplayFields} from '@/components/biz/views/viewUtils'

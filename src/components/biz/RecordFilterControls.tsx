@@ -1,6 +1,8 @@
 import {Input} from '@/components/ui/input'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import type {AppFormField, AppViewFilterOperator, AppViewFilterValue} from '@/services/appForms'
+import {defaultConditionValue, FIELD_TYPE_LABELS} from '@/components/biz/views/viewUtils'
+import {cn} from '@/lib/utils'
 
 export interface ViewTabConditionDraft {
   fieldName: string
@@ -41,6 +43,10 @@ export function viewTabOperators(field: AppFormField): AppViewFilterOperator[] {
   }
 }
 
+export function fieldTypeLabel(field: AppFormField): string {
+  return FIELD_TYPE_LABELS[field.type] ?? field.type
+}
+
 function viewTabInputType(field: AppFormField) {
   if (field.type === 'NUMBER' || field.type === 'DECIMAL') return 'number'
   if (field.type === 'DATE') return 'date'
@@ -49,19 +55,23 @@ function viewTabInputType(field: AppFormField) {
   return 'text'
 }
 
+/** 筛选值控件；选项字段必须提交选项 id，展示文本仅用于显示。 */
 export function ConditionValueControl({
                                         field,
                                         value,
                                         onChange,
+                                        className,
                                       }: {
   field: AppFormField
   value: AppViewFilterValue
   onChange: (value: AppViewFilterValue) => void
+  className?: string
 }) {
+  const controlClass = className ?? 'w-[180px]'
   if (field.type === 'BOOL') {
     return (
       <Select value={String(value)} onValueChange={(nextValue) => onChange(nextValue === 'true')}>
-        <SelectTrigger className="h-8 w-[180px]">
+        <SelectTrigger className={cn('h-8', controlClass)} aria-label={`${field.label} 筛选值`}>
           <SelectValue placeholder="请选择"/>
         </SelectTrigger>
         <SelectContent>
@@ -73,16 +83,16 @@ export function ConditionValueControl({
   }
   if (field.options?.length) {
     return (
-      <Select value={String(value)} onValueChange={onChange}>
-        <SelectTrigger className="h-8 w-[180px]">
+      <Select value={String(value ?? '')} onValueChange={onChange}>
+        <SelectTrigger className={cn('h-8', controlClass)} aria-label={`${field.label} 筛选值`}>
           <SelectValue placeholder="请选择"/>
         </SelectTrigger>
         <SelectContent>
           {field.options.map((option) => {
-            const optionValue = option.text ?? option.id ?? ''
+            const optionValue = option.id ?? option.text ?? ''
             return (
-              <SelectItem key={option.id ?? optionValue} value={optionValue}>
-                {optionValue}
+              <SelectItem key={optionValue} value={optionValue}>
+                {option.text ?? optionValue}
               </SelectItem>
             )
           })}
@@ -95,9 +105,11 @@ export function ConditionValueControl({
       type={viewTabInputType(field)}
       value={String(value ?? '')}
       onChange={(event) => onChange(event.target.value)}
-      className="h-8 w-[180px]"
+      className={cn('h-8', controlClass)}
       placeholder={field.type === 'REFERENCE' ? '记录 ID' : undefined}
+      aria-label={`${field.label} 筛选值`}
     />
   )
 }
 
+export {defaultConditionValue}

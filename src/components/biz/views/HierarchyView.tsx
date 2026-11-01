@@ -1,97 +1,106 @@
 import * as React from 'react'
-import ReactECharts from 'echarts-for-react'
-import 'echarts'
-import {AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Network} from 'lucide-react'
+import {AlertTriangle, ChevronDown, ChevronRight, Loader2} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Empty} from '@/components/ui/empty'
-import {AppLoading} from '@/components/biz/AppLoading'
+import {Pagination} from '@/components/biz/Pagination'
 import {useViewQuery} from '@/components/biz/views/useViewQuery'
 import {type ViewComponentProps, viewDisplayFields, viewTitleValue} from '@/components/biz/views/types'
+import {layoutFieldLabel, recordFieldText, VIEW_PAGE_SIZE_OPTIONS,} from '@/components/biz/views/viewUtils'
+import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
 import {queryAppView} from '@/services/appViews'
-import type {AppFormField} from '@/services/appForms'
+import type {AppFormField, AppViewHierarchyMode} from '@/services/appForms'
 import type {AppRecord} from '@/services/appRecords'
-import {formatFieldValue} from '@/lib/fieldConfig'
-import {toErrorMessage} from '@/lib/utils'
+import {cn, toErrorMessage} from '@/lib/utils'
 
-interface HierarchyTreeNode {
-  name: string
-  recordId: string
-  value: AppRecord
-  children: HierarchyTreeNode[]
-  itemStyle?: { color: string }
+const ROOT_PAGE_SIZE = 50
+const CHILD_PAGE_SIZE = 200
+
+interface ChildState {
+  records: AppRecord[]
+  total: number
+  page: number
+  loading: boolean
+  error: string | null
 }
 
-interface HierarchyRow {
+interface TreeRow {
+  kind: 'record'
   record: AppRecord
   depth: number
+  hasChildren: boolean
+  loading: boolean
+  error: string | null
 }
+
+interface MoreRow {
+  kind: 'more'
+  parentId: string
+  depth: number
+  loaded: number
+  total: number
+  loading: boolean
+}
+
+type Row = TreeRow | MoreRow
 
 function recordIdOf(record: AppRecord): string {
   return String(record.id)
 }
 
-function toTreeNode(record: AppRecord, title: string): HierarchyTreeNode {
-  const node: HierarchyTreeNode = {name: title, recordId: recordIdOf(record), value: record, children: []}
-  if (record._anomaly === true) node.itemStyle = {color: '#f59e0b'}
-  return node
-}
-
-function withChildrenInserted(
-  nodes: HierarchyTreeNode[],
-  parentId: string,
-  children: HierarchyTreeNode[],
-): HierarchyTreeNode[] {
-  return nodes.map((node) => {
-    if (node.recordId !== parentId) {
-      return node.children.length
-        ? {...node, children: withChildrenInserted(node.children, parentId, children)}
-        : node
-    }
-    return {...node, children}
-  })
-}
-
-function flattenRows(
+function buildRows(
   roots: AppRecord[],
-  childrenByParent: Record<string, AppRecord[]>,
   expanded: Set<string>,
-): HierarchyRow[] {
-  const rows: HierarchyRow[] = []
+  children: Record<string, ChildState>,
+  childFlags: Record<string, boolean>,
+): Row[] {
+  const rows: Row[] = []
   const walk = (records: AppRecord[], depth: number) => {
     for (const record of records) {
-      rows.push({record, depth})
       const id = recordIdOf(record)
-      if (expanded.has(id)) walk(childrenByParent[id] ?? [], depth + 1)
+      const state = children[id]
+      rows.push({
+        kind: 'record',
+        record,
+        depth,
+        hasChildren: Boolean(childFlags[id]),
+        loading: Boolean(state?.loading),
+        error: state?.error ?? null,
+      })
+      if (!expanded.has(id)) continue
+      if (state?.records.length) walk(state.records, depth + 1)
+      if (state && state.records.length < state.total) {
+        rows.push({
+          kind: 'more',
+          parentId: id,
+          depth: depth + 1,
+          loaded: state.records.length,
+          total: state.total,
+          loading: state.loading,
+        })
+      }
     }
   }
   walk(roots, 0)
   return rows
 }
 
-function cellText(field: AppFormField, value: unknown): string {
-  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
-    const reference = value as { displayValue?: unknown; id?: unknown }
-    if (reference.displayValue != null && reference.displayValue !== '') return String(reference.displayValue)
-    return reference.id != null ? String(reference.id) : '-'
-  }
-  return formatFieldValue(field, value)
-}
-
-/** 层级视图：TREE 形态用 ECharts 树懒加载展开，TABLE 形态自绘树形表格。 */
+/** 层级视图：可展开的层级树或树形表格，子级按需加载并支持分支分页。 */
 export function HierarchyView(props: ViewComponentProps) {
-  const {appId, form, view, search, advancedFilter, refreshTick, onOpenRecord} = props
-  const isTable = (view.config.hierarchyMode ?? 'TREE') === 'TABLE'
-  const size = isTable ? 50 : 200
-
+  const {appId, form, view, search, advancedFilter, refreshTick, onOpenRecord, onOpenViewSettings} = props
+  const [mode, setMode] = React.useState<AppViewHierarchyMode>(view.config.hierarchyMode ?? 'TREE')
   const [page, setPage] = React.useState(1)
-  const [tree, setTree] = React.useState<HierarchyTreeNode[]>([])
+  const [size, setSize] = React.useState(ROOT_PAGE_SIZE)
   const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set())
-  const [childrenByParent, setChildrenByParent] = React.useState<Record<string, AppRecord[]>>({})
+  const [children, setChildren] = React.useState<Record<string, ChildState>>({})
   const [childFlags, setChildFlags] = React.useState<Record<string, boolean>>({})
-  const [loadError, setLoadError] = React.useState<string | null>(null)
-  const loadedParents = React.useRef<Set<string>>(new Set())
-  const pendingParents = React.useRef<Set<string>>(new Set())
+  const requestSequences = React.useRef<Record<string, number>>({})
+  const loadedSequences = React.useRef<Record<string, number>>({})
 
+  React.useEffect(() => {
+    setMode(view.config.hierarchyMode ?? 'TREE')
+  }, [view.config.hierarchyMode])
+
+  const rootKey = `${view.id}|${view.config.parentField ?? ''}|${search}|${JSON.stringify(advancedFilter ?? null)}|${page}|${size}|${JSON.stringify(view.filter)}`
   const query = useViewQuery(appId, form.name, view.id, {
     scope: 'TREE_ROOTS',
     page,
@@ -101,68 +110,96 @@ export function HierarchyView(props: ViewComponentProps) {
   }, refreshTick)
 
   React.useEffect(() => {
+    setExpanded(new Set())
+    setChildren({})
+    setChildFlags({})
+    requestSequences.current = {}
+    loadedSequences.current = {}
+  }, [rootKey])
+
+  React.useEffect(() => {
     const data = query.data
     if (!data) return
-    setChildFlags(data.childFlags ?? {})
-    setTree(data.list.map((record) => toTreeNode(record, viewTitleValue(form, view, record))))
-    setExpanded(new Set())
-    setChildrenByParent({})
-    setLoadError(null)
-    loadedParents.current = new Set()
-    pendingParents.current = new Set()
-  }, [query.data, form, view])
+    setChildFlags((previous) => ({...previous, ...(data.childFlags ?? {})}))
+  }, [query.data])
 
-  const loadChildren = React.useCallback((parentId: string): Promise<AppRecord[]> => {
+  const loadChildren = React.useCallback((parentId: string, nextPage: number): Promise<void> => {
+    const sequence = (requestSequences.current[parentId] ?? 0) + 1
+    requestSequences.current[parentId] = sequence
+    setChildren((previous) => ({
+      ...previous,
+      [parentId]: {
+        records: previous[parentId]?.records ?? [],
+        total: previous[parentId]?.total ?? 0,
+        page: previous[parentId]?.page ?? 0,
+        loading: true,
+        error: null,
+      },
+    }))
     return queryAppView(appId, form.name, view.id, {
       scope: 'TREE_CHILDREN',
       parentId,
-      page: 1,
-      size: 200,
+      page: nextPage,
+      size: CHILD_PAGE_SIZE,
       search,
       filter: advancedFilter,
     }).then((response) => {
+      if (requestSequences.current[parentId] !== sequence) return
+      loadedSequences.current[parentId] = nextPage
       setChildFlags((previous) => ({...previous, ...(response.childFlags ?? {})}))
-      return response.list
+      setChildren((previous) => {
+        const existing = previous[parentId]
+        const records = nextPage === 1
+          ? response.list
+          : (() => {
+            const merged = new Map((existing?.records ?? []).map((record) => [recordIdOf(record), record]))
+            for (const record of response.list) merged.set(recordIdOf(record), record)
+            return Array.from(merged.values())
+          })()
+        return {
+          ...previous,
+          [parentId]: {
+            records,
+            total: response.total,
+            page: nextPage,
+            loading: false,
+            error: null,
+          },
+        }
+      })
+    }).catch((caught: unknown) => {
+      if (requestSequences.current[parentId] !== sequence) return
+      setChildren((previous) => ({
+        ...previous,
+        [parentId]: {
+          records: previous[parentId]?.records ?? [],
+          total: previous[parentId]?.total ?? 0,
+          page: previous[parentId]?.page ?? 0,
+          loading: false,
+          error: toErrorMessage(caught, '加载子级数据失败'),
+        },
+      }))
     })
   }, [appId, form.name, view.id, search, advancedFilter])
 
-  const fetchChildren = (parentId: string): Promise<AppRecord[]> => {
-    if (pendingParents.current.has(parentId)) return Promise.resolve([])
-    pendingParents.current.add(parentId)
-    return loadChildren(parentId)
-      .then((records) => {
-        loadedParents.current.add(parentId)
-        return records
-      })
-      .catch((caught: unknown) => {
-        setLoadError(toErrorMessage(caught, '加载子级数据失败'))
-        return []
-      })
-      .finally(() => {
-        pendingParents.current.delete(parentId)
-      })
-  }
+  React.useEffect(() => {
+    if (page > Math.max(1, Math.ceil((query.data?.total ?? 0) / size))) setPage(1)
+  }, [page, query.data?.total, size])
 
-  const handleNodeClick = (params: Record<string, unknown>) => {
-    const node = params.data as HierarchyTreeNode | undefined
-    if (!node) return
-    const id = node.recordId
-    if (childFlags[id] && !loadedParents.current.has(id)) {
-      fetchChildren(id).then((records) => {
-        setTree((previous) => withChildrenInserted(
-          previous,
-          id,
-          records.map((record) => toTreeNode(record, viewTitleValue(form, view, record))),
-        ))
-      })
-    } else {
-      onOpenRecord(id)
-    }
-  }
+  const roots = query.data?.list ?? []
+  const total = query.data?.total ?? 0
+  const pages = Math.max(1, Math.ceil(total / size))
+  const isInitialLoading = query.isLoading && !query.data
+  const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
+  const titleField = view.config.titleField || form.displayField || 'id'
+  const columns = viewDisplayFields(form, view)
+    .filter((name) => name !== titleField)
+    .map((name) => fieldMap.get(name))
+    .filter((field): field is AppFormField => Boolean(field))
+  const summaryColumns = columns.slice(0, 2)
 
-  const toggleRow = (record: AppRecord) => {
+  const toggleRecord = (record: AppRecord) => {
     const id = recordIdOf(record)
-    if (!childFlags[id]) return
     if (expanded.has(id)) {
       setExpanded((previous) => {
         const next = new Set(previous)
@@ -171,143 +208,146 @@ export function HierarchyView(props: ViewComponentProps) {
       })
       return
     }
-    if (childrenByParent[id]) {
-      setExpanded((previous) => new Set(previous).add(id))
-      return
+    setExpanded((previous) => new Set(previous).add(id))
+    const state = children[id]
+    if (childFlags[id] && (!state || state.error) && loadedSequences.current[id] == null) {
+      void loadChildren(id, 1)
     }
-    fetchChildren(id).then((records) => {
-      if (!records.length) return
-      setChildrenByParent((previous) => ({...previous, [id]: records}))
-      setExpanded((previous) => new Set(previous).add(id))
-    })
   }
+
+  const rowTitle = (record: AppRecord) => viewTitleValue(form, view, record)
+  const rowSummary = (record: AppRecord) => summaryColumns.map((field) => ({
+    field,
+    text: recordFieldText(field, record[field.name]),
+  }))
 
   if (!view.config.parentField) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <Empty
-          image={<Network className="h-11 w-16"/>}
-          description="层级视图需要先在视图设置中选择父节点字段"
-        />
-      </div>
+      <Empty className="min-h-[240px]" description="层级视图需要先在视图设置中选择父节点字段。">
+        {onOpenViewSettings && <Button size="sm" onClick={onOpenViewSettings}>去设置父节点字段</Button>}
+      </Empty>
     )
   }
 
-  const errorMessage = query.error ?? loadError
-  if (errorMessage) {
+  if (query.error && !query.data) {
+    return <ViewErrorState message={query.error} onRetry={query.reload}/>
+  }
+
+  const emptyState = <Empty className="min-h-[240px]" description="暂无数据"/>
+
+  const rows = buildRows(roots, expanded, children, childFlags)
+
+  const renderChevron = (row: TreeRow) => {
+    if (!row.hasChildren) return <span className="inline-block h-5 w-5"/>
+    const isExpanded = expanded.has(recordIdOf(row.record))
     return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4">
-        <AlertTriangle className="h-5 w-5 text-destructive"/>
-        <span className="text-sm text-destructive">{errorMessage}</span>
-      </div>
+      <button
+        type="button"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        aria-label={isExpanded ? '收起子级' : '展开子级'}
+        aria-expanded={isExpanded}
+        onClick={(event) => {
+          event.stopPropagation()
+          toggleRecord(row.record)
+        }}
+      >
+        {row.loading
+          ? <Loader2 className="h-3.5 w-3.5 animate-spin"/>
+          : isExpanded ? <ChevronDown className="h-3.5 w-3.5"/> : <ChevronRight className="h-3.5 w-3.5"/>}
+      </button>
     )
   }
 
-  if (query.isLoading) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <AppLoading center className="min-h-[240px]"/>
-      </div>
-    )
-  }
-
-  const roots = query.data?.list ?? []
-  if (!roots.length) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <Empty description="暂无数据"/>
-      </div>
-    )
-  }
-
-  if (!isTable) {
-    const treeOption = {
-      tooltip: {
-        trigger: 'item',
-        formatter: (params: Record<string, unknown>) => {
-          const node = params.data as HierarchyTreeNode | undefined
-          if (!node) return ''
-          return node.value._anomaly === true ? `${node.name}（关联异常）` : node.name
-        },
-      },
-      series: [{
-        type: 'tree',
-        data: tree,
-        orient: 'LR',
-        initialTreeDepth: 2,
-        label: {position: 'left', fontSize: 12},
-        leaves: {label: {position: 'right'}},
-        expandAndCollapse: false,
-        symbolSize: 8,
-      }],
+  const renderRowFeedback = (row: TreeRow | MoreRow) => {
+    if (row.kind === 'more') {
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-6 h-7 text-xs text-primary"
+          disabled={row.loading}
+          onClick={() => void loadChildren(row.parentId, (children[row.parentId]?.page ?? 0) + 1)}
+        >
+          {row.loading ? '加载中…' : `加载更多子级（已显示 ${row.loaded} / 共 ${row.total} 条）`}
+        </Button>
+      )
     }
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="record-list-scroll min-h-0 flex-1 overflow-auto">
-          <ReactECharts
-            option={treeOption}
-            style={{height: '100%', minHeight: 320}}
-            opts={{renderer: 'svg'}}
-            onEvents={{click: handleNodeClick}}
-          />
-        </div>
-      </div>
-    )
+    if (row.error) {
+      return (
+        <button
+          type="button"
+          className="ml-6 inline-flex items-center gap-1 text-xs text-destructive hover:underline"
+          onClick={() => void loadChildren(recordIdOf(row.record), 1)}
+        >
+          <AlertTriangle className="h-3 w-3"/>{row.error}，点击重试
+        </button>
+      )
+    }
+    return null
   }
-
-  const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
-  const columns = viewDisplayFields(form, view)
-    .map((name) => fieldMap.get(name))
-    .filter((field): field is AppFormField => Boolean(field))
-  const rows = flattenRows(roots, childrenByParent, expanded)
-  const total = query.data?.total ?? 0
-  const pages = Math.max(1, Math.ceil(total / size))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="record-list-scroll min-h-0 flex-1 overflow-auto">
-        <table
-          className="app-table record-list-table table-fixed bg-background"
-          style={{minWidth: 220 + columns.length * 160}}
+      <div className="flex flex-wrap items-center gap-2 pb-2">
+        <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+          {(['TREE', 'TABLE'] as AppViewHierarchyMode[]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={cn(
+                'rounded-md px-3 py-1 text-xs transition-colors',
+                mode === item ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              )}
+              onClick={() => setMode(item)}
+            >
+              {item === 'TREE' ? '层级树' : '树形表格'}
+            </button>
+          ))}
+        </div>
+        <Button
+          variant="outline" size="sm" className="h-7 text-xs"
+          disabled={!expanded.size}
+          onClick={() => setExpanded(new Set())}
         >
-          <colgroup>
-            <col style={{width: 220}}/>
-            {columns.map((column) => (
-              <col key={column.name}/>
-            ))}
-          </colgroup>
-          <thead>
-          <tr>
-            <th>{form.layout.items.find((item) => item.type === 'FIELD' && item.name === view.config.titleField)?.label?.trim() || '标题'}</th>
-            {columns.map((column) => (
-              <th key={column.name}>
-                {form.layout.items.find((item) => item.type === 'FIELD' && item.name === column.name)?.label?.trim() || column.label}
-              </th>
-            ))}
-          </tr>
-          </thead>
-          <tbody>
-          {rows.map((row) => {
-            const id = recordIdOf(row.record)
-            const hasChildren = Boolean(childFlags[id])
-            const isExpanded = expanded.has(id)
-            const title = viewTitleValue(form, view, row.record)
-            return (
-              <tr key={id} className="transition-colors hover:bg-muted/40">
-                <td>
-                  <div className="flex items-center gap-1" style={{paddingLeft: row.depth * 20}}>
-                    <button
-                      type="button"
-                      className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground disabled:cursor-default disabled:opacity-60"
-                      disabled={!hasChildren}
-                      onClick={() => toggleRow(row.record)}
-                      title={hasChildren ? (isExpanded ? '收起' : '展开') : undefined}
-                    >
-                      {hasChildren
-                        ? (isExpanded ? <ChevronDown className="h-3.5 w-3.5"/> :
-                          <ChevronRight className="h-3.5 w-3.5"/>)
-                        : <span className="inline-block h-3.5 w-3.5"/>}
-                    </button>
+          收起全部
+        </Button>
+        <span className="text-xs text-muted-foreground">共 {total} 个根节点</span>
+        {query.isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground"/>}
+      </div>
+
+      {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
+
+      <div
+        className={cn('relative min-h-0 flex-1', mode === 'TREE' ? 'overflow-y-auto record-list-scroll' : 'overflow-hidden')}>
+        <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
+        {isInitialLoading ? (
+          mode === 'TREE' ? <ViewSkeleton variant="list" rows={8}/> : <ViewSkeleton variant="table" rows={8}/>
+        ) : !rows.length ? (
+          emptyState
+        ) : mode === 'TREE' ? (
+          <ul role="tree" aria-label="层级结构" className="space-y-0.5 py-1">
+            {rows.map((row) => {
+              if (row.kind === 'more') {
+                return (
+                  <li key={`more-${row.parentId}`} role="none" style={{paddingLeft: row.depth * 20}}>
+                    {renderRowFeedback(row)}
+                  </li>
+                )
+              }
+              const id = recordIdOf(row.record)
+              const isExpanded = expanded.has(id)
+              return (
+                <li key={id} role="treeitem" aria-level={row.depth + 1}
+                    aria-expanded={row.hasChildren ? isExpanded : undefined}
+                    data-hierarchy-record={id}>
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 rounded-md py-1 pr-2 transition-colors hover:bg-muted/50',
+                      row.error && 'bg-destructive/5',
+                    )}
+                    style={{paddingLeft: row.depth * 20 + 4}}
+                  >
+                    {renderChevron(row)}
                     {row.record._anomaly === true && (
                       <span className="shrink-0" title="关联异常">
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-500"/>
@@ -315,36 +355,107 @@ export function HierarchyView(props: ViewComponentProps) {
                     )}
                     <button
                       type="button"
-                      className="min-w-0 truncate text-left font-medium text-primary hover:underline"
-                      title={title}
+                      className="min-w-0 flex-1 truncate text-left text-sm font-medium text-foreground hover:text-primary hover:underline"
+                      title={rowTitle(row.record)}
                       onClick={() => onOpenRecord(id)}
                     >
-                      {title}
+                      {rowTitle(row.record)}
                     </button>
+                    <span className="hidden min-w-0 shrink-0 items-center gap-3 text-xs text-muted-foreground sm:flex">
+                      {rowSummary(row.record).map(({field, text}) => (
+                        <span key={field.name} className="max-w-[180px] truncate"
+                              title={`${layoutFieldLabel(form, field.name, field.label)}：${text}`}>
+                          {text}
+                        </span>
+                      ))}
+                    </span>
                   </div>
-                </td>
+                  {renderRowFeedback(row)}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <div className="app-table-scroll record-list-scroll h-full overflow-auto">
+            <table className="app-table record-list-table table-fixed bg-background"
+                   style={{minWidth: 260 + columns.length * 160}}>
+              <colgroup>
+                <col style={{width: 260}}/>
+                {columns.map((column) => <col key={column.name}/>)}
+              </colgroup>
+              <thead>
+              <tr>
+                <th>层级</th>
                 {columns.map((column) => (
-                  <td key={column.name}>
-                    <div className="overflow-hidden text-ellipsis whitespace-nowrap">
-                      {cellText(column, row.record[column.name])}
-                    </div>
-                  </td>
+                  <th key={column.name}>{layoutFieldLabel(form, column.name, column.label)}</th>
                 ))}
               </tr>
-            )
-          })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+              {rows.map((row) => {
+                if (row.kind === 'more') {
+                  return (
+                    <tr key={`more-${row.parentId}`}>
+                      <td colSpan={columns.length + 1}>
+                        {renderRowFeedback(row)}
+                      </td>
+                    </tr>
+                  )
+                }
+                const id = recordIdOf(row.record)
+                return (
+                  <tr key={id} className={cn('transition-colors hover:bg-muted/40', row.error && 'bg-destructive/5')}>
+                    <td>
+                      <div className="flex items-center gap-1" style={{paddingLeft: row.depth * 20}}>
+                        {renderChevron(row)}
+                        {row.record._anomaly === true && (
+                          <span className="shrink-0" title="关联异常">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500"/>
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          className="min-w-0 truncate text-left font-medium text-primary hover:underline"
+                          title={rowTitle(row.record)}
+                          onClick={() => onOpenRecord(id)}
+                        >
+                          {rowTitle(row.record)}
+                        </button>
+                      </div>
+                      {renderRowFeedback(row)}
+                    </td>
+                    {columns.map((column) => (
+                      <td key={column.name}>
+                        <div className="overflow-hidden text-ellipsis whitespace-nowrap"
+                             title={recordFieldText(column, row.record[column.name])}>
+                          {recordFieldText(column, row.record[column.name])}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      <div className="mt-2 flex items-center justify-end gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-          <ChevronLeft className="h-3.5 w-3.5"/>上一页
-        </Button>
-        <span className="text-sm text-muted-foreground">第 {page} / {pages} 页</span>
-        <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-          下一页<ChevronRight className="h-3.5 w-3.5"/>
-        </Button>
-      </div>
+
+      {!isInitialLoading && total > 0 && (
+        <Pagination
+          page={page}
+          pages={pages}
+          total={total}
+          size={size}
+          sizeOptions={VIEW_PAGE_SIZE_OPTIONS}
+          onChange={setPage}
+          onSizeChange={(nextSize) => {
+            setSize(nextSize)
+            setPage(1)
+          }}
+          className="mt-2 w-full"
+        />
+      )}
     </div>
   )
 }
