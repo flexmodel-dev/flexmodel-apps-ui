@@ -84,13 +84,45 @@ export type AppViewFilterValue = string | number | boolean
 export type AppViewFilterCondition = Record<string, Record<string, AppViewFilterValue>>
 
 export interface AppFormViewFilter {
-  _and: AppViewFilterCondition[]
+  _and?: AppViewFilterCondition[]
+  _or?: AppViewFilterCondition[]
+}
+
+export type AppViewType = 'TABLE' | 'KANBAN' | 'CALENDAR' | 'GALLERY' | 'DETAIL' | 'HIERARCHY' | 'GANTT'
+
+export type AppViewImageFit = 'COVER' | 'CONTAIN'
+export type AppViewCalendarUnit = 'MONTH' | 'WEEK' | 'DAY'
+export type AppViewDetailMode = 'LIST' | 'SINGLE'
+export type AppViewHierarchyMode = 'TREE' | 'TABLE'
+export type AppViewGanttScale = 'DAY' | 'WEEK' | 'MONTH'
+
+export interface AppViewConfig {
+  groupField?: string | null
+  titleField?: string | null
+  coverField?: string | null
+  imageFit?: AppViewImageFit | null
+  startField?: string | null
+  endField?: string | null
+  calendarUnit?: AppViewCalendarUnit | null
+  detailMode?: AppViewDetailMode | null
+  parentField?: string | null
+  hierarchyMode?: AppViewHierarchyMode | null
+  ganttScale?: AppViewGanttScale | null
+}
+
+export interface AppFormViewSort {
+  field: string
+  order: 'ASC' | 'DESC'
 }
 
 export interface AppFormViewTab {
   id: string
   label: string
-  filter: AppFormViewFilter
+  type: AppViewType
+  filter: AppFormViewFilter | null
+  sort: AppFormViewSort | null
+  displayFields: string[]
+  config: AppViewConfig
 }
 
 export type AppFormItemType = 'FIELD' | 'SECTION' | 'SUBFORM'
@@ -172,7 +204,25 @@ function detailKey(appId: string, name: string) {
   return `${appId}:${name}`
 }
 
+const VALID_VIEW_TYPES = new Set<AppViewType>([
+  'TABLE', 'KANBAN', 'CALENDAR', 'GALLERY', 'DETAIL', 'HIERARCHY', 'GANTT',
+])
+
+function normalizeViewTab(raw: Partial<AppFormViewTab> | null | undefined, fallbackLabel = '视图'): AppFormViewTab {
+  const type = VALID_VIEW_TYPES.has(raw?.type as AppViewType) ? raw!.type as AppViewType : 'TABLE'
+  return {
+    id: raw?.id?.trim() || crypto.randomUUID(),
+    label: raw?.label?.trim() || fallbackLabel,
+    type,
+    filter: raw?.filter && typeof raw.filter === 'object' ? raw.filter : null,
+    sort: raw?.sort?.field ? {field: raw.sort.field, order: raw.sort.order === 'ASC' ? 'ASC' : 'DESC'} : null,
+    displayFields: Array.isArray(raw?.displayFields) ? raw.displayFields.filter((name): name is string => typeof name === 'string') : [],
+    config: raw?.config && typeof raw.config === 'object' ? raw.config : {},
+  }
+}
+
 function normalizeForm(form: AppForm): AppForm {
+  const rawViews = Array.isArray(form.viewTabs) ? form.viewTabs : []
   return {
     ...form,
     description: form.description ?? '',
@@ -181,7 +231,7 @@ function normalizeForm(form: AppForm): AppForm {
     layout: {
       items: Array.isArray(form.layout?.items) ? form.layout.items : [],
     },
-    viewTabs: Array.isArray(form.viewTabs) ? form.viewTabs : [],
+    viewTabs: rawViews.map((view) => normalizeViewTab(view)),
   }
 }
 
