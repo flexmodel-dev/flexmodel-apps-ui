@@ -32,6 +32,11 @@ function useFilePreview(url: string, enabled: boolean) {
   return {source, error}
 }
 
+/** 通过鉴权请求把附件加载为 blob URL；画廊封面等需要自定义尺寸的图片复用该逻辑。 */
+export function useAttachmentImageSource(url: string, enabled = true) {
+  return useFilePreview(url, enabled)
+}
+
 function AttachmentThumbnail({url, compact = false}: {url: string; compact?: boolean}) {
   const image = attachmentPreviewType(url)?.startsWith('image/') && isAttachmentUrl(url)
   const {source} = useFilePreview(url, !!image)

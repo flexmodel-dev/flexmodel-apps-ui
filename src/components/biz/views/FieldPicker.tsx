@@ -57,7 +57,7 @@ export function FieldPicker({
           <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground"/>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[min(360px,calc(100vw-32px))] p-0">
+      <PopoverContent align="start" className="z-[1100] w-[min(360px,calc(100vw-32px))] p-0">
         <div className="border-b p-2">
           <Input
             autoFocus

@@ -19,7 +19,9 @@ import {
   VIEW_PAGE_SIZE_OPTIONS,
 } from '@/components/biz/views/viewUtils'
 import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
-import {attachmentUrls} from '@/lib/attachments'
+import {attachmentPreviewType, attachmentUrls} from '@/lib/attachments'
+import {useAttachmentImageSource} from '@/components/biz/form/AttachmentField'
+import {AppLoading} from '@/components/biz/AppLoading'
 import type {AppForm, AppFormField, AppFormViewTab} from '@/services/appForms'
 import type {AppRecord} from '@/services/appRecords'
 import {cn} from '@/lib/utils'
@@ -44,12 +46,9 @@ function GalleryCard({
   const recordId = String(record.id)
   const coverField = view.config.coverField
   const cover = coverField ? attachmentUrls(record[coverField])[0] ?? null : null
-  const [coverFailed, setCoverFailed] = React.useState(false)
+  const coverIsImage = Boolean(cover && attachmentPreviewType(cover)?.startsWith('image/'))
+  const {source, error: coverError} = useAttachmentImageSource(cover ?? '', coverIsImage)
   const fit = view.config.imageFit ?? 'COVER'
-
-  React.useEffect(() => {
-    setCoverFailed(false)
-  }, [cover])
 
   return (
     <article
@@ -58,14 +57,16 @@ function GalleryCard({
       data-record-id={recordId}
     >
       <div className="relative h-36 overflow-hidden bg-muted">
-        {cover && !coverFailed ? (
+        {source ? (
           <img
-            src={cover}
+            src={source}
             alt={viewTitleValue(form, view, record)}
-            loading="lazy"
             className={cn('h-full w-full', fit === 'COVER' ? 'object-cover' : 'object-contain')}
-            onError={() => setCoverFailed(true)}
           />
+        ) : coverIsImage && !coverError ? (
+          <div className="flex h-full items-center justify-center">
+            <AppLoading size="sm" label="正在加载封面"/>
+          </div>
         ) : (
           <div className="flex h-full items-center justify-center">
             <ImageOff className="h-8 w-8 text-muted-foreground/50"/>
