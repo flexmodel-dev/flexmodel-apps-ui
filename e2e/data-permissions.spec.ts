@@ -63,7 +63,7 @@ test('多选公共目录、主子表开关、保存模型与新子表默认关�
   expect(state.saved[0].subjects).toEqual([{type: 'USER', ids: ['u1']}, {type: 'ROLE', ids: ['r1']}, {type: 'ORGANIZATION', ids: ['o1'], includeChildren: true}])
   expect(state.saved[0].controls).toHaveLength(2)
   expect(state.saved[0].controls[1]).toMatchObject({formName: 'contact', readAll: false, writeAll: false, allowDelete: false})
-  expect(state.saved[0].controls[0].condition).toEqual({field: 'name', operator: 'EQ', value: ''})
+  expect(state.saved[0].controls[0].condition).toEqual({name: {_eq: ''}})
   expect(state.saved[0].controls[0]).not.toHaveProperty('reference_field')
   await expect(page.getByText('当前仅保存权限配置，尚未参与运行时数据访问控制。', {exact: true})).toBeVisible()
   await expect(page.getByRole('button', {name: '启用数据权限', exact: true})).toHaveCount(0)

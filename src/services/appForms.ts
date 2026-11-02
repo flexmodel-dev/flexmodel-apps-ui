@@ -83,6 +83,9 @@ export type AppViewFilterOperator =
 export type AppViewFilterValue = string | number | boolean
 export type AppViewFilterCondition = Record<string, Record<string, AppViewFilterValue>>
 
+/** 记录查询 filter DSL 条件节点：字段条件 / _and / _or 组合，语法见 records.md。 */
+export type FilterCondition = Record<string, unknown>
+
 export interface AppFormViewFilter {
   _and?: AppViewFilterCondition[]
   _or?: AppViewFilterCondition[]

@@ -1,9 +1,11 @@
 import {requestJson} from './http'
 import type {DirectorySelection, DirectoryEntityType} from '@/types/directory'
+import type {FilterCondition} from './appForms'
 
 export type ScopeType = DirectoryEntityType | 'SELF' | 'DIRECT_REPORTS' | 'ALL_REPORTS' | 'ALL'
 export interface MemberSelection { type: ScopeType; ids?: string[]; includeChildren?: boolean }
-export interface PermissionCondition {field?: string; operator?: string; value?: unknown; logic?: 'AND' | 'OR'; children?: PermissionCondition[]}
+
+export type PermissionCondition = FilterCondition
 export interface FormPermissionControl {
   formName: string
   readAll: boolean

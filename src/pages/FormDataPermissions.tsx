@@ -6,12 +6,13 @@ import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
 import {formSettingsBackPath, FormSettingsNav} from '@/components/biz/FormSettingsNav'
 import {DirectoryMemberPicker} from '@/components/biz/DirectoryMemberPicker'
 import {AppLoading} from '@/components/biz/AppLoading'
+import {FilterConditionEditor} from '@/components/biz/FilterConditionEditor'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {ConfirmDialog} from '@/components/ui/dialog'
 import {BizDrawer} from '@/components/ui/drawer'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {type AppForm, type AppFormField, getAppForm, getAppForms} from '@/services/appForms'
+import {type AppForm, getAppForm, getAppForms} from '@/services/appForms'
 import {
   type DataAuthorization,
   type DataAuthorizationInput,
@@ -20,7 +21,6 @@ import {
   type FormPermissionControl,
   fromDirectorySelections,
   listDataAuthorizations,
-  type PermissionCondition,
   saveDataAuthorization,
   type ScopeType,
   toDirectorySelections,
@@ -33,88 +33,6 @@ const dynamics: Array<{ type: ScopeType; label: string }> = [
     label: '所有下级'
   }, {type: 'ALL', label: '全部数据'},
 ]
-const operators = {
-  EQ: '等于',
-  NE: '不等于',
-  GT: '大于',
-  GE: '大于等于',
-  LT: '小于',
-  LE: '小于等于',
-  IN: '属于',
-  NOT_IN: '不属于',
-  IS_NULL: '为空',
-  IS_NOT_NULL: '不为空'
-}
-const selectClass = 'h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm'
-
-function ConditionEditor({fields, value, onChange}: {
-  fields: AppFormField[];
-  value?: PermissionCondition | null;
-  onChange: (value: PermissionCondition | null) => void
-}) {
-  if (!value) return <Button type="button" variant="secondary" size="sm" onClick={() => onChange({
-    field: fields[0]?.name ?? '',
-    operator: 'EQ',
-    value: ''
-  })}>添加条件</Button>
-  if (value.logic) return <div className="space-y-2 rounded-md border p-3">
-    <div className="flex items-center gap-2"><select className={selectClass} aria-label="条件组合方式"
-                                                     value={value.logic} onChange={e => onChange({
-      ...value,
-      logic: e.target.value as 'AND' | 'OR'
-    })}>
-      <option value="AND">全部满足</option>
-      <option value="OR">任一满足</option>
-    </select>
-      <Button type="button" variant="secondary" size="sm" onClick={() => onChange({
-        ...value,
-        children: [...(value.children ?? []), {field: fields[0]?.name ?? '', operator: 'EQ', value: ''}]
-      })}>添加条件</Button>
-      <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>清除</Button></div>
-    {value.children?.map((child, index) => <ConditionEditor key={index} fields={fields} value={child}
-                                                            onChange={next => {
-                                                              const children = next ? value.children!.map((item, i) => i === index ? next : item) : value.children!.filter((_, i) => i !== index)
-                                                              onChange(children.length ? {...value, children} : null)
-                                                            }}/>)}</div>
-  const field = fields.find(item => item.name === value.field)
-  const numeric = field?.type === 'NUMBER' || field?.type === 'DECIMAL'
-  const isSet = value.operator === 'IN' || value.operator === 'NOT_IN'
-  const isNull = value.operator === 'IS_NULL' || value.operator === 'IS_NOT_NULL'
-  const choices = numeric || ['DATE', 'DATETIME', 'TIME'].includes(field?.type ?? '') ? Object.entries(operators) : Object.entries(operators).filter(([key]) => !['GT', 'GE', 'LT', 'LE'].includes(key))
-  const text = Array.isArray(value.value) ? value.value.join(',') : value.value == null ? '' : String(value.value)
-  const convert = (input: string) => field?.type === 'BOOL' ? input === 'true' : numeric && input !== '' ? Number(input) : input
-  return <div className="flex flex-wrap items-center gap-2">
-    <select aria-label="条件字段" className={selectClass} value={value.field}
-            onChange={e => onChange({field: e.target.value, operator: 'EQ', value: ''})}>
-      {fields.map(item => <option key={item.name} value={item.name}>{item.label}</option>)}</select>
-    <select aria-label="比较方式" className={selectClass} value={value.operator} onChange={e => {
-      const operator = e.target.value
-      onChange({
-        field: value.field,
-        operator, ...(!operator.startsWith('IS_') ? {value: operator.endsWith('IN') ? [] : ''} : {})
-      })
-    }}>{choices.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
-    {!isNull && (field?.type === 'BOOL' && !isSet ? <select aria-label="比较值" className={selectClass} value={text}
-                                                            onChange={e => onChange({
-                                                              ...value,
-                                                              value: e.target.value === 'true'
-                                                            })}>
-        <option value="">请选择</option>
-        <option value="true">是</option>
-        <option value="false">否</option>
-      </select>
-      : <Input aria-label="比较值" className="w-40" placeholder={isSet ? '多个值用逗号分隔' : '比较值'} value={text}
-               onChange={e => onChange({
-                 ...value,
-                 value: isSet ? e.target.value.split(',').map(item => convert(item.trim())) : convert(e.target.value)
-               })}/>)}
-    <Button type="button" variant="ghost" size="sm" onClick={() => onChange({
-      logic: 'AND',
-      children: [value, {field: fields[0]?.name ?? '', operator: 'EQ', value: ''}]
-    })}>组合条件</Button>
-    <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>移除</Button>
-  </div>
-}
 
 export default function FormDataPermissions() {
   const {appId = '', formName = ''} = useParams()
@@ -320,9 +238,11 @@ export default function FormDataPermissions() {
                 </table>
               </div>
               <div className="space-y-2"><p
-                className="text-xs text-muted-foreground">记录条件（查看、修改、删除共用）</p>
-                <ConditionEditor fields={form.fields} value={control.condition}
-                                 onChange={condition => patchControl(form.name, {condition})}/></div>
+                className="text-xs text-muted-foreground">记录条件（查看、修改、删除共用，语法与记录筛选一致）</p>
+                <FilterConditionEditor fields={form.fields} value={control.condition}
+                                       valueTypes={['literal', 'currentUser', 'field']}
+                                       resolveFormFields={formName => forms.find(item => item.name === formName)?.fields ?? []}
+                                       onChange={condition => patchControl(form.name, {condition})}/></div>
             </TabsContent>
           })}
         </Tabs>
