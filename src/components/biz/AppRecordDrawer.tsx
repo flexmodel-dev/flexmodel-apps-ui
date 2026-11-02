@@ -126,7 +126,17 @@ export function AppRecordDrawer({
     enabled: open && isCreate && !!form && !form.builtin,
   })
   const referenceOptionsMap = useReferenceOptions({appId, form, open})
-  const {entries} = form ? parseFormLayout(form) : {entries: [] as FormLayoutEntry[]}
+  const scene = mode === 'create' ? 'CREATE' : 'UPDATE'
+  const controlValues = mode === 'view' && form && record
+    ? toEditValues(form, record)
+    : {...record, ...values}
+  const {entries, renderableFieldNames, requiredFieldNames} = form
+    ? parseFormLayout(form, {scene, values: controlValues})
+    : {
+      entries: [] as FormLayoutEntry[],
+      renderableFieldNames: new Set<string>(),
+      requiredFieldNames: new Set<string>(),
+    }
   const mainEntries = entries.filter(
     (entry): entry is Exclude<FormLayoutEntry, { kind: 'SUBFORM' }> => entry.kind !== 'SUBFORM',
   )
@@ -204,7 +214,7 @@ export function AppRecordDrawer({
       return null
     }
     return form && !recordPending
-      ? buildRecordPayload(form, parseFormLayout(form).renderableFieldNames, values, setError, !activeRecordId)
+      ? buildRecordPayload(form, renderableFieldNames, values, setError, !activeRecordId, requiredFieldNames)
       : null
   }
 
@@ -552,7 +562,7 @@ export function AppRecordDrawer({
                       <div key={entry.key} className={cn('space-y-1.5', widthClass)}>
                         <label className="flex items-center gap-1 text-xs text-muted-foreground">
                           {item.label?.trim() || field.label}
-                          {field.required && <span className="text-destructive">*</span>}
+                          {entry.required && <span className="text-destructive">*</span>}
                           {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
                         </label>
                         <FieldControl
@@ -563,7 +573,7 @@ export function AppRecordDrawer({
                           value={values[field.name]}
                           options={field.options ?? []}
                           referenceOptions={referenceOptionsMap[field.name]}
-                          disabled={item.readonly || !isFieldWritable(field, !activeRecordId) || recordPending || isSubmitting || isStarting}
+                          disabled={entry.readonly || !isFieldWritable(field, !activeRecordId) || recordPending || isSubmitting || isStarting}
                           onUploadStart={startUpload}
                           onChange={(value) => {
                             setValues((previous) => ({...previous, [field.name]: value}))

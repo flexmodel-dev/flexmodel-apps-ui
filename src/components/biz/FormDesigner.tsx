@@ -3,6 +3,7 @@ import {FieldConfigEditor} from '@/components/biz/FieldConfigEditor'
 import type {AppFieldConfig, AppFormFieldOption} from '@/services/appForms'
 import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
 import {FormSettingsNav} from '@/components/biz/FormSettingsNav'
+import {FormAdvancedControls} from '@/components/biz/form/FormAdvancedControls'
 import {
   Check,
   Columns2,
@@ -65,6 +66,7 @@ import {
   type AppFormFieldType,
   type AppForm,
   type AppFormLayout,
+  type AppFormControls,
   type AppFormItem,
   type AppFormFieldUpdateInput,
 } from '@/services/appForms'
@@ -310,6 +312,8 @@ export function FormDesigner({
                              }: FormDesignerProps) {
   const [form, setForm] = React.useState<DesignForm>(() => toDesignForm(initialForm))
   const [items, setItems] = React.useState<AppFormItem[]>([])
+  const [controls, setControls] = React.useState<AppFormControls>({})
+  const [designTab, setDesignTab] = React.useState('layout')
   const [draggingIndex, setDraggingIndex] = React.useState<number | null>(null)
   const [fieldRemarks, setFieldRemarks] = React.useState<Record<string, string>>({})
   const [dropIndex, setDropIndex] = React.useState<number | null>(null)
@@ -341,6 +345,7 @@ export function FormDesigner({
     const designForm = toDesignForm(initialForm)
     setForm(designForm)
     setItems(designForm.layout.items)
+    setControls(designForm.layout.controls ?? {})
     setDraggingIndex(null)
     setDropIndex(null)
     setEditingItem(null)
@@ -508,7 +513,7 @@ export function FormDesigner({
       const nextForm = {
         ...form,
         fields: [...form.fields, designField],
-        layout: {items: nextItems},
+        layout: {items: nextItems, controls},
       }
       setItems(nextItems)
       setForm(nextForm)
@@ -585,21 +590,35 @@ export function FormDesigner({
     }
   }
   const removeItem = (index: number) => {
+    const removed = items[index]
     setItems((previous) => previous.filter((item, itemIndex) => itemIndex !== index))
+    if (removed?.type === 'FIELD' && removed.name) {
+      const fieldName = removed.name
+      setControls(previous => {
+        if (!previous[fieldName]) return previous
+        const {[fieldName]: _removed, ...rest} = previous
+        return rest
+      })
+    }
   }
   const resetLayout = () => {
-    setItems(allFields.filter((field) => !field.builtin).map((field) => ({
+    const nextItems = allFields.filter((field) => !field.builtin).map((field) => ({
       type: 'FIELD' as const,
       name: field.name,
       width: 'HALF' as const,
-    })))
+    }))
+    const fieldNames = new Set(nextItems.map(item => item.name))
+    setItems(nextItems)
+    setControls(previous => Object.fromEntries(
+      Object.entries(previous).filter(([fieldName]) => fieldNames.has(fieldName)),
+    ))
   }
   const saveLayout = async () => {
     if (!form) return
     setIsSavingLayout(true)
     setLayoutError(null)
     try {
-      const updatedForm = await saveAppFormLayout(appId, form.name, {items})
+      const updatedForm = await saveAppFormLayout(appId, form.name, {items, controls})
       setForm(toDesignForm(updatedForm))
       onFormChange(updatedForm)
       setSaved(true)
@@ -685,8 +704,8 @@ export function FormDesigner({
           ...item,
           label: label || undefined,
           tip: editingItem.tip.trim() || undefined,
-          readonly: editingItem.readonly,
-          hidden: editingItem.hidden,
+          readonly: form.builtin ? editingItem.readonly : undefined,
+          hidden: form.builtin ? editingItem.hidden : undefined,
         }
       : item)
     if (editingItem.kind === 'section') {
@@ -714,7 +733,7 @@ export function FormDesigner({
       const nextForm: AppForm = {
         ...initialForm,
         fields: form.fields.map(item => item.name === field.name ? updatedField : item),
-        layout: {items: nextItems},
+        layout: {items: nextItems, controls},
       }
       setForm(toDesignForm(nextForm))
       setItems(nextItems)
@@ -872,15 +891,17 @@ export function FormDesigner({
         <FormSettingsNav appId={appId} formName={form.name} mobile/>
       </SettingsPageHeader>
 
-      <Tabs defaultValue="layout" className="flex min-h-0 flex-1 flex-col">
+      <Tabs value={designTab} onValueChange={setDesignTab} className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between px-3 pt-2">
           <TabsList>
             <TabsTrigger value="layout">表单布局</TabsTrigger>
-            <TabsTrigger value="display-controls">显示控制</TabsTrigger>
+            {!form.builtin && <TabsTrigger value="display-controls">显示控制</TabsTrigger>}
           </TabsList>
           <span className="hidden text-xs text-muted-foreground xl:block">
-              拖动字段调整顺序和位置，点击右侧字段添加到布局
-            </span>
+            {designTab === 'layout'
+              ? '拖动字段调整顺序和位置，点击右侧字段添加到布局'
+              : '按场景配置字段隐藏、必填、只读，并可设置生效条件'}
+          </span>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 xl:flex-row xl:overflow-hidden">
@@ -983,6 +1004,9 @@ export function FormDesigner({
                           {entry.kind === 'FIELD' && entry.field.name === form.displayField && (
                             <Badge className="bg-primary/10 text-primary">名称</Badge>
                           )}
+                          {entry.kind === 'FIELD' && entry.field.builtin && (
+                            <Badge className="bg-primary/10 text-primary">内置</Badge>
+                          )}
                           {entry.kind === 'FIELD' && (
                             <span
                               className="ml-auto hidden shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground group-hover:opacity-0 md:block">
@@ -1059,46 +1083,25 @@ export function FormDesigner({
               )}
             </TabsContent>
 
-            <TabsContent value="display-controls" className="min-h-0 flex-1 overflow-y-auto rounded-xl border bg-card">
-              <div className="overflow-x-auto">
-                <table className="app-table w-full min-w-[680px]">
-                  <thead>
-                  <tr>
-                    <th>字段</th>
-                    <th className="w-[120px]">隐藏</th>
-                    <th className="w-[120px]">只读</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  {layoutItems.filter((entry) => entry.kind === 'FIELD').map((entry) => (
-                    <tr key={entry.field.name}>
-                      <td>
-                        <span className="font-medium">{getDisplayLabel(entry)}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{entry.field.name}</span>
-                      </td>
-                      {(['hidden', 'readonly'] as const).map((key) => (
-                        <td key={key}>
-                          <Checkbox
-                            checked={entry.item[key] ?? false}
-                            onCheckedChange={(checked) =>
-                              setItems((previous) => previous.map((item, index) => index === entry.index
-                                ? {...item, [key]: checked === true}
-                                : item))
-                            }
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                  </tbody>
-                </table>
-              </div>
+            <TabsContent value="display-controls"
+                         className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card data-[state=inactive]:hidden">
+              <FormAdvancedControls
+                rows={layoutItems
+                  .filter((entry) => entry.kind === 'FIELD')
+                  .map((entry) => ({field: entry.field, label: getDisplayLabel(entry)}))}
+                controls={controls}
+                onChange={nextControls => {
+                  setControls(nextControls)
+                  setSaved(false)
+                }}
+              />
             </TabsContent>
           </div>
 
-          <aside
-            className="flex h-64 w-full shrink-0 flex-col overflow-hidden rounded-lg border bg-card xl:h-auto xl:w-[280px]">
-            <Tabs defaultValue="field-list" className="flex min-h-0 flex-1 flex-col">
+          {designTab === 'layout' && (
+            <aside
+              className="flex h-64 w-full shrink-0 flex-col overflow-hidden rounded-lg border bg-card xl:h-auto xl:w-[280px]">
+              <Tabs defaultValue="field-list" className="flex min-h-0 flex-1 flex-col">
               <div className="border-b px-3 pt-3">
                 <TabsList className="grid h-9 w-full grid-cols-2 bg-muted/70">
                   <TabsTrigger value="field-list" className="text-xs">字段列表</TabsTrigger>
@@ -1159,8 +1162,9 @@ export function FormDesigner({
                   })}
                 </div>
               </TabsContent>
-            </Tabs>
-          </aside>
+              </Tabs>
+            </aside>
+          )}
         </div>
       </Tabs>
 
@@ -1218,22 +1222,24 @@ export function FormDesigner({
                       : previous)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  {([
-                    ['readonly', '只读'],
-                    ['hidden', '隐藏'],
-                  ] as const).map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={editingItem[key]}
-                        onCheckedChange={(checked) => setEditingItem((previous) => previous
-                          ? {...previous, [key]: checked === true}
-                          : previous)}
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
+                {form.builtin && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    {([
+                      ['readonly', '只读'],
+                      ['hidden', '隐藏'],
+                    ] as const).map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={editingItem[key]}
+                          onCheckedChange={(checked) => setEditingItem((previous) => previous
+                            ? {...previous, [key]: checked === true}
+                            : previous)}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                )}
                 {editingItem.field.builtin || editingItem.field.locked ? (
                   <p className="text-xs text-muted-foreground">内置字段仅可调整布局显示名称、填写提示、只读和隐藏。</p>
                 ) : <>

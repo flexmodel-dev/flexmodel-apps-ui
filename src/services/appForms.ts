@@ -195,8 +195,24 @@ export interface AppFormFieldUpdateInput {
   config?: AppFieldConfig
 }
 
+export type AppFormScene = 'CREATE' | 'UPDATE'
+
+export interface AppFormControl {
+  scenes: AppFormScene[]
+  condition?: FilterCondition | null
+}
+
+export interface AppFormFieldControls {
+  hidden?: AppFormControl
+  required?: AppFormControl
+  readonly?: AppFormControl
+}
+
+export type AppFormControls = Record<string, AppFormFieldControls>
+
 export interface AppFormLayout {
   items: AppFormItem[]
+  controls?: AppFormControls
 }
 
 const API_BASE = '/api/apps'
@@ -233,6 +249,8 @@ function normalizeForm(form: AppForm): AppForm {
     fields: Array.isArray(form.fields) ? form.fields : [],
     layout: {
       items: Array.isArray(form.layout?.items) ? form.layout.items : [],
+      controls: form.layout?.controls && typeof form.layout.controls === 'object'
+      && !Array.isArray(form.layout.controls) ? form.layout.controls : {},
     },
     viewTabs: rawViews.map((view) => normalizeViewTab(view)),
   }

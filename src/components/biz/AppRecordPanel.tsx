@@ -72,7 +72,13 @@ export function AppRecordPanel({
   })
   const approvalLocked = approval.locked
   const referenceOptionsMap = useReferenceOptions({appId, form, open: true})
-  const {entries} = parseFormLayout(form)
+  const controlValues = mode === 'view' && record
+    ? toEditValues(form, record)
+    : {...record, ...values}
+  const {entries, renderableFieldNames, requiredFieldNames} = parseFormLayout(form, {
+    scene: 'UPDATE',
+    values: controlValues,
+  })
   const mainEntries = entries.filter(
     (entry): entry is Exclude<FormLayoutEntry, { kind: 'SUBFORM' }> => entry.kind !== 'SUBFORM',
   )
@@ -114,7 +120,7 @@ export function AppRecordPanel({
       setError('请等待附件上传完成')
       return null
     }
-    return buildRecordPayload(form, parseFormLayout(form).renderableFieldNames, values, setError, false)
+    return buildRecordPayload(form, renderableFieldNames, values, setError, false, requiredFieldNames)
   }
 
   const save = async () => {
@@ -273,7 +279,7 @@ export function AppRecordPanel({
                       <div key={entry.key} className={cn('space-y-1.5', widthClass)}>
                         <label className="flex items-center gap-1 text-xs text-muted-foreground">
                           {item.label?.trim() || field.label}
-                          {field.required && <span className="text-destructive">*</span>}
+                          {entry.required && <span className="text-destructive">*</span>}
                           {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
                         </label>
                         <FieldControl
@@ -284,7 +290,7 @@ export function AppRecordPanel({
                           value={values[field.name]}
                           options={field.options ?? []}
                           referenceOptions={referenceOptionsMap[field.name]}
-                          disabled={item.readonly || !isFieldWritable(field, false) || isSubmitting}
+                          disabled={entry.readonly || !isFieldWritable(field, false) || isSubmitting}
                           onUploadStart={startUpload}
                           onChange={(value) => {
                             setValues((previous) => ({...previous, [field.name]: value}))

@@ -21,8 +21,8 @@ export function fieldDefaultValue(field: AppFormField, now = new Date()): unknow
   return defaults[0] ?? ''
 }
 
-export function fieldValueError(field: AppFormField, value: unknown): string | null {
-  if (isEmptyFieldValue(value)) return field.required ? `${field.label}不能为空` : null
+export function fieldValueError(field: AppFormField, value: unknown, required = field.required): string | null {
+  if (isEmptyFieldValue(value)) return required ? `${field.label}不能为空` : null
   const config = field.config
   if (config?.maxLength != null && String(value).length > config.maxLength) return `${field.label}不能超过${config.maxLength}个字符`
   if (field.type === 'NUMBER' || field.type === 'DECIMAL') {

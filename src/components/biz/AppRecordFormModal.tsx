@@ -90,8 +90,10 @@ export function AppRecordFormModal({
     formName: form.name,
     enabled: open && !recordId && !form.builtin,
   })
-  const {entries, renderableFieldNames} = parseFormLayout(form, {
+  const {entries, renderableFieldNames, requiredFieldNames} = parseFormLayout(form, {
     excludeField: recordContext?.referenceField,
+    scene: recordId ? 'UPDATE' : 'CREATE',
+    values,
   })
   const mainEntries = entries.filter(
     (entry): entry is Exclude<FormLayoutEntry, { kind: 'SUBFORM' }> => entry.kind !== 'SUBFORM',
@@ -146,7 +148,7 @@ export function AppRecordFormModal({
       setError('请等待附件上传完成')
       return null
     }
-    return buildRecordPayload(form, renderableFieldNames, values, setError, !recordId)
+    return buildRecordPayload(form, renderableFieldNames, values, setError, !recordId, requiredFieldNames)
   }
 
   const persistRecord = (payload: AppRecord) =>
@@ -284,7 +286,7 @@ export function AppRecordFormModal({
                     >
                       <label className="flex items-center gap-1 text-xs text-muted-foreground">
                         {item.label?.trim() || field.label}
-                        {field.required && <span className="text-destructive">*</span>}
+                        {entry.required && <span className="text-destructive">*</span>}
                         {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
                       </label>
                       <FieldControl
@@ -295,7 +297,7 @@ export function AppRecordFormModal({
                         value={values[field.name]}
                         options={field.options ?? []}
                         referenceOptions={referenceOptionsMap[field.name]}
-                        disabled={item.readonly || !isFieldWritable(field, !recordId) || isSubmitting || isStarting}
+                        disabled={entry.readonly || !isFieldWritable(field, !recordId) || isSubmitting || isStarting}
                         onUploadStart={startUpload}
                         onChange={(value) => setValues((previous) => ({...previous, [field.name]: value}))}
                       />

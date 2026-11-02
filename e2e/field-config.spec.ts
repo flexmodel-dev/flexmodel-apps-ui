@@ -17,7 +17,9 @@ async function setup(page: Page, {failFirstFieldUpdate = false, builtin = false}
     {name: 'approved', label: '已确认', type: 'BOOL', builtin: false, config: {defaultValue: false}},
   ]
   const form = {name: 'orders', label: '订单', displayField: 'title', builtin: false, managed: true,
-    fields, layout: {items: fields.map(field => ({type: 'FIELD', name: field.name, width: 'HALF'}))}, viewTabs: []}
+    fields, layout: {items: fields.map(field => ({type: 'FIELD', name: field.name, width: 'HALF'}))},
+    viewTabs: [{id: 'all', label: '全部', type: 'TABLE', filter: null, sort: null, displayFields: [], config: {}}]
+  }
   if (builtin) fields[1].builtin = true
   const writes: Record<string, unknown>[] = []
   const fieldWrites: Record<string, unknown>[] = []
@@ -49,6 +51,18 @@ async function setup(page: Page, {failFirstFieldUpdate = false, builtin = false}
       form.layout = layout
       return route.fulfill({json: form})
     }
+    if (pathname === `${root}/forms/orders/views/all/query` && method === 'POST') {
+      return route.fulfill({
+        json: {
+          viewId: 'all',
+          type: 'TABLE',
+          list: [record],
+          total: 1,
+          groups: null,
+          childFlags: null
+        }
+      })
+    }
     if (pathname.startsWith(recordsPath)) {
       if (method === 'POST' || method === 'PUT') {
         const input = route.request().postDataJSON()
@@ -62,7 +76,18 @@ async function setup(page: Page, {failFirstFieldUpdate = false, builtin = false}
       : pathname === '/api/apps' ? [app]
         : pathname === `${root}/forms/orders` ? form
           : pathname === `${root}/forms` ? [form]
-            : pathname === `${root}/menus` ? [{id: 'orders', type: 'ITEM', name: '订单', target: {type: 'FORM', id: 'orders'}, children: []}]
+            : pathname === `${root}/menus` || pathname === `${root}/navigation` ? [{
+                id: 'business',
+                type: 'GROUP',
+                name: '业务',
+                children: [{
+                  id: 'orders',
+                  type: 'ENTRY',
+                  name: '订单',
+                  destination: {type: 'FORM', id: 'orders'},
+                  children: []
+                }]
+              }]
               : pathname === '/api/notifications/summary' ? {version: '0', unread: 0, byCategory: {}, apps: []}
                 : pathname === '/api/notifications' ? {list: [], total: 0} : []
     return route.fulfill({json})
@@ -111,7 +136,6 @@ test('布局字段编辑保存完整属性并保留未保存分栏、显示名�
   await dialog.getByLabel('填写提示', {exact: true}).fill('请核对发票')
   await dialog.getByLabel('小数位数（0–6，留空不限制）').fill('4')
   await dialog.getByRole('checkbox', {name: '必填', exact: true}).uncheck()
-  await dialog.getByRole('checkbox', {name: '只读', exact: true}).check()
   await page.screenshot({path: 'artifacts/layout-field-config.png', animations: 'disabled'})
   await dialog.getByRole('button', {name: '保存', exact: true}).click()
   await expect(dialog).not.toBeVisible()
@@ -124,14 +148,13 @@ test('布局字段编辑保存完整属性并保留未保存分栏、显示名�
   await expect(dialog.getByLabel('字段名称', {exact: true})).toHaveValue('订单金额')
   await expect(dialog.getByLabel('小数位数（0–6，留空不限制）')).toHaveValue('4')
   await expect(dialog.getByLabel('填写提示', {exact: true})).toHaveValue('请核对发票')
-  await expect(dialog.getByRole('checkbox', {name: '只读', exact: true})).toBeChecked()
   await dialog.getByLabel('小数位数（0–6，留空不限制）').fill('6')
   await dialog.getByRole('button', {name: '取消', exact: true}).click()
   expect(fieldWrites).toHaveLength(1)
   await page.getByRole('button', {name: '保存', exact: true}).click()
   await expect(page.getByText('已保存', {exact: true})).toBeVisible()
   expect(form.layout.items).toHaveLength(6)
-  expect(form.layout.items[1]).toMatchObject({label: '含税金额', tip: '请核对发票', readonly: true})
+  expect(form.layout.items[1]).toMatchObject({label: '含税金额', tip: '请核对发票'})
   await page.reload()
   dialog = await editLayoutField(page, 1)
   await expect(dialog.getByLabel('小数位数（0–6，留空不限制）')).toHaveValue('4')
@@ -161,6 +184,9 @@ test('布局字段保存失败保留草稿并允许重试，多选属性不会�
 test('内置字段仅编辑布局，不调用字段更新接口', async ({page}) => {
   const {fieldWrites, pageErrors} = await setup(page, {builtin: true})
   await page.goto('/#/admin/apps/field-config/forms/orders/form-design')
+  await expect(page.locator('[data-state="inactive"][hidden]')).toBeHidden()
+  await expect(page.locator('[data-layout-index="1"]').getByText('内置', {exact: true})).toBeVisible()
+  await page.screenshot({path: 'artifacts/form-layout-builtin-badge.png', animations: 'disabled'})
   const dialog = await editLayoutField(page, 1)
   await expect(dialog.getByLabel('字段名称', {exact: true})).toBeDisabled()
   await expect(dialog.getByText('字段属性', {exact: true})).toHaveCount(0)
@@ -205,3 +231,78 @@ test('记录应用默认值、多选与显示格式，编辑不提交禁止修�
   expect(writes[1]).not.toHaveProperty('title')
   expect(pageErrors).toEqual([])
 })
+
+test('显示控制表头在纵向滚动时保持固定', async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 520})
+  const {pageErrors} = await setup(page)
+  await page.goto('/#/admin/apps/field-config/forms/orders/form-design')
+  await page.getByRole('tab', {name: '显示控制', exact: true}).click()
+  const table = page.locator('table.app-table:visible')
+  const scroller = table.locator('..')
+  expect(await scroller.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+  const header = table.getByRole('columnheader', {name: '字段', exact: true})
+  const before = await header.boundingBox()
+  await scroller.evaluate(element => {
+    element.scrollTop = element.scrollHeight
+  })
+  const after = await header.boundingBox()
+  expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThan(1)
+  await expect(header).toBeVisible()
+  await page.screenshot({path: 'artifacts/form-controls-sticky-header.png', animations: 'disabled'})
+  expect(pageErrors).toEqual([])
+})
+
+test('内置字段始终展示且只读，不可配置字段控制', async ({page}) => {
+  const {pageErrors} = await setup(page, {builtin: true})
+  await page.goto('/#/admin/apps/field-config/forms/orders/form-design')
+  await page.getByRole('tab', {name: '显示控制', exact: true}).click()
+  const row = page.getByRole('row').filter({hasText: 'amount'})
+  await expect(row.getByText('内置', {exact: true})).toBeVisible()
+  const checkboxes = row.getByRole('checkbox')
+  await expect(checkboxes).toHaveCount(6)
+  await expect(checkboxes.nth(0)).toBeDisabled()
+  await expect(checkboxes.nth(0)).not.toBeChecked()
+  await expect(checkboxes.nth(1)).toBeDisabled()
+  await expect(checkboxes.nth(1)).not.toBeChecked()
+  await expect(checkboxes.nth(2)).toBeDisabled()
+  await expect(checkboxes.nth(2)).toBeChecked()
+  await expect(checkboxes.nth(3)).toBeDisabled()
+  await expect(checkboxes.nth(3)).toBeChecked()
+  await expect(checkboxes.nth(4)).toBeDisabled()
+  await expect(checkboxes.nth(4)).toBeChecked()
+  await expect(checkboxes.nth(5)).toBeDisabled()
+  await expect(checkboxes.nth(5)).toBeChecked()
+  await expect(row.getByTitle('内置字段不可修改字段控制')).toHaveCount(3)
+  await page.screenshot({path: 'artifacts/form-controls-builtin.png', animations: 'disabled'})
+  expect(pageErrors).toEqual([])
+})
+
+test('显示控制按场景和条件保存隐藏、必填、只读配置', async ({page}) => {
+  const {layoutWrites, pageErrors} = await setup(page)
+  await page.goto('/#/admin/apps/field-config/forms/orders/form-design')
+  await page.getByRole('tab', {name: '显示控制', exact: true}).click()
+  const row = page.getByRole('row').filter({hasText: 'day'})
+  await row.getByRole('checkbox').nth(0).check()
+  await row.getByTitle('设置隐藏条件', {exact: true}).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', {name: '添加条件', exact: true}).click()
+  await dialog.getByLabel('条件字段').selectOption('approved')
+  await dialog.getByLabel('比较值').selectOption('true')
+  await dialog.getByRole('button', {name: '确定', exact: true}).click()
+  await expect(dialog).not.toBeVisible()
+  await row.getByRole('checkbox').nth(1).uncheck()
+  await row.getByRole('checkbox').nth(5).check()
+  await page.screenshot({path: 'artifacts/form-advanced-controls.png', animations: 'disabled'})
+  await page.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(page.getByText('已保存', {exact: true})).toBeVisible()
+  expect(layoutWrites.at(-1)?.controls).toMatchObject({
+    day: {
+      hidden: {scenes: ['CREATE'], condition: {approved: {_eq: true}}},
+      readonly: {scenes: ['UPDATE']},
+    },
+  })
+  expect(layoutWrites.at(-1)?.items.find((item: { name?: string }) => item.name === 'day'))
+    .not.toHaveProperty('readonly')
+  expect(pageErrors).toEqual([])
+})
+

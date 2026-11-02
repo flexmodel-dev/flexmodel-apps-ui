@@ -12,6 +12,7 @@ export function buildRecordPayload(
   values: AppRecord,
   onInvalid: (message: string) => void,
   creating = true,
+  requiredFieldNames?: Set<string>,
 ): AppRecord | null {
   const payload: AppRecord = {}
   for (const field of form.fields.filter((item) =>
@@ -19,7 +20,7 @@ export function buildRecordPayload(
     && isFieldWritable(item, creating)
   )) {
     const value = values[field.name]
-    const error = fieldValueError(field, value)
+    const error = fieldValueError(field, value, requiredFieldNames?.has(field.name) ?? field.required)
     if (error) {
       onInvalid(error)
       return null
