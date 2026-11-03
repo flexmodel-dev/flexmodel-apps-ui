@@ -1,7 +1,17 @@
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import {viewTabOperatorLabels, viewTabOperators} from '@/components/biz/RecordFilterControls'
 import type {AppFormField, FilterCondition} from '@/services/appForms'
+import {cn} from '@/lib/utils'
 
 export type FilterConditionValueType = 'literal' | 'currentUser' | 'field'
 
@@ -14,11 +24,11 @@ const operators: Record<string, string> = {
   IS_NOT_NULL: '不为空'
 }
 const valueTypeLabels: Record<FilterConditionValueType, string> = {
-  literal: '自定义',
+  literal: '固定值',
   currentUser: '当前用户',
   field: '字段引用'
 }
-const selectClass = 'h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm'
+const triggerClass = (className: string) => cn('h-9', className)
 
 const emptyLeaf = (field: string): FilterCondition => ({[field]: {_eq: ''}})
 const storeOperator = (operator: string) => operator === 'IS_NULL' ? '_eq' : operator === 'IS_NOT_NULL' ? '_ne' : operator
@@ -61,12 +71,16 @@ export function FilterConditionEditor({fields, value, onChange, valueTypes = ['l
     const logic = '_or' in value ? '_or' : '_and'
     const children = Array.isArray(value[logic]) ? value[logic] as FilterCondition[] : []
     return <div className="space-y-2 rounded-md border p-3">
-      <div className="flex items-center gap-2"><select className={selectClass} aria-label="条件组合方式"
-                                                       value={logic}
-                                                       onChange={e => onChange({[e.target.value]: children})}>
-        <option value="_and">全部满足</option>
-        <option value="_or">任一满足</option>
-      </select>
+      <div className="flex items-center gap-2">
+        <Select value={logic} onValueChange={next => onChange({[next]: children})}>
+          <SelectTrigger aria-label="条件组合方式" className={triggerClass('w-28')}>
+            <SelectValue/>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_and">全部满足</SelectItem>
+            <SelectItem value="_or">任一满足</SelectItem>
+          </SelectContent>
+        </Select>
         <Button type="button" variant="secondary" size="sm"
                 onClick={() => onChange({[logic]: [...children, emptyLeaf(fields[0]?.name ?? '')]})}>添加条件</Button>
         <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>清除</Button></div>
@@ -112,28 +126,52 @@ export function FilterConditionEditor({fields, value, onChange, valueTypes = ['l
     if (path) apply(operator, {_field: path})
   }
   return <div className="flex flex-wrap items-center gap-2">
-    <select aria-label="条件字段" className={selectClass} value={field}
-            onChange={e => onChange(emptyLeaf(e.target.value))}>
-      {fields.map(item => <option key={item.name} value={item.name}>{item.label}</option>)}</select>
-    <select aria-label="比较方式" className={selectClass} value={operator}
-            onChange={e => apply(e.target.value, defaultOperand(e.target.value))}>
-      {choices.map(key => <option key={key} value={key}>{operators[key]}</option>)}</select>
-    {structured && <select aria-label="值类型" className={selectClass} value={valueKind}
-                           onChange={e => switchValueType(e.target.value as FilterConditionValueType)}>
-      {offeredTypes.map(kind => <option key={kind} value={kind}>{valueTypeLabels[kind]}</option>)}</select>}
+    <Select value={field} onValueChange={next => onChange(emptyLeaf(next))}>
+      <SelectTrigger aria-label="条件字段" className={triggerClass('w-40')}>
+        <SelectValue/>
+      </SelectTrigger>
+      <SelectContent>
+        {fields.map(item => <SelectItem key={item.name} value={item.name}>{item.label}</SelectItem>)}
+      </SelectContent>
+    </Select>
+    <Select value={operator} onValueChange={next => apply(next, defaultOperand(next))}>
+      <SelectTrigger aria-label="比较方式" className={triggerClass('w-28')}>
+        <SelectValue/>
+      </SelectTrigger>
+      <SelectContent>
+        {choices.map(key => <SelectItem key={key} value={key}>{operators[key]}</SelectItem>)}
+      </SelectContent>
+    </Select>
+    {structured && <Select value={valueKind} onValueChange={next => switchValueType(next as FilterConditionValueType)}>
+      <SelectTrigger aria-label="值类型" className={triggerClass('w-24')}>
+        <SelectValue/>
+      </SelectTrigger>
+      <SelectContent>
+        {offeredTypes.map(kind => <SelectItem key={kind} value={kind}>{valueTypeLabels[kind]}</SelectItem>)}
+      </SelectContent>
+    </Select>}
     {valueKind === 'currentUser' ? null : valueKind === 'field'
-      ? <select aria-label="引用字段路径" className={selectClass} value={refPath}
-                onChange={e => apply(operator, {_field: e.target.value})}>
-        {groups.map(group => <optgroup key={group.label} label={group.label}>
-          {group.items.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
-        </optgroup>)}
-      </select>
-      : !isNull && (type === 'BOOL' && !isSet ? <select aria-label="比较值" className={selectClass} value={text}
-                                                        onChange={e => apply(operator, e.target.value === 'true')}>
-        <option value="">请选择</option>
-        <option value="true">是</option>
-        <option value="false">否</option>
-      </select>
+      ? <Select value={refPath} onValueChange={next => apply(operator, {_field: next})}>
+        <SelectTrigger aria-label="引用字段路径" className={triggerClass('w-52')}>
+          <SelectValue/>
+        </SelectTrigger>
+        <SelectContent>
+          {groups.map(group => <SelectGroup key={group.label}>
+            <SelectLabel>{group.label}</SelectLabel>
+            {group.items.map(item => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+          </SelectGroup>)}
+        </SelectContent>
+      </Select>
+      : !isNull && (type === 'BOOL' && !isSet
+      ? <Select value={text} onValueChange={next => apply(operator, next === 'true')}>
+        <SelectTrigger aria-label="比较值" className={triggerClass('w-24')}>
+          <SelectValue placeholder="请选择"/>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="true">是</SelectItem>
+          <SelectItem value="false">否</SelectItem>
+        </SelectContent>
+      </Select>
       : <Input aria-label="比较值" className="w-40"
                placeholder={isSet ? (operator === '_between' ? '两个值用逗号分隔' : '多个值用逗号分隔') : '比较值'}
                value={text}

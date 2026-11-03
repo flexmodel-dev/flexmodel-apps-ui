@@ -8,6 +8,7 @@ import {DirectoryMemberPicker} from '@/components/biz/DirectoryMemberPicker'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {FilterConditionEditor} from '@/components/biz/FilterConditionEditor'
 import {Button} from '@/components/ui/button'
+import {Checkbox} from '@/components/ui/checkbox'
 import {Input} from '@/components/ui/input'
 import {ConfirmDialog} from '@/components/ui/dialog'
 import {BizDrawer} from '@/components/ui/drawer'
@@ -148,7 +149,7 @@ export default function FormDataPermissions() {
     <BizDrawer open={!!draft} onOpenChange={open => {
       if (!busy && !open) setDraft(undefined)
     }} title={editingId ? '编辑授权规则' : '新增授权规则'}
-               width="md:w-[min(92vw,720px)]"
+               width="md:w-[min(92vw,920px)]"
                footer={<><Button variant="secondary" disabled={busy}
                                  onClick={() => setDraft(undefined)}>取消</Button><Button
                  disabled={busy || !draft?.name.trim()} onClick={save}>{busy ? '保存中…' : '保存'}</Button></>}>
@@ -159,11 +160,11 @@ export default function FormDataPermissions() {
                                                                                  ...draft,
                                                                                  name: e.target.value
                                                                                })}/></label>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.enabled}
-                                                                  onChange={e => setDraft({
-                                                                    ...draft,
-                                                                    enabled: e.target.checked
-                                                                  })}/>启用规则</label>
+        <label className="flex items-center gap-2 text-sm"><Checkbox checked={draft.enabled}
+                                                                     onCheckedChange={checked => setDraft({
+                                                                       ...draft,
+                                                                       enabled: checked === true
+                                                                     })}/>启用规则</label>
         <section className="space-y-2"><h3 className="text-sm font-medium">授权成员</h3><DirectoryMemberPicker
           appId={appId} value={toDirectorySelections(draft.subjects)}
           onChange={items => setDraft({...draft, subjects: fromDirectorySelections(items)})}/></section>
@@ -171,10 +172,11 @@ export default function FormDataPermissions() {
           className="text-xs text-muted-foreground">按所有者计算，多个范围取并集；下级相对于当前访问用户。</p>
           <div className="flex flex-wrap gap-3">{dynamics.map(item => <label key={item.type}
                                                                              className="flex items-center gap-2 text-sm">
-            <input type="checkbox" disabled={item.type !== 'ALL' && draft.dataScope.some(s => s.type === 'ALL')}
-                   checked={draft.dataScope.some(s => s.type === item.type)} onChange={e => setDraft({
+            <Checkbox aria-label={item.label}
+                      disabled={item.type !== 'ALL' && draft.dataScope.some(s => s.type === 'ALL')}
+                      checked={draft.dataScope.some(s => s.type === item.type)} onCheckedChange={checked => setDraft({
               ...draft,
-              dataScope: item.type === 'ALL' ? e.target.checked ? [{type: 'ALL'}] : [] : e.target.checked ? [...draft.dataScope, {type: item.type}] : draft.dataScope.filter(s => s.type !== item.type)
+              dataScope: item.type === 'ALL' ? checked === true ? [{type: 'ALL'}] : [] : checked === true ? [...draft.dataScope, {type: item.type}] : draft.dataScope.filter(s => s.type !== item.type)
             })}/>{item.label}</label>)}</div>
           <DirectoryMemberPicker appId={appId} disabled={draft.dataScope.some(s => s.type === 'ALL')}
                                  value={toDirectorySelections(draft.dataScope)} label="选择指定用户、角色或组织"
@@ -197,43 +199,41 @@ export default function FormDataPermissions() {
                   <thead>
                   <tr className="border-b text-left">
                     <th className="py-2 font-medium">字段</th>
-                    <th className="py-2"><label className="flex items-center gap-1"><input type="checkbox"
-                                                                                           aria-label="查看全部字段"
-                                                                                           checked={control.readAll}
-                                                                                           onChange={e => patchControl(form.name, {readAll: e.target.checked})}/>查看</label>
+                    <th className="py-2"><label className="flex items-center gap-1"><Checkbox aria-label="查看全部字段"
+                                                                                              checked={control.readAll}
+                                                                                              onCheckedChange={checked => patchControl(form.name, {readAll: checked === true})}/>查看</label>
                     </th>
-                    <th className="py-2"><label className="flex items-center gap-1"><input type="checkbox"
-                                                                                           aria-label="修改全部业务字段"
-                                                                                           checked={control.writeAll}
-                                                                                           onChange={e => patchControl(form.name, {writeAll: e.target.checked})}/>修改</label>
+                    <th className="py-2"><label className="flex items-center gap-1"><Checkbox
+                      aria-label="修改全部业务字段"
+                      checked={control.writeAll}
+                      onCheckedChange={checked => patchControl(form.name, {writeAll: checked === true})}/>修改</label>
                     </th>
-                    <th className="py-2"><label className="flex items-center gap-1"><input type="checkbox"
-                                                                                           aria-label="允许删除"
-                                                                                           checked={control.allowDelete}
-                                                                                           onChange={e => patchControl(form.name, {allowDelete: e.target.checked})}/>删除</label>
+                    <th className="py-2"><label className="flex items-center gap-1"><Checkbox aria-label="允许删除"
+                                                                                              checked={control.allowDelete}
+                                                                                              onCheckedChange={checked => patchControl(form.name, {allowDelete: checked === true})}/>删除</label>
                     </th>
                   </tr>
                   </thead>
                   <tbody>{form.fields.map(field => <tr key={field.name} className="border-b last:border-b-0">
                     <td className="py-2">{field.label}</td>
-                    <td><input type="checkbox" aria-label={`${form.label}${field.label}查看`}
-                               checked={control.readAll || !!control.fieldControls[field.name]?.read}
-                               disabled={control.readAll} onChange={e => patchControl(form.name, {
+                    <td><Checkbox aria-label={`${form.label}${field.label}查看`}
+                                  checked={control.readAll || !!control.fieldControls[field.name]?.read}
+                                  disabled={control.readAll} onCheckedChange={checked => patchControl(form.name, {
                       fieldControls: {
                         ...control.fieldControls,
-                        [field.name]: {read: e.target.checked, write: control.fieldControls[field.name]?.write ?? false}
+                        [field.name]: {read: checked === true, write: control.fieldControls[field.name]?.write ?? false}
                       }
                     })}/></td>
-                    <td><input type="checkbox" aria-label={`${form.label}${field.label}修改`}
-                               checked={!field.builtin && (control.writeAll || !!control.fieldControls[field.name]?.write)}
-                               disabled={field.builtin || control.writeAll} onChange={e => patchControl(form.name, {
+                    <td><Checkbox aria-label={`${form.label}${field.label}修改`}
+                                  checked={!field.builtin && (control.writeAll || !!control.fieldControls[field.name]?.write)}
+                                  disabled={field.builtin || control.writeAll}
+                                  onCheckedChange={checked => patchControl(form.name, {
                       fieldControls: {
                         ...control.fieldControls,
-                        [field.name]: {read: control.fieldControls[field.name]?.read ?? false, write: e.target.checked}
+                        [field.name]: {read: control.fieldControls[field.name]?.read ?? false, write: checked === true}
                       }
                     })}/></td>
-                    <td><input type="checkbox" aria-label={`${form.label}${field.label}删除`}
-                               checked={control.allowDelete} disabled/></td>
+                    <td aria-label={`${form.label}${field.label}删除`} className="text-muted-foreground">—</td>
                   </tr>)}</tbody>
                 </table>
               </div>

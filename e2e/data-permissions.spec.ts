@@ -56,7 +56,7 @@ test('多选公共目录、主子表开关、保存模型与新子表默认关�
   await main.getByLabel('修改全部业务字段').check()
   await expect(main.getByLabel('客户所有者修改')).toBeDisabled()
   await expect(main.getByLabel('客户所有者修改')).not.toBeChecked()
-  await expect(main.getByLabel('客户所有者删除')).toBeDisabled()
+  await expect(main.getByLabel('客户所有者删除')).toHaveText('—')
   await main.getByRole('button', {name: '添加条件'}).click()
   await page.getByRole('button', {name: '保存', exact: true}).click()
   await expect(page.getByText('销售管理', {exact: true})).toBeVisible()
