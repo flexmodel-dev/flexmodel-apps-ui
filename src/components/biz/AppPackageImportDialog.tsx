@@ -131,9 +131,15 @@ export function AppPackageImportDialog({
   const [phase, setPhase] = React.useState<string | null>(null)
   const [dragging, setDragging] = React.useState(false)
   const [error, setError] = React.useState('')
+  const progressRef = React.useRef<HTMLDivElement>(null)
 
   const busy = isUploading || isCommitting
   const currentStep = progressStep(phase)
+
+  // 进度块在长预览的最下方，开始导入时滚动到可视区
+  React.useEffect(() => {
+    if (isCommitting) progressRef.current?.scrollIntoView({behavior: 'smooth', block: 'end'})
+  }, [isCommitting])
 
   const reset = React.useCallback(() => {
     setStep(0)
@@ -487,7 +493,8 @@ export function AppPackageImportDialog({
             </section>
 
             {isCommitting ? (
-              <div role="status" aria-live="polite" className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <div ref={progressRef} role="status" aria-live="polite"
+                   className="rounded-lg border border-primary/30 bg-primary/5 p-4">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <Loader2 className="h-4 w-4 animate-spin text-primary"/>
                   {currentStep < importSteps.length ? `正在${importSteps[currentStep]}…` : '正在完成导入…'}
