@@ -19,7 +19,11 @@ import {FlowStartDialog, useFormApprovalFlows} from '@/components/biz/form/flowL
 import {
   FieldControl,
 } from '@/components/biz/form/FormFieldControl'
-import {parseFormLayout, type FormLayoutEntry} from '@/components/biz/form/parseFormLayout'
+import {
+  groupFormLayoutFields,
+  parseFormLayout,
+  type FormLayoutEntry,
+} from '@/components/biz/form/parseFormLayout'
 import {
   buildRecordPayload,
   initialCreateValues,
@@ -140,6 +144,7 @@ export function AppRecordDrawer({
   const mainEntries = entries.filter(
     (entry): entry is Exclude<FormLayoutEntry, { kind: 'SUBFORM' }> => entry.kind !== 'SUBFORM',
   )
+  const mainGroups = groupFormLayoutFields(mainEntries)
   const subformEntries = entries.filter(
     (entry): entry is Extract<FormLayoutEntry, { kind: 'SUBFORM' }> => entry.kind === 'SUBFORM',
   )
@@ -526,64 +531,67 @@ export function AppRecordDrawer({
             )}
             {mainEntries.length > 0 && (
               <div className="space-y-5 rounded-xl border bg-card p-4 shadow-sm">
-                <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12">
-                  {mainEntries.map((entry) => {
-                    if (entry.kind === 'SECTION') {
-                      return (
-                        <div key={entry.key} className="md:col-span-12">
-                          <AppFormSectionTitle label={entry.label}/>
-                        </div>
-                      )
-                    }
-                    const {field, item} = entry
-                    const widthClass = formItemWidthTypeClasses[item.width ?? 'HALF']
-                    if (mode === 'view') {
-                      return (
-                        <div key={entry.key} className={cn('min-w-0', widthClass)}>
-                          <div className="text-xs text-muted-foreground">
-                            {item.label?.trim() || field.label}
-                          </div>
-                          <div className="mt-1 truncate text-sm font-medium text-foreground">
-                            {field.type === 'REFERENCE'
-                              ? (
-                                <AppReferenceValue
-                                  appId={appId}
-                                  field={field}
-                                  value={record?.[field.name]}
-                                  onOpenRecord={onOpenRecord}
-                                />
-                              )
-                              : renderViewValue(field, record?.[field.name])}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return (
-                      <div key={entry.key} className={cn('space-y-1.5', widthClass)}>
-                        <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                          {item.label?.trim() || field.label}
-                          {entry.required && <span className="text-destructive">*</span>}
-                          {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
-                        </label>
-                        <FieldControl
-                          key={`${appId}/${formName}/${recordId ?? 'new'}/${field.name}`}
-                          appId={appId}
-                          formId={formName}
-                          field={field}
-                          value={values[field.name]}
-                          options={field.options ?? []}
-                          referenceOptions={referenceOptionsMap[field.name]}
-                          disabled={entry.readonly || !isFieldWritable(field, !activeRecordId) || recordPending || isSubmitting || isStarting}
-                          onUploadStart={startUpload}
-                          onChange={(value) => {
-                            setValues((previous) => ({...previous, [field.name]: value}))
-                            setDirty(true)
-                          }}
-                        />
+                {mainGroups.map((group) => (
+                  <div key={group.key} className="space-y-4">
+                    {group.section && <AppFormSectionTitle label={group.section.label}/>}
+                    {group.fields.length > 0 && (
+                      <div className={cn(
+                        'grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12',
+                        group.section && 'pl-4',
+                      )}>
+                        {group.fields.map((entry) => {
+                          const {field, item} = entry
+                          const widthClass = formItemWidthTypeClasses[item.width ?? 'HALF']
+                          if (mode === 'view') {
+                            return (
+                              <div key={entry.key} className={cn('min-w-0', widthClass)}>
+                                <div className="text-xs text-muted-foreground">
+                                  {item.label?.trim() || field.label}
+                                </div>
+                                <div className="mt-1 truncate text-sm font-medium text-foreground">
+                                  {field.type === 'REFERENCE'
+                                    ? (
+                                      <AppReferenceValue
+                                        appId={appId}
+                                        field={field}
+                                        value={record?.[field.name]}
+                                        onOpenRecord={onOpenRecord}
+                                      />
+                                    )
+                                    : renderViewValue(field, record?.[field.name])}
+                                </div>
+                              </div>
+                            )
+                          }
+                          return (
+                            <div key={entry.key} className={cn('space-y-1.5', widthClass)}>
+                              <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                                {item.label?.trim() || field.label}
+                                {entry.required && <span className="text-destructive">*</span>}
+                                {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
+                              </label>
+                              <FieldControl
+                                key={`${appId}/${formName}/${recordId ?? 'new'}/${field.name}`}
+                                appId={appId}
+                                formId={formName}
+                                field={field}
+                                value={values[field.name]}
+                                options={field.options ?? []}
+                                referenceOptions={referenceOptionsMap[field.name]}
+                                disabled={entry.readonly || !isFieldWritable(field, !activeRecordId) || recordPending || isSubmitting || isStarting}
+                                onUploadStart={startUpload}
+                                onChange={(value) => {
+                                  setValues((previous) => ({...previous, [field.name]: value}))
+                                  setDirty(true)
+                                }}
+                              />
+                            </div>
+                          )
+                        })}
                       </div>
-                    )
-                  })}
-                </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
             {subformEntries.map((entry) => {

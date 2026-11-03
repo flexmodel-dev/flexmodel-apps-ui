@@ -33,6 +33,37 @@ export interface ParsedFormLayout {
   requiredFieldNames: Set<string>
 }
 
+export type FormLayoutFieldEntry = Extract<FormLayoutEntry, { kind: 'FIELD' }>
+
+export interface FormLayoutFieldGroup {
+  key: string
+  section: { key: string; label: string } | null
+  fields: FormLayoutFieldEntry[]
+}
+
+/**
+ * 按分栏（SECTION）把字段分组，供记录表单与详情统一渲染缩进。
+ * 分栏标题单独成组；分栏之前的字段归入 section 为 null 的默认组；子表单不参与分组。
+ */
+export function groupFormLayoutFields(entries: FormLayoutEntry[]): FormLayoutFieldGroup[] {
+  const groups: FormLayoutFieldGroup[] = []
+  let current: FormLayoutFieldGroup | null = null
+  for (const entry of entries) {
+    if (entry.kind === 'SUBFORM') continue
+    if (entry.kind === 'SECTION') {
+      current = {key: entry.key, section: {key: entry.key, label: entry.label}, fields: []}
+      groups.push(current)
+      continue
+    }
+    if (!current) {
+      current = {key: 'default', section: null, fields: []}
+      groups.push(current)
+    }
+    current.fields.push(entry)
+  }
+  return groups
+}
+
 function controlActive(control: AppFormControl | undefined, scene: AppFormScene | undefined,
                        values: Record<string, unknown>) {
   return Boolean(control && scene && control.scenes?.includes(scene)

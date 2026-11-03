@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {parseFormLayout} from './parseFormLayout'
+import {groupFormLayoutFields, parseFormLayout} from './parseFormLayout'
 import type {AppForm, AppFormControls} from '@/services/appForms'
 
 function form(controls?: AppFormControls, required = false, builtin = false): AppForm {
@@ -23,6 +23,43 @@ function form(controls?: AppFormControls, required = false, builtin = false): Ap
     viewTabs: [],
   }
 }
+
+describe('groupFormLayoutFields', () => {
+  it('groups fields under each section and keeps leading fields ungrouped', () => {
+    const parsed = parseFormLayout({
+      ...form(),
+      layout: {
+        items: [
+          {type: 'FIELD', name: 'status'},
+          {type: 'SECTION', label: '金额信息'},
+          {type: 'FIELD', name: 'amount'},
+        ],
+      },
+    }, {scene: 'CREATE', values: {}})
+    expect(groupFormLayoutFields(parsed.entries).map(group => ({
+      label: group.section?.label ?? null,
+      fields: group.fields.map(entry => entry.field.name),
+    }))).toEqual([
+      {label: null, fields: ['status']},
+      {label: '金额信息', fields: ['amount']},
+    ])
+  })
+
+  it('keeps an empty section group so its title still renders', () => {
+    const parsed = parseFormLayout({
+      ...form(),
+      layout: {
+        items: [
+          {type: 'FIELD', name: 'status'},
+          {type: 'SECTION', label: '空分栏'},
+        ],
+      },
+    }, {scene: 'CREATE', values: {}})
+    const groups = groupFormLayoutFields(parsed.entries)
+    expect(groups).toHaveLength(2)
+    expect(groups[1]).toMatchObject({section: {label: '空分栏'}, fields: []})
+  })
+})
 
 describe('parseFormLayout controls', () => {
   it('keeps defaults without controls', () => {

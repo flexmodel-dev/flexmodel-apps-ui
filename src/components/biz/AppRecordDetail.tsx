@@ -127,7 +127,10 @@ export function AppRecordDetail({
                 </button>
               )}
               {!collapsed && (
-                <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12">
+                <div className={cn(
+                  'grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12',
+                  section.key !== 'default' && 'pl-4',
+                )}>
                   {section.fields.map(({field, item}) => {
                     const width = item.width ?? 'HALF'
                     const label = item.label?.trim() || field.label
