@@ -14,7 +14,8 @@ import {
   VIEW_PAGE_SIZE_OPTIONS,
   viewPageCount,
 } from '@/components/biz/views/viewUtils'
-import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {ViewErrorState, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {useViewFetching} from '@/components/biz/views/viewFetching'
 import {formatFieldValue} from '@/lib/fieldConfig'
 import {isAttachmentField} from '@/lib/attachments'
 import type {AppFormField} from '@/services/appForms'
@@ -56,6 +57,7 @@ export function TableView(props: ViewComponentProps) {
   const total = query.data?.total ?? 0
   const pages = viewPageCount(total, size)
   const isInitialLoading = query.isLoading && !query.data
+  useViewFetching(query.isFetching && !query.isLoading)
 
   React.useEffect(() => {
     setPage(1)
@@ -138,7 +140,6 @@ export function TableView(props: ViewComponentProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="data-list app-table-scroll record-list-scroll relative min-h-0 min-w-0 flex-1">
-        <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
         {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
         {isInitialLoading ? (
           <ViewSkeleton variant="table" rows={6}/>

@@ -6,7 +6,8 @@ import {Pagination} from '@/components/biz/Pagination'
 import {useViewQuery} from '@/components/biz/views/useViewQuery'
 import {type ViewComponentProps, viewDisplayFields, viewTitleValue} from '@/components/biz/views/types'
 import {layoutFieldLabel, recordFieldText, VIEW_PAGE_SIZE_OPTIONS,} from '@/components/biz/views/viewUtils'
-import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {ViewErrorState, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {useViewFetching} from '@/components/biz/views/viewFetching'
 import {queryAppView} from '@/services/appViews'
 import type {AppFormField, AppViewHierarchyMode} from '@/services/appForms'
 import type {AppRecord} from '@/services/appRecords'
@@ -108,6 +109,7 @@ export function HierarchyView(props: ViewComponentProps) {
     search,
     filter: advancedFilter,
   }, refreshTick)
+  useViewFetching(query.isFetching && !query.isLoading)
 
   React.useEffect(() => {
     setExpanded(new Set())
@@ -319,7 +321,6 @@ export function HierarchyView(props: ViewComponentProps) {
 
       <div
         className={cn('relative min-h-0 flex-1', mode === 'TREE' ? 'overflow-y-auto record-list-scroll' : 'overflow-hidden')}>
-        <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
         {isInitialLoading ? (
           mode === 'TREE' ? <ViewSkeleton variant="list" rows={8}/> : <ViewSkeleton variant="table" rows={8}/>
         ) : !rows.length ? (

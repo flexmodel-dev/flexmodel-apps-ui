@@ -12,6 +12,7 @@ export interface NavDestination {
   type: NavDestinationType
   id: string
   label?: string
+  workbenchId?: string | null
 }
 
 export interface AppNav {
@@ -33,7 +34,7 @@ export interface AppNavInput {
   name: string
   iconName?: string | null
   parentId?: string | null
-  destination?: { type: NavDestinationType; id: string } | null
+  destination?: { type: NavDestinationType; id: string; workbenchId?: string | null } | null
 }
 
 export interface AppNavDestinations {

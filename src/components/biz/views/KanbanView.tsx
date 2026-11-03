@@ -24,7 +24,8 @@ import {
   rawGroupValue,
   recordFieldText,
 } from '@/components/biz/views/viewUtils'
-import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {ViewErrorState, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {useViewFetching} from '@/components/biz/views/viewFetching'
 import {type AppViewGroup, moveAppViewRecord} from '@/services/appViews'
 import type {AppForm, AppFormField, AppFormViewFilter, AppFormViewTab} from '@/services/appForms'
 import type {AppRecord} from '@/services/appRecords'
@@ -223,7 +224,6 @@ function KanbanColumn({
         <span className="text-xs tabular-nums text-muted-foreground">{adjustedTotal}</span>
       </div>
       <div className="record-list-scroll relative min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
-        <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
         {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
         {isInitialLoading ? (
           <ViewSkeleton variant="list" rows={3}/>
@@ -282,6 +282,7 @@ export function KanbanView(props: ViewComponentProps) {
   }, reloadKey)
   const groups = groupsQuery.data?.groups ?? []
   const movable = groupsQuery.data?.movable ?? false
+  useViewFetching(groupsQuery.isFetching && !groupsQuery.isLoading)
   const draggable = Boolean(groupField) && movable
   const dragDisabled = !draggable || isMoving
   const dragHint = !groupField

@@ -4,19 +4,6 @@ import {Button} from '@/components/ui/button'
 import {Skeleton} from '@/components/ui/skeleton'
 import {cn} from '@/lib/utils'
 
-/** 顶部细进度条：后台刷新时保留旧内容，避免整块闪成加载态。 */
-export function ViewFetchingBar({active, className}: { active: boolean; className?: string }) {
-  if (!active) return null
-  return (
-    <div
-      aria-hidden="true"
-      className={cn('pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden bg-primary/15', className)}
-    >
-      <div className="h-full w-1/3 animate-[view-progress_1.1s_ease-in-out_infinite] rounded-full bg-primary"/>
-    </div>
-  )
-}
-
 /** 首次加载或请求失败的整块状态。 */
 export function ViewErrorState({
                                  message,

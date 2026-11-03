@@ -65,15 +65,6 @@
   }
 }
 
-@keyframes view-progress {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(400%);
-  }
-}
-
 @layer components {
   .app-table {
     @apply w-full border-collapse text-sm leading-6;

@@ -21,10 +21,10 @@ function findNav(navs: AppNav[], navId?: string): AppNav | undefined {
   return undefined
 }
 
-function BuiltinPage({destinationId}: { destinationId: string }) {
+function BuiltinPage({destinationId, workbenchId}: { destinationId: string; workbenchId?: string | null }) {
   switch (destinationId) {
     case 'workbench':
-      return <WorkbenchHome/>
+      return <WorkbenchHome workbenchId={workbenchId}/>
     case 'feeds':
       return <FeedsHome/>
     case 'files':
@@ -91,7 +91,7 @@ export default function AppMenuPage() {
   }
 
   if (nav.destination?.type === 'BUILTIN') {
-    return <BuiltinPage destinationId={nav.destination.id}/>
+    return <BuiltinPage destinationId={nav.destination.id} workbenchId={nav.destination.workbenchId}/>
   }
   if (nav.destination?.type === 'FORM') {
     return <RecordList formName={nav.destination.id}/>

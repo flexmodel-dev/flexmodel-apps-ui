@@ -6,6 +6,7 @@ import {BizDrawer} from '@/components/ui/drawer'
 import {Button} from '@/components/ui/button'
 import {message} from '@/components/ui/message'
 import {cn, toErrorMessage} from '@/lib/utils'
+import {AppLoading} from '@/components/biz/AppLoading'
 import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
 import {
   formItemWidthTypeClasses,
@@ -40,11 +41,15 @@ import {submitApproval} from '@/services/approvals'
 
 export type {ReferenceOption}
 
+const EMPTY_ENTRIES: FormLayoutEntry[] = []
+const EMPTY_FIELD_NAMES: Set<string> = new Set()
+
 export function AppRecordFormModal({
                                      open,
                                      onOpenChange,
                                      appId,
                                      form,
+                                     formError,
                                      recordId,
                                      recordContext: context,
                                      loadRecord,
@@ -57,7 +62,9 @@ export function AppRecordFormModal({
   open: boolean
   onOpenChange: (open: boolean) => void
   appId: string
-  form: AppForm
+  /** 表单定义可能尚未加载（例如右上角新增记录先展开抽屉再取表单） */
+  form: AppForm | null
+  formError?: string | null
   recordId?: string | null
   recordContext?: AppRecordContext
   loadRecord?: (recordId: string) => Promise<AppRecord>
@@ -74,6 +81,7 @@ export function AppRecordFormModal({
     mainRecordId: context.mainRecordId,
     referenceField: context.referenceField,
   } : undefined, [context?.mainFormName, context?.mainRecordId, context?.referenceField])
+  const formName = form?.name ?? ''
   const [values, setValues] = React.useState<AppRecord>({})
   const [error, setError] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -87,14 +95,17 @@ export function AppRecordFormModal({
   const effectiveRecordId = savedRecordId ?? recordId ?? null
   const flows = useFormApprovalFlows({
     appId,
-    formName: form.name,
-    enabled: open && !recordId && !form.builtin,
+    formName,
+    enabled: open && !!form && !recordId && !form?.builtin,
   })
-  const {entries, renderableFieldNames, requiredFieldNames} = parseFormLayout(form, {
+  const layout = form ? parseFormLayout(form, {
     excludeField: recordContext?.referenceField,
     scene: recordId ? 'UPDATE' : 'CREATE',
     values,
-  })
+  }) : null
+  const entries = layout?.entries ?? EMPTY_ENTRIES
+  const renderableFieldNames = layout?.renderableFieldNames ?? EMPTY_FIELD_NAMES
+  const requiredFieldNames = layout?.requiredFieldNames ?? EMPTY_FIELD_NAMES
   const mainEntries = entries.filter(
     (entry): entry is Exclude<FormLayoutEntry, { kind: 'SUBFORM' }> => entry.kind !== 'SUBFORM',
   )
@@ -114,7 +125,7 @@ export function AppRecordFormModal({
   }, [open])
 
   React.useEffect(() => {
-    if (!open) return
+    if (!open || !form) return
     let cancelled = false
     setError('')
     if (!recordId) {
@@ -144,6 +155,7 @@ export function AppRecordFormModal({
   }, [open])
 
   const buildPayload = (): AppRecord | null => {
+    if (!form || !layout) return null
     if (uploading) {
       setError('请等待附件上传完成')
       return null
@@ -155,8 +167,8 @@ export function AppRecordFormModal({
     saveRecord
       ? saveRecord(payload, recordId)
       : effectiveRecordId
-        ? updateAppRecord(appId, form.name, effectiveRecordId, payload, recordContext)
-        : createAppRecord(appId, form.name, payload, recordContext)
+        ? updateAppRecord(appId, formName, effectiveRecordId, payload, recordContext)
+        : createAppRecord(appId, formName, payload, recordContext)
 
   const submit = async () => {
     const payload = buildPayload()
@@ -201,7 +213,7 @@ export function AppRecordFormModal({
     return (
       <AppSubformRecords
         appId={appId}
-        mainFormName={form.name}
+        mainFormName={formName}
         mainRecordId={effectiveRecordId}
         subform={{formName: item.formName, referenceField: item.referenceField}}
         onBeforeCreate={persistForSubform}
@@ -223,7 +235,7 @@ export function AppRecordFormModal({
     setError('')
     try {
       const saved = await persistRecord(payload)
-      await submitApproval(appId, form.name, String(saved.id ?? ''), flowId, requestKey.current)
+      await submitApproval(appId, formName, String(saved.id ?? ''), flowId, requestKey.current)
       requestKey.current = crypto.randomUUID()
       setFlowOpen(false)
       onOpenChange(false)
@@ -242,16 +254,16 @@ export function AppRecordFormModal({
       <BizDrawer
       open={open}
       onOpenChange={onOpenChange}
-      title={effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`}
-      moreMenu={
+      title={form ? (effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`) : '新建记录'}
+      moreMenu={form ? (
         <FormMoreMenu
           onOpenDesign={() => {
             onOpenChange(false)
-            navigate(designPath ?? `/admin/apps/${appId}/forms/${encodeURIComponent(form.name)}/form-design`)
+            navigate(designPath ?? `/admin/apps/${appId}/forms/${encodeURIComponent(formName)}/form-design`)
           }}
         />
-      }
-      footer={
+      ) : undefined}
+      footer={form ? (
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting || isStarting}>
             取消
@@ -263,9 +275,11 @@ export function AppRecordFormModal({
             </Button>
           )}
         </>
-      }
+      ) : undefined}
     >
         <div className="space-y-4">
+          {formError && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>}
+          {!form && !formError && <AppLoading center className="min-h-[240px]"/>}
         {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
           {mainEntries.length > 0 && (
             <div className="space-y-5 rounded-xl border bg-card p-4 shadow-sm">
@@ -290,9 +304,9 @@ export function AppRecordFormModal({
                         {item.tip && <Info className="h-3.5 w-3.5 text-muted-foreground"/>}
                       </label>
                       <FieldControl
-                        key={`${appId}/${form.name}/${recordId ?? 'new'}/${field.name}`}
+                        key={`${appId}/${formName}/${recordId ?? 'new'}/${field.name}`}
                         appId={appId}
-                        formId={form.name}
+                        formId={formName}
                         field={field}
                         value={values[field.name]}
                         options={field.options ?? []}

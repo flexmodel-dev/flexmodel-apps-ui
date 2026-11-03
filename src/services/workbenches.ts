@@ -5,6 +5,8 @@ import {invalidateAppNavDestinations} from '@/services/appNavigation'
 export const WORKBENCH_SCHEMA_VERSION = 1
 export const WORKBENCH_GRID_COLUMNS = 12
 export const WORKBENCH_MAX_GRID_HEIGHT = 24
+export const WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES = 4
+export const WORKBENCH_MAX_DECIMAL_PLACES = 6
 
 export type WorkbenchComponentType = 'metric' | 'chart' | 'dataloader' | 'shortcuts' | 'tasks'
 export type WorkbenchChartType = 'line' | 'bar' | 'pie'
@@ -23,6 +25,7 @@ export interface WorkbenchMetricConfig {
   formName: string
   aggregation: WorkbenchAggregationType
   field?: string | null
+  decimalPlaces?: number | null
 }
 
 export interface WorkbenchChartConfig {
@@ -173,6 +176,13 @@ function detailKey(appId: string, workbenchId: string) {
   return `${appId}:${workbenchId}`
 }
 
+export function normalizeMetricDecimalPlaces(value: unknown): number {
+  const places = Number(value)
+  return Number.isInteger(places) && places >= 0 && places <= WORKBENCH_MAX_DECIMAL_PLACES
+    ? places
+    : WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES
+}
+
 function normalizeComponentConfig(config: WorkbenchComponentConfig): WorkbenchComponentConfig {
   if (config.type === 'metric') {
     const aggregation = config.aggregation ?? 'count'
@@ -180,6 +190,7 @@ function normalizeComponentConfig(config: WorkbenchComponentConfig): WorkbenchCo
       ...config,
       aggregation,
       field: aggregation === 'count' ? null : (config.field ?? null),
+      decimalPlaces: normalizeMetricDecimalPlaces(config.decimalPlaces),
     }
   }
   if (config.type === 'chart') {

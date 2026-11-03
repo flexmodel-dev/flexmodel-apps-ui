@@ -67,8 +67,24 @@ import {type AppIconName, appIconOptions, appIcons, isAppIconName,} from '@/data
 
 type EditorForm =
   | { kind: 'top'; id?: string; text: string }
-  | { kind: 'left'; id?: string; text: string; link?: string; icon: AppIconName | 'none'; type: LeftMenuItemType }
-  | { kind: 'sub'; id?: string; parentId: string; text: string; link?: string; icon: AppIconName | 'none' }
+  | {
+  kind: 'left';
+  id?: string;
+  text: string;
+  link?: string;
+  workbenchId?: string | null;
+  icon: AppIconName | 'none';
+  type: LeftMenuItemType
+}
+  | {
+  kind: 'sub';
+  id?: string;
+  parentId: string;
+  text: string;
+  link?: string;
+  workbenchId?: string | null;
+  icon: AppIconName | 'none'
+}
 
 export interface MenuEditorDraft {
   text?: string
@@ -358,6 +374,15 @@ function destinationFromValue(value?: string) {
   }
 }
 
+function destinationInput(link: string | undefined, workbenchId: string | null | undefined) {
+  const destination = destinationFromValue(link)
+  if (!destination) return null
+  if (destination.type === 'BUILTIN' && destination.id === 'workbench') {
+    return {...destination, workbenchId: workbenchId || null}
+  }
+  return destination
+}
+
 function MenuEditorDialog({
                             open,
                             onOpenChange,
@@ -407,6 +432,7 @@ function MenuEditorDialog({
       kind: 'left',
       text: draft.text ?? '',
       link: draft.link,
+      workbenchId: null,
       icon: 'none',
       type: 'menu',
     })
@@ -448,24 +474,30 @@ function MenuEditorDialog({
     setForm({kind: 'sub', parentId, text: '', icon: 'none'})
 
   const editTop = (menu: TopNavItem) => setForm({kind: 'top', id: menu.id, text: menu.text})
-  const editLeft = (item: NavItem) =>
+  const editLeft = (item: NavItem) => {
+    const destination = appId ? findNavById(navs, item.id)?.destination : undefined
     setForm({
       kind: 'left',
       id: item.id,
       text: item.text,
-      link: appId ? destinationValue(findNavById(navs, item.id)?.destination) : item.to,
+      link: appId ? destinationValue(destination) : item.to,
+      workbenchId: destination?.workbenchId ?? null,
       icon: iconName(item.icon),
       type: item.sub ? 'group' : 'menu',
     })
-  const editSub = (parentId: string, item: NavItem) =>
+  }
+  const editSub = (parentId: string, item: NavItem) => {
+    const destination = appId ? findNavById(navs, item.id)?.destination : undefined
     setForm({
       kind: 'sub',
       id: item.id,
       parentId,
       text: item.text,
-      link: appId ? destinationValue(findNavById(navs, item.id)?.destination) : item.to,
+      link: appId ? destinationValue(destination) : item.to,
+      workbenchId: destination?.workbenchId ?? null,
       icon: iconName(item.icon),
     })
+  }
 
   const isValid = (() => {
     if (!form) return false
@@ -537,7 +569,7 @@ function MenuEditorDialog({
             name: form.text.trim(),
             iconName: form.icon === 'none' ? null : form.icon,
             parentId: selectedTop.id,
-            destination: form.type === 'group' ? null : destinationFromValue(form.link),
+            destination: form.type === 'group' ? null : destinationInput(form.link, form.workbenchId),
           }
         } else {
           input = {
@@ -545,7 +577,7 @@ function MenuEditorDialog({
             name: form.text.trim(),
             iconName: form.icon === 'none' ? null : form.icon,
             parentId: form.parentId,
-            destination: destinationFromValue(form.link),
+            destination: destinationInput(form.link, form.workbenchId),
           }
         }
 
@@ -565,6 +597,7 @@ function MenuEditorDialog({
             id: saved.id,
             text: saved.name,
             link: destinationValue(saved.destination),
+            workbenchId: saved.destination?.workbenchId ?? null,
             icon: toIconValue(saved.iconName),
             type: saved.type === 'GROUP' ? 'group' : 'menu',
           })
@@ -575,6 +608,7 @@ function MenuEditorDialog({
             parentId: form.parentId,
             text: saved.name,
             link: destinationValue(saved.destination),
+            workbenchId: saved.destination?.workbenchId ?? null,
             icon: toIconValue(saved.iconName),
           })
         }
@@ -730,7 +764,15 @@ function MenuEditorDialog({
         name: nav.name,
         iconName: nav.iconName ?? null,
         parentId: targetParentId,
-        destination: nav.destination ? {type: nav.destination.type, id: nav.destination.id} : null,
+        destination: nav.destination
+          ? {
+            type: nav.destination.type,
+            id: nav.destination.id,
+            workbenchId: nav.destination.type === 'BUILTIN' && nav.destination.id === 'workbench'
+              ? nav.destination.workbenchId ?? null
+              : null,
+          }
+          : null,
       }
       await updateAppNav(appId!, nav.id, input)
       const nextNavs = moveNavNode(navs, nav.id, targetParentId, targetIndex)
@@ -744,6 +786,7 @@ function MenuEditorDialog({
             id: nav.id,
             text: nav.name,
             link: destinationValue(nav.destination),
+            workbenchId: nav.destination?.workbenchId ?? null,
             icon: toIconValue(nav.iconName),
             type: 'menu',
           }
@@ -753,6 +796,7 @@ function MenuEditorDialog({
             parentId: targetParentId,
             text: nav.name,
             link: destinationValue(nav.destination),
+            workbenchId: nav.destination?.workbenchId ?? null,
             icon: toIconValue(nav.iconName),
           })
       }
@@ -1012,6 +1056,8 @@ function MenuEditorDialog({
                       value={form.link}
                       onChange={(link) => setForm({...form, link})}
                       appId={appId}
+                      workbenchId={form.workbenchId}
+                      onWorkbenchChange={(workbenchId) => setForm({...form, workbenchId})}
                     />
                   </>
                 )}
@@ -1023,6 +1069,8 @@ function MenuEditorDialog({
                       value={form.link}
                       onChange={(link) => setForm({...form, link})}
                       appId={appId}
+                      workbenchId={form.workbenchId}
+                      onWorkbenchChange={(workbenchId) => setForm({...form, workbenchId})}
                     />
                   </>
                 )}

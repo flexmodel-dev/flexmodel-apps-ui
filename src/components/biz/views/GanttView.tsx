@@ -8,7 +8,8 @@ import {message} from '@/components/ui/message'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {useViewQuery} from '@/components/biz/views/useViewQuery'
 import {type ViewComponentProps, viewTitleValue} from '@/components/biz/views/types'
-import {ViewErrorState, ViewFetchingBar, ViewInlineError} from '@/components/biz/views/viewFeedback'
+import {ViewErrorState, ViewInlineError} from '@/components/biz/views/viewFeedback'
+import {useViewFetching} from '@/components/biz/views/viewFetching'
 import {type UnscheduledItem, UnscheduledList} from '@/components/biz/views/UnscheduledList'
 import {type AppViewFieldChange, type AppViewMoveMode, moveAppViewRecord} from '@/services/appViews'
 import type {AppViewGanttScale} from '@/services/appForms'
@@ -206,6 +207,7 @@ export function GanttView(props: ViewComponentProps) {
     search,
     filter: advancedFilter,
   }, reloadKey)
+  useViewFetching(rangeQuery.isFetching && !rangeQuery.isLoading)
 
   const movable = rangeQuery.data?.movable ?? false
   const disabledReason = rangeQuery.data?.disabledReason
@@ -576,7 +578,6 @@ export function GanttView(props: ViewComponentProps) {
       {rangeQuery.error && rangeQuery.data && <ViewInlineError message={rangeQuery.error} onRetry={rangeQuery.reload}/>}
       <div className="flex min-h-0 flex-1 gap-3">
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
-          <ViewFetchingBar active={rangeQuery.isFetching && !rangeQuery.isLoading}/>
           {rangeQuery.error && !rangeQuery.data ? (
             <ViewErrorState message={rangeQuery.error} onRetry={rangeQuery.reload}/>
           ) : rangeQuery.isLoading && !rangeQuery.data ? (

@@ -12,7 +12,8 @@ import {
   recordFieldText,
   VIEW_PAGE_SIZE_OPTIONS,
 } from '@/components/biz/views/viewUtils'
-import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {ViewErrorState, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {useViewFetching} from '@/components/biz/views/viewFetching'
 import type {AppFormField} from '@/services/appForms'
 import {cn} from '@/lib/utils'
 
@@ -38,6 +39,7 @@ export function DetailView(props: ViewComponentProps) {
   const total = query.data?.total ?? 0
   const pages = Math.max(1, Math.ceil(total / size))
   const isInitialLoading = query.isLoading && !query.data
+  useViewFetching(query.isFetching && !query.isLoading)
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
   const summaryFields = viewDisplayFields(form, view)
     .map((name) => fieldMap.get(name))
@@ -110,7 +112,6 @@ export function DetailView(props: ViewComponentProps) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
           {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
           {isInitialLoading ? (
             <ViewSkeleton variant="panel" rows={6}/>
@@ -145,7 +146,6 @@ export function DetailView(props: ViewComponentProps) {
           )}
         >
           <div className="relative min-h-0 flex-1 overflow-y-auto record-list-scroll">
-            <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
             {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
             {isInitialLoading ? (
               <ViewSkeleton variant="list" rows={6}/>

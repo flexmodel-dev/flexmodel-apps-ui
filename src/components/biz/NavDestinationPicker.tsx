@@ -12,6 +12,7 @@ import {
 import {Input} from '@/components/ui/input'
 import {formMenuLinks, systemMenuLinks} from '@/data/mock'
 import {getAppNavDestinations, isValidHttpUrl, type AppNavDestinations} from '@/services/appNavigation'
+import {getWorkbenches, type WorkbenchSummary} from '@/services/workbenches'
 
 interface NavDestinationOption {
   id: string
@@ -19,19 +20,27 @@ interface NavDestinationOption {
   value: string
 }
 
+const WORKBENCH_DESTINATION_VALUE = 'BUILTIN:workbench'
+
 export function NavDestinationPicker({
                                        value,
                                        onChange,
                                        appId,
+                                       workbenchId,
+                                       onWorkbenchChange,
                                      }: {
   value?: string
   onChange: (value?: string) => void
   appId?: string
+  workbenchId?: string | null
+  onWorkbenchChange?: (workbenchId: string | null) => void
 }) {
   const [appDestinations, setAppDestinations] = React.useState<AppNavDestinations>({
     builtIn: [],
     forms: [],
   })
+  const [workbenches, setWorkbenches] = React.useState<WorkbenchSummary[]>([])
+  const isWorkbenchSelected = appId && value === WORKBENCH_DESTINATION_VALUE
 
   React.useEffect(() => {
     if (!appId) {
@@ -46,6 +55,17 @@ export function NavDestinationPicker({
       cancelled = true
     }
   }, [appId])
+
+  React.useEffect(() => {
+    if (!isWorkbenchSelected) return
+    let cancelled = false
+    getWorkbenches(appId!)
+      .then((loaded) => !cancelled && setWorkbenches(loaded))
+      .catch(() => !cancelled && setWorkbenches([]))
+    return () => {
+      cancelled = true
+    }
+  }, [isWorkbenchSelected, appId])
 
   const builtInDestinations: NavDestinationOption[] = appId
     ? appDestinations.builtIn.map((destination) => ({
@@ -108,6 +128,26 @@ export function NavDestinationPicker({
           </SelectGroup>
         </SelectContent>
       </Select>
+      {isWorkbenchSelected ? (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-foreground">工作台</label>
+          <Select
+            value={workbenchId || undefined}
+            onValueChange={(next) => onWorkbenchChange?.(next || null)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="未选择时默认第一个工作台"/>
+            </SelectTrigger>
+            <SelectContent>
+              {workbenches.map((workbench) => (
+                <SelectItem key={workbench.id} value={workbench.id}>
+                  {workbench.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
       {isCustomLink ? (
         <div>
           <Input

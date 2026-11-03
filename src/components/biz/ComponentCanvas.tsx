@@ -3,14 +3,12 @@ import ReactECharts from 'echarts-for-react'
 import {FileText, type LucideIcon} from 'lucide-react'
 import {ApprovalFeed} from '@/pages/Approvals/ApprovalFeed'
 import type {WorkbenchComponent, WorkbenchComponentData, WorkbenchDataPoint,} from '@/services/workbenches'
+import {WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES} from '@/services/workbenches'
+import type {AppFormField} from '@/services/appForms'
+import {formatFieldValue} from '@/lib/fieldConfig'
 import {formatRecordValue} from '@/lib/recordValue'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {cn} from '@/lib/utils'
-
-export interface ComponentCanvasColumn {
-  name: string
-  label: string
-}
 
 export interface ComponentCanvasShortcut {
   id: string
@@ -92,6 +90,15 @@ function buildOption(component: WorkbenchComponent, source: WorkbenchDataPoint[]
   }
 }
 
+function formatMetricValue(value: number, decimalPlaces?: number | null) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return '--'
+  return number.toLocaleString('zh-CN', {
+    useGrouping: true,
+    maximumFractionDigits: decimalPlaces ?? WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES,
+  })
+}
+
 export function ComponentCanvas({
                                   component,
                                   data,
@@ -106,7 +113,7 @@ export function ComponentCanvas({
   isLoadingData?: boolean
   dataError?: string | null
   onOpenMenu?: (to: string) => void
-  columns?: ComponentCanvasColumn[]
+  columns?: AppFormField[]
   shortcutTargets?: ComponentCanvasShortcut[]
 }) {
   const config = component.config
@@ -124,7 +131,9 @@ export function ComponentCanvas({
     const metricData = data?.type === 'metric' ? data : null
     return (
       <div className="flex h-full flex-col items-center justify-center">
-        <div className="text-5xl font-light leading-none tabular-nums text-primary">{metricData?.value ?? '--'}</div>
+        <div className="text-5xl font-light leading-none tabular-nums text-primary">
+          {metricData ? formatMetricValue(metricData.value, config.decimalPlaces) : '--'}
+        </div>
       </div>
     )
   }
@@ -148,7 +157,11 @@ export function ComponentCanvas({
         {rows.map((row) => (
           <tr key={String(row.id)}>
             {visibleColumns.map((column) => (
-              <td key={column.name}>{formatRecordValue(row[column.name])}</td>
+              <td key={column.name}>
+                {['REFERENCE', 'MULTIREFERENCE'].includes(column.type)
+                  ? formatRecordValue(row[column.name]) || '-'
+                  : formatFieldValue(column, row[column.name])}
+              </td>
             ))}
           </tr>
         ))}

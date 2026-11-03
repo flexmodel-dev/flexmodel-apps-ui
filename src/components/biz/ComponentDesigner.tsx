@@ -12,7 +12,9 @@ import {type AppForm, type AppFormField, getAppForms} from '@/services/appForms'
 import {type AppNav, getAppNavigation, navIcon} from '@/services/appNavigation'
 import {
   WORKBENCH_GRID_COLUMNS,
+  WORKBENCH_MAX_DECIMAL_PLACES,
   WORKBENCH_MAX_GRID_HEIGHT,
+  WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES,
   type WorkbenchAggregationType,
   type WorkbenchChartType,
   type WorkbenchComponent,
@@ -20,6 +22,7 @@ import {
   type WorkbenchComponentData,
   type WorkbenchComponentType,
   type WorkbenchPaletteType,
+  normalizeMetricDecimalPlaces,
 } from '@/services/workbenches'
 import {cn, flattenTree, toErrorMessage} from '@/lib/utils'
 
@@ -74,6 +77,7 @@ interface DesignerConfig {
   smooth: boolean
   palette: WorkbenchPaletteType
   metricField: string | null
+  decimalPlaces: number | null
   visibleColumns: string[]
   shortcuts: string[]
   columnsPerRow: number
@@ -114,6 +118,7 @@ function baseConfig(form: AppForm | undefined): DesignerConfig {
     smooth: true,
     palette: 'primary',
     metricField: null,
+    decimalPlaces: WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES,
     visibleColumns: form?.fields.slice(0, 6).map((field) => field.name) ?? [],
     shortcuts: [],
     columnsPerRow: 2,
@@ -136,6 +141,7 @@ function toDesignerConfig(
         metricField: config.aggregation === 'count' || !config.aggregation
           ? null
           : (config.field ?? null),
+        decimalPlaces: normalizeMetricDecimalPlaces(config.decimalPlaces),
       }
     case 'chart':
       return {
@@ -192,6 +198,7 @@ function toWorkbenchConfig(result: ComponentDesignerResult): WorkbenchComponentC
         formName: config.formName,
         aggregation: config.aggregation,
         field: config.aggregation === 'count' ? null : config.metricField,
+        decimalPlaces: normalizeMetricDecimalPlaces(config.decimalPlaces),
       }
     case 'chart':
       return {
@@ -368,7 +375,7 @@ export function ComponentDesigner({
     config: toWorkbenchConfig(result),
   }
   const previewData: WorkbenchComponentData | null = result.type === 'metric'
-    ? {type: 'metric', value: 128}
+    ? {type: 'metric', value: result.config.aggregation === 'count' ? 128 : 128.456789}
     : result.type === 'chart'
       ? {
         type: 'chart',
@@ -381,10 +388,7 @@ export function ComponentDesigner({
       : result.type === 'dataloader'
         ? {type: 'dataloader', list: [], total: 0}
         : null
-  const previewColumns = (selectedForm?.fields ?? []).map((field) => ({
-    name: field.name,
-    label: field.label,
-  }))
+  const previewColumns = selectedForm?.fields ?? []
   const selectedComponentType = componentTypes.find(
     (item) => optionKey(item) === resultOptionKey(result),
   ) ?? componentTypes[1]
@@ -576,6 +580,25 @@ export function ComponentDesigner({
                           </Select>
                         </div>
                       ) : null}
+                      <div>
+                        <label className="text-sm font-medium text-foreground" htmlFor="metric-decimal-places">
+                          小数位数
+                        </label>
+                        <Input
+                          id="metric-decimal-places"
+                          className="mt-2"
+                          type="number"
+                          min={0}
+                          max={WORKBENCH_MAX_DECIMAL_PLACES}
+                          value={result.config.decimalPlaces ?? ''}
+                          onChange={(event) => updateConfig({
+                            decimalPlaces: event.target.value === '' ? null : Number(event.target.value),
+                          })}
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          指标数值最多保留的小数位数，默认 {WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES} 位。
+                        </p>
+                      </div>
                     </div>
                   ) : null}
                   {result.type === 'dataloader' ? (

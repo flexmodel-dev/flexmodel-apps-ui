@@ -13,6 +13,7 @@ import {AppRecordDrawer} from '@/components/biz/AppRecordDrawer'
 import {AppTransferDialog} from '@/components/biz/AppTransferDialog'
 import {SearchInput} from '@/components/biz/SearchInput'
 import {ViewBar} from '@/components/biz/views/ViewBar'
+import {ViewFetchingProvider} from '@/components/biz/views/viewFetching'
 import {ViewSettingsDrawer, type ViewSettingsTarget} from '@/components/biz/views/ViewSettingsDrawer'
 import {TableView} from '@/components/biz/views/TableView'
 import {GalleryView} from '@/components/biz/views/GalleryView'
@@ -114,6 +115,7 @@ export default function RecordList({formName}: { formName?: string }) {
   const [deleteIds, setDeleteIds] = React.useState<string[] | null>(null)
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [isSavingViews, setIsSavingViews] = React.useState(false)
+  const [isViewFetching, setIsViewFetching] = React.useState(false)
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
@@ -498,11 +500,12 @@ export default function RecordList({formName}: { formName?: string }) {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              title="刷新"
+              title={isViewFetching ? '正在刷新…' : '刷新'}
               aria-label="刷新"
+              aria-busy={isViewFetching}
               onClick={refresh}
             >
-              <RefreshCw className="h-4 w-4"/>
+              <RefreshCw className={cn('h-4 w-4', isViewFetching && 'animate-spin')}/>
             </Button>
             <Button
               variant="ghost"
@@ -521,8 +524,8 @@ export default function RecordList({formName}: { formName?: string }) {
         {activeView?.type === 'TABLE' && (
           <div
             className={cn(
-              'overflow-hidden border-b bg-card transition-[max-height,opacity] duration-200',
-              selected.length ? 'max-h-14 opacity-100' : 'max-h-0 opacity-0',
+              'overflow-hidden bg-card transition-[max-height,opacity] duration-200',
+              selected.length ? 'max-h-14 border-b opacity-100' : 'max-h-0 opacity-0',
             )}
           >
             <div className="flex flex-wrap items-center gap-2 px-3 py-2">
@@ -559,33 +562,35 @@ export default function RecordList({formName}: { formName?: string }) {
         )}
 
         <div className="flex min-h-0 flex-1 flex-col p-3">
-          {activeView ? (
-            <ViewRenderer
-              key={activeView.id}
-              appId={appId}
-              form={form}
-              view={activeView}
-              search={debouncedQ}
-              advancedFilter={advancedFilter}
-              refreshTick={refreshTick}
-              onRecordChanged={refresh}
-              onOpenViewSettings={openViewSettings}
-              selected={selected}
-              onSelectedChange={setSelected}
-              onOpenRecord={openRecordDetail}
-              onOpenLinkedRecord={openLinkedRecord}
-              onRequestDelete={requestDeleteRecord}
-            />
-          ) : (
-            <Empty
-              description="当前表单还没有视图，请先创建一个视图再查看记录。"
-              className="flex-1"
-            >
-              <Button onClick={() => setSettingsTarget({view: null, createType: 'TABLE'})}>
-                <Plus className="h-4 w-4"/>新建表格视图
-              </Button>
-            </Empty>
-          )}
+          <ViewFetchingProvider onFetchingChange={setIsViewFetching}>
+            {activeView ? (
+              <ViewRenderer
+                key={activeView.id}
+                appId={appId}
+                form={form}
+                view={activeView}
+                search={debouncedQ}
+                advancedFilter={advancedFilter}
+                refreshTick={refreshTick}
+                onRecordChanged={refresh}
+                onOpenViewSettings={openViewSettings}
+                selected={selected}
+                onSelectedChange={setSelected}
+                onOpenRecord={openRecordDetail}
+                onOpenLinkedRecord={openLinkedRecord}
+                onRequestDelete={requestDeleteRecord}
+              />
+            ) : (
+              <Empty
+                description="当前表单还没有视图，请先创建一个视图再查看记录。"
+                className="flex-1"
+              >
+                <Button onClick={() => setSettingsTarget({view: null, createType: 'TABLE'})}>
+                  <Plus className="h-4 w-4"/>新建表格视图
+                </Button>
+              </Empty>
+            )}
+          </ViewFetchingProvider>
         </div>
       </div>
 

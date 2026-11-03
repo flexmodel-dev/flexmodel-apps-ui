@@ -14,7 +14,8 @@ import {message} from '@/components/ui/message'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {useViewQuery} from '@/components/biz/views/useViewQuery'
 import {type ViewComponentProps, viewTitleValue} from '@/components/biz/views/types'
-import {ViewErrorState, ViewFetchingBar, ViewInlineError} from '@/components/biz/views/viewFeedback'
+import {ViewErrorState, ViewInlineError} from '@/components/biz/views/viewFeedback'
+import {useViewFetching} from '@/components/biz/views/viewFetching'
 import {type UnscheduledItem, UnscheduledList} from '@/components/biz/views/UnscheduledList'
 import {moveAppViewRecord} from '@/services/appViews'
 import type {AppRecord} from '@/services/appRecords'
@@ -110,6 +111,7 @@ export function CalendarView(props: ViewComponentProps) {
     search,
     filter: advancedFilter,
   }, refreshTick)
+  useViewFetching(rangeQuery.isFetching && !rangeQuery.isLoading)
 
   const rangeData = rangeQuery.data
   const movable = rangeData?.movable ?? false
@@ -341,7 +343,6 @@ export function CalendarView(props: ViewComponentProps) {
       ) : (
         <div className="flex min-h-0 flex-1 gap-3">
           <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border p-2">
-            <ViewFetchingBar active={rangeQuery.isFetching && !rangeQuery.isLoading}/>
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}

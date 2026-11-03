@@ -18,7 +18,8 @@ import {
   recordFieldText,
   VIEW_PAGE_SIZE_OPTIONS,
 } from '@/components/biz/views/viewUtils'
-import {ViewErrorState, ViewFetchingBar, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {ViewErrorState, ViewInlineError, ViewSkeleton} from '@/components/biz/views/viewFeedback'
+import {useViewFetching} from '@/components/biz/views/viewFetching'
 import {attachmentPreviewType, attachmentUrls} from '@/lib/attachments'
 import {useAttachmentImageSource} from '@/components/biz/form/AttachmentField'
 import {AppLoading} from '@/components/biz/AppLoading'
@@ -139,6 +140,7 @@ export function GalleryView(props: ViewComponentProps) {
   const total = query.data?.total ?? 0
   const pages = Math.max(1, Math.ceil(total / size))
   const isInitialLoading = query.isLoading && !query.data
+  useViewFetching(query.isFetching && !query.isLoading)
   const fieldMap = new Map(form.fields.map((field) => [field.name, field]))
   const summaryFields = viewDisplayFields(form, view)
     .map((name) => fieldMap.get(name))
@@ -161,7 +163,6 @@ export function GalleryView(props: ViewComponentProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="record-list-scroll relative min-h-0 flex-1 overflow-y-auto pb-1">
-        <ViewFetchingBar active={query.isFetching && !query.isLoading}/>
         {query.error && <ViewInlineError message={query.error} onRetry={query.reload}/>}
         {isInitialLoading ? (
           <ViewSkeleton variant="cards" rows={10}/>

@@ -18,7 +18,7 @@ import {GridStack, type GridItemHTMLElement} from 'gridstack'
 import 'gridstack/dist/gridstack.min.css'
 import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
 import {ComponentDesigner, type SavedComponentDesignerResult} from '@/components/biz/ComponentDesigner'
-import {getAppForms, type AppForm} from '@/services/appForms'
+import {getAppForms, type AppForm, type AppFormField} from '@/services/appForms'
 import {getAppNavigation, navIcon, type AppNav} from '@/services/appNavigation'
 import {
   createWorkbench,
@@ -69,7 +69,7 @@ function ComponentCard({
   isLoadingData?: boolean
   dataError?: string | null
   editable: boolean
-  columns: Array<{ name: string; label: string }>
+  columns: AppFormField[]
   shortcutTargets: Array<{ id: string; label: string; to: string; icon?: LucideIcon }>
   onOpenMenu: (to: string) => void
   onEdit: () => void
@@ -175,7 +175,7 @@ function WorkbenchComponentCard({
   )
 }
 
-export default function WorkbenchHome() {
+export default function WorkbenchHome({workbenchId}: { workbenchId?: string | null }) {
   const navigate = useNavigate()
   const {appId: routeAppId} = useParams<{ appId: string }>()
   const appId = routeAppId ?? ''
@@ -204,6 +204,10 @@ export default function WorkbenchHome() {
   const [editDescription, setEditDescription] = React.useState('')
 
   React.useEffect(() => {
+    if (workbenchId) setSelectedWorkbenchId(workbenchId)
+  }, [workbenchId])
+
+  React.useEffect(() => {
     if (!appId) return
     let cancelled = false
     setIsLoading(true)
@@ -214,7 +218,10 @@ export default function WorkbenchHome() {
         setWorkbenches(loadedWorkbenches)
         setForms(loadedForms)
         setMenus(loadedMenus)
-        setSelectedWorkbenchId((current) => current ?? loadedWorkbenches[0]?.id)
+        setSelectedWorkbenchId((current) =>
+          current && loadedWorkbenches.some((item) => item.id === current)
+            ? current
+            : loadedWorkbenches[0]?.id)
       })
       .catch((caught: unknown) => {
         if (cancelled) return
@@ -618,7 +625,7 @@ export default function WorkbenchHome() {
         ) : null}
 
         <div className="mt-4 min-h-0 flex-1 overflow-auto">
-          {isLoading ? (
+          {isLoading && !workbench ? (
             <AppLoading className="min-h-[320px]"/>
           ) : workbench && displayLayout && displayLayout.components.length > 0 ? (
             <div ref={gridRef} className="grid-stack">
@@ -637,10 +644,7 @@ export default function WorkbenchHome() {
                     component={component}
                     refreshKey={refreshKey}
                     editable={editable}
-                    columns={(selectedForm?.fields ?? []).map((field) => ({
-                      name: field.name,
-                      label: field.label,
-                    }))}
+                    columns={selectedForm?.fields ?? []}
                     shortcutTargets={shortcutTargets}
                     onOpenMenu={navigate}
                     onEdit={() => openEditDesigner(component)}
