@@ -2,7 +2,7 @@ import * as React from 'react'
 import {DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors,} from '@dnd-kit/core'
 import {horizontalListSortingStrategy, SortableContext, useSortable} from '@dnd-kit/sortable'
 import {CSS as DndCSS} from '@dnd-kit/utilities'
-import {ArrowLeft, ArrowRight, Copy, MoreHorizontal, Pencil, Plus, Trash2,} from 'lucide-react'
+import {ArrowLeft, ArrowRight, Copy, MoreHorizontal, Pencil, Plus, Settings, Trash2,} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {BizDialog} from '@/components/ui/dialog'
 import {Input} from '@/components/ui/input'
@@ -29,6 +29,7 @@ interface ViewBarProps {
   onCreate: (type: AppViewType) => void
   onRename: (view: AppFormViewTab, label: string) => Promise<boolean>
   onDuplicate: (view: AppFormViewTab) => void
+  onConfigure: (view: AppFormViewTab) => void
   onDelete: (view: AppFormViewTab) => void
 }
 
@@ -42,6 +43,7 @@ function ViewTabItem({
                        onSelect,
                        onRename,
                        onDuplicate,
+                       onConfigure,
                        onDelete,
                        onMove,
                      }: {
@@ -54,6 +56,7 @@ function ViewTabItem({
   onSelect: () => void
   onRename: () => void
   onDuplicate: () => void
+  onConfigure: () => void
   onDelete: () => void
   onMove: (direction: -1 | 1) => void
 }) {
@@ -113,6 +116,9 @@ function ViewTabItem({
               <ArrowRight className="h-4 w-4"/>向右移动
             </DropdownMenuItem>
             <DropdownMenuSeparator/>
+            <DropdownMenuItem onClick={onConfigure}>
+              <Settings className="h-4 w-4"/>配置视图
+            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!canDelete}
               className="text-destructive focus:text-destructive"
@@ -127,7 +133,7 @@ function ViewTabItem({
   )
 }
 
-/** 视图页签栏：拖拽排序、重命名、复制、删除，以及按表单字段能力过滤的新增入口。 */
+/** 视图页签栏：拖拽排序、重命名、复制、配置与删除，以及按表单字段能力过滤的新增入口。 */
 export function ViewBar({
                           form,
                           activeViewId,
@@ -137,6 +143,7 @@ export function ViewBar({
                           onCreate,
                           onRename,
                           onDuplicate,
+                          onConfigure,
                           onDelete,
                         }: ViewBarProps) {
   const views = form.viewTabs
@@ -227,6 +234,7 @@ export function ViewBar({
                   onSelect={() => onSelect(view.id)}
                   onRename={() => startRename(view)}
                   onDuplicate={() => onDuplicate(view)}
+                  onConfigure={() => onConfigure(view)}
                   onDelete={() => onDelete(view)}
                   onMove={(direction) => onReorder(view.id, index + direction)}
                 />

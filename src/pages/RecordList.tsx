@@ -491,6 +491,7 @@ export default function RecordList({formName}: { formName?: string }) {
               onCreate={createView}
               onRename={renameView}
               onDuplicate={(view) => void duplicateView(view)}
+              onConfigure={(view) => setSettingsTarget({view, createType: null})}
               onDelete={setDeleteViewTarget}
             />
           </div>
