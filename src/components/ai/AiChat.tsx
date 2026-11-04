@@ -4,7 +4,9 @@ import remarkGfm from 'remark-gfm'
 import {
   AtSign,
   Bot,
+  Brain,
   Check,
+  ChevronDown,
   Copy,
   History,
   Loader2,
@@ -276,19 +278,56 @@ export function AiTypingIndicator({label = '正在回复'}: { label?: string }) 
   </div>
 }
 
-// 推理内容折叠块：生成时默认展开，结束后默认收起；用户手动操作不受后续渲染覆盖。
-export function AiReasoningBlock({title = '思考过程', defaultOpen = false, children}: {
-  title?: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode
-}) {
-  return <details open={defaultOpen} className="mb-2 rounded-lg border bg-muted/40">
-    <summary
-      className="cursor-pointer select-none px-3 py-1.5 text-xs font-medium text-muted-foreground">{title}</summary>
-    <div
-      className="max-h-72 overflow-y-auto whitespace-pre-wrap break-words px-3 pb-3 text-xs leading-6 text-muted-foreground">{children}</div>
-  </details>
+// 流式增量只在该区域本来就贴底时才跟随滚动，否则用户上翻阅读会被每一次 token 拽回底部。
+// jump 变化时无条件贴底（切换会话、展开折叠内容）。
+function useStickyScroll<T extends HTMLElement>(jump: string | number, follow: string | number) {
+  const ref = React.useRef<T>(null)
+  const pinned = React.useRef(true)
+  React.useEffect(() => {
+    pinned.current = true
+    const scroller = ref.current
+    if (scroller) scroller.scrollTop = scroller.scrollHeight
+  }, [jump])
+  React.useEffect(() => {
+    const scroller = ref.current
+    if (scroller && pinned.current) scroller.scrollTop = scroller.scrollHeight
+  }, [follow])
+  const onScroll = (event: React.UIEvent<T>) => {
+    const scroller = event.currentTarget
+    pinned.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 32
+  }
+  return {ref, onScroll}
 }
+
+// 单轮推理的折叠块：正在生成的那一轮展开，已结束的轮次收起；用户手动开合后不再被后续渲染覆盖。
+export function AiReasoningBlock({content, label, streaming = false}: {
+  content: string;
+  label?: string;
+  streaming?: boolean
+}) {
+  const [open, setOpen] = React.useState(streaming)
+  const scroll = useStickyScroll<HTMLDivElement>(open ? 'open' : 'closed', content.length)
+  if (!content) return null
+  return <div className="mb-2 overflow-hidden rounded-lg border border-border/60 bg-muted/30">
+    <button type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground">
+      {streaming
+        ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin"/>
+        : <Brain className="h-3.5 w-3.5 shrink-0"/>}
+      <span className="shrink-0">{streaming ? '正在思考' : '思考过程'}</span>
+      {label && <span className="truncate opacity-70">{label}</span>}
+      <ChevronDown className={cn('ml-auto h-3.5 w-3.5 shrink-0 transition-transform', !open && '-rotate-90')}/>
+    </button>
+    {open && <div ref={scroll.ref} onScroll={scroll.onScroll}
+                  className="slim-scroll max-h-60 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words border-t border-border/60 px-3 py-2.5 text-xs leading-6 text-muted-foreground">
+      {content}
+      {streaming && <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse bg-current align-middle"/>}
+    </div>}
+  </div>
+}
+
+// 多轮思考时给每轮编号，避免连续几条同款折叠行难以区分。
+const reasoningLabel = (index: number, total: number) => total > 1 ? `第 ${index + 1} 步` : undefined
 
 export function AiMessageView({message}: { message: Pick<AiMessage, 'role' | 'content'> & Partial<AiMessage> }) {
   const [copied, setCopied] = React.useState(false)
@@ -300,7 +339,8 @@ export function AiMessageView({message}: { message: Pick<AiMessage, 'role' | 'co
         className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-background text-primary"><Bot
         className="h-4 w-4"/></span>
       <div className="min-w-0 flex-1">
-        {reasoningParts.map((part, index) => <AiReasoningBlock key={index}>{part.content}</AiReasoningBlock>)}
+        {reasoningParts.map((part, index) => <AiReasoningBlock key={index} content={part.content}
+                                                               label={reasoningLabel(index, reasoningParts.length)}/>)}
         <div className="ai-markdown break-words text-sm leading-7"><ReactMarkdown remarkPlugins={markdownRemarkPlugins}
                                                                                   components={markdownComponents}>{message.content}</ReactMarkdown>
         </div>
@@ -327,14 +367,15 @@ export function AiChat({robot, compact = false, showSuggestions = true, receiveP
   const room = ai.room(robot.id)
   const conversation = room.conversations.find(item => item.id === room.activeId)
   const messages = conversation?.messages ?? []
-  const scrollRef = React.useRef<HTMLDivElement>(null)
+  const streaming = room.streaming
+  const streamingReasoning = streaming?.reasoningParts ?? []
+  const reasoningLength = streaming
+    ? streamingReasoning.reduce((size, part) => size + part.length, 0) + streaming.reasoning.length : 0
+  const listScroll = useStickyScroll<HTMLDivElement>(room.activeId ?? '',
+    `${messages.length}|${streaming?.text.length ?? 0}|${reasoningLength}`)
   React.useEffect(() => {
     void ensureRoom(robot.id)
   }, [robot.id, ensureRoom])
-  React.useEffect(() => {
-    const scroller = scrollRef.current
-    if (scroller) scroller.scrollTop = scroller.scrollHeight
-  }, [messages.length, room.activeId, room.busy, room.streaming?.text, room.streaming?.reasoning])
   React.useEffect(() => {
     // 快捷提问按机器人定向：未指定机器人时由内置助手消费。
     // 首次挂载时 ensureRoom 已经把房间标记为加载中，这里必须等历史会话就绪，否则提问会被消费却发不出去。
@@ -378,11 +419,12 @@ export function AiChat({robot, compact = false, showSuggestions = true, receiveP
                             title="关闭 AI 助手" onClick={onClose}><X className="h-4 w-4"/></Button>}
       </div>
     </div>
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5">
+    <div ref={listScroll.ref} onScroll={listScroll.onScroll}
+         className="slim-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5">
       <div className={cn('mx-auto flex w-full flex-col gap-6', !compact && 'max-w-3xl')}>
         {room.loading ?
           <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
-          </div> : !messages.length && !room.streaming ?
+          </div> : !messages.length && !streaming ?
             <div className={cn('flex flex-col items-start', compact ? 'py-5' : 'py-12 md:py-20')}>
               <div
                 className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border bg-primary/5 text-primary">
@@ -396,31 +438,33 @@ export function AiChat({robot, compact = false, showSuggestions = true, receiveP
                         disabled={!robot.enabled || !!room.error}
                         onClick={() => void sendText(question)}>{question}</Button>)}</div>}
             </div> : messages.map(message => <AiMessageView key={message.id} message={message}/>)}
-        {room.streaming && <div className="flex flex-col gap-6" data-testid="ai-streaming">
-          <AiMessageView message={{role: 'user', content: room.streaming.user}}/>
+        {streaming && <div className="flex flex-col gap-6" data-testid="ai-streaming">
+          <AiMessageView message={{role: 'user', content: streaming.user}}/>
           <div className="flex min-w-0 gap-3">
             <span
               className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-background text-primary"><Bot
               className="h-4 w-4"/></span>
             <div className="min-w-0 flex-1">
-              {room.streaming.reasoningParts.map((content, index) =>
-                <AiReasoningBlock key={index}>{content}</AiReasoningBlock>)}
-              {room.streaming.reasoning &&
-                <AiReasoningBlock defaultOpen>{room.streaming.reasoning}</AiReasoningBlock>}
-              {room.streaming.tool &&
-                <p className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground"><Wrench
-                  className="h-3.5 w-3.5 shrink-0"/>正在调用工具 {room.streaming.tool}…</p>}
+              {streamingReasoning.map((content, index) => <AiReasoningBlock key={index} content={content}
+                                                                            label={reasoningLabel(index, streamingReasoning.length + (streaming.reasoning ? 1 : 0))}/>)}
+              <AiReasoningBlock streaming content={streaming.reasoning}/>
+              {streaming.tool &&
+                <p
+                  className="mb-2 flex items-center gap-1.5 rounded-md bg-primary/5 px-2.5 py-1.5 text-xs text-muted-foreground">
+                  <Wrench
+                    className="h-3.5 w-3.5 shrink-0 text-primary"/>正在调用工具 {streaming.tool}…</p>}
               <div className="ai-markdown break-words text-sm leading-7">
-                {room.streaming.text
+                {streaming.text
                   ? <ReactMarkdown remarkPlugins={markdownRemarkPlugins}
-                                   components={markdownComponents}>{room.streaming.text}</ReactMarkdown>
-                  : !room.streaming.reasoning && !room.streaming.tool && <AiTypingIndicator label="正在思考"/>}
+                                   components={markdownComponents}>{streaming.text}</ReactMarkdown>
+                  : !streaming.reasoning && !streamingReasoning.length && !streaming.tool &&
+                  <AiTypingIndicator label="正在思考"/>}
               </div>
             </div>
           </div>
         </div>}
-        {room.busy && (!room.streaming || room.streaming.text) &&
-          <AiTypingIndicator label={room.streaming ? '正在回复' : '正在整理回复'}/>}
+        {room.busy && (!streaming || streaming.text) &&
+          <AiTypingIndicator label={streaming ? '正在回复' : '正在整理回复'}/>}
       </div>
     </div>
     <div className="shrink-0 px-4 pb-4">

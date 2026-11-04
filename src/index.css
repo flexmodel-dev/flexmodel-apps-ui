@@ -176,32 +176,32 @@
     @apply overflow-hidden rounded-xl border bg-card shadow-sm;
   }
 
-  .workbench-component-scroll {
+  .slim-scroll {
     scrollbar-color: transparent transparent;
     scrollbar-width: thin;
   }
 
-  .workbench-component-scroll::-webkit-scrollbar {
+  .slim-scroll::-webkit-scrollbar {
     height: 6px;
     width: 6px;
   }
 
-  .workbench-component-scroll::-webkit-scrollbar-track {
+  .slim-scroll::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .workbench-component-scroll::-webkit-scrollbar-thumb {
+  .slim-scroll::-webkit-scrollbar-thumb {
     background: transparent;
     border-radius: 9999px;
   }
 
-  .workbench-component-scroll:hover,
-  .workbench-component-scroll:focus-within {
+  .slim-scroll:hover,
+  .slim-scroll:focus-within {
     scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
   }
 
-  .workbench-component-scroll:hover::-webkit-scrollbar-thumb,
-  .workbench-component-scroll:focus-within::-webkit-scrollbar-thumb {
+  .slim-scroll:hover::-webkit-scrollbar-thumb,
+  .slim-scroll:focus-within::-webkit-scrollbar-thumb {
     background: hsl(var(--muted-foreground) / 0.35);
   }
 

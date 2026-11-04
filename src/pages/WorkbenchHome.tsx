@@ -106,7 +106,8 @@ function ComponentCard({
               </Button>
             </div>
           </div>
-          <div className="workbench-component-scroll mt-3 min-h-0 flex-1 overflow-auto">
+          {/* 负边距换等值内边距：内容位置不变，但裁剪边界外移，避免贴边的焦点环被滚动容器切掉 */}
+          <div className="slim-scroll -mx-1.5 -mb-1.5 mt-3 min-h-0 flex-1 overflow-auto px-1.5 pb-1.5">
             <ComponentCanvas
               component={component}
               data={data}
