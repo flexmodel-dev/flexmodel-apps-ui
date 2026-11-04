@@ -5,11 +5,13 @@ import {type App, getAppById} from '@/services/apps'
 import {getAuthSession} from '@/services/auth'
 import {useAppFavicon} from '@/lib/appFavicon'
 import {applyAppPrimaryColor, getCachedAppPrimaryColor} from './appPrimaryColors'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 /** 路由统一管理全局主色与标签页图标，避免布局挂载、卸载或异步加载时回落到默认值。 */
 export function AppTheme({children}: {children: React.ReactNode}) {
   const {pathname} = useLocation()
   const appId = getAuthSession() ? pathname.match(/^\/apps\/([^/]+)/)?.[1] : undefined
+  const appRevision = useAppDataRevision(appId, ['app'])
   const [resolvedAppId, setResolvedAppId] = React.useState<string>()
   const [app, setApp] = React.useState<App | null>(null)
   const color = appId ? getCachedAppPrimaryColor(appId) : undefined
@@ -25,7 +27,6 @@ export function AppTheme({children}: {children: React.ReactNode}) {
       return
     }
     let cancelled = false
-    setApp(null)
     getAppById(appId)
       .then((loadedApp) => {
         if (cancelled) return
@@ -37,7 +38,7 @@ export function AppTheme({children}: {children: React.ReactNode}) {
         if (!cancelled) setResolvedAppId(appId)
       })
     return () => { cancelled = true }
-  }, [appId])
+  }, [appId, appRevision])
 
   useAppFavicon(app)
 

@@ -44,8 +44,8 @@ interface AppPayload {
 
 const API_BASE = '/api/apps'
 
-const appsCache = createAppDataCache<App[]>()
-const appCache = createAppDataCache<App>()
+const appsCache = createAppDataCache<App[]>(() => ({resources: ['app']}))
+const appCache = createAppDataCache<App>(appId => ({appId, resources: ['app']}))
 
 function formatDateTime(value?: string): string {
   if (!value) return ''

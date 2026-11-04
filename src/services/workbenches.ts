@@ -178,9 +178,9 @@ export interface WorkbenchComponentDataQuery {
 }
 
 const API_BASE = '/api/apps'
-const listCache = createAppDataCache<WorkbenchSummary[]>()
-const detailCache = createAppDataCache<Workbench>()
-const capabilityCache = createAppDataCache<WorkbenchCapability>()
+const listCache = createAppDataCache<WorkbenchSummary[]>(appId => ({appId, resources: ['workbench']}))
+const detailCache = createAppDataCache<Workbench>(key => ({appId: key.split(':')[0], resources: ['workbench']}))
+const capabilityCache = createAppDataCache<WorkbenchCapability>(appId => ({appId, resources: ['workbench', 'form']}))
 
 function detailKey(appId: string, workbenchId: string) {
   return `${appId}:${workbenchId}`

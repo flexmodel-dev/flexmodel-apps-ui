@@ -1,6 +1,7 @@
 import {Popover, PopoverTrigger} from '@/components/ui/popover'
 import {type RecordQuery, RecordQueryPopover} from '@/components/biz/RecordQueryPopover'
 import * as React from 'react'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {Edit, FileInput, FileSpreadsheet, Filter, Plus, RefreshCw, Settings, Trash2, X,} from 'lucide-react'
 import {useParams} from 'react-router-dom'
 import {AppLayout} from '@/components/layout/AppLayout'
@@ -93,6 +94,8 @@ function FilterChip({children, onOpen, onRemove, removeLabel}: {
 export default function RecordList({formName}: { formName?: string }) {
   const {appId = ''} = useParams<{ appId: string; menuId: string }>()
   const resolvedFormName = formName ?? ''
+  const formRevision = useAppDataRevision(appId, ['form'], resolvedFormName)
+  const recordRevision = useAppDataRevision(appId, ['record'], resolvedFormName)
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const [formError, setFormError] = React.useState<string | null>(null)
@@ -116,6 +119,12 @@ export default function RecordList({formName}: { formName?: string }) {
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [isSavingViews, setIsSavingViews] = React.useState(false)
   const [isViewFetching, setIsViewFetching] = React.useState(false)
+  const editing = formOpen || detailId !== null || linkedRecord !== null || settingsTarget !== null
+
+  React.useEffect(() => {
+    setForm(null)
+    setIsLoading(true)
+  }, [appId, resolvedFormName])
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
@@ -123,6 +132,7 @@ export default function RecordList({formName}: { formName?: string }) {
   }, [q])
 
   React.useEffect(() => {
+    if (editing) return
     if (!appId || !resolvedFormName) {
       setForm(null)
       setIsLoading(false)
@@ -130,9 +140,7 @@ export default function RecordList({formName}: { formName?: string }) {
       return
     }
     let cancelled = false
-    setIsLoading(true)
     setFormError(null)
-    setForm(null)
     getAppForm(appId, resolvedFormName)
       .then((loadedForm) => {
         if (cancelled) return
@@ -149,7 +157,7 @@ export default function RecordList({formName}: { formName?: string }) {
     return () => {
       cancelled = true
     }
-  }, [appId, resolvedFormName, formReloadTick])
+  }, [appId, resolvedFormName, formReloadTick, formRevision, editing])
 
   // 切换表单时清空全部共享状态；首次进入打开第一个视图
   React.useEffect(() => {
@@ -572,7 +580,7 @@ export default function RecordList({formName}: { formName?: string }) {
                 view={activeView}
                 search={debouncedQ}
                 advancedFilter={advancedFilter}
-                refreshTick={refreshTick}
+                refreshTick={refreshTick + recordRevision}
                 onRecordChanged={refresh}
                 onOpenViewSettings={openViewSettings}
                 selected={selected}

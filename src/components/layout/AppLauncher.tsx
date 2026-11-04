@@ -15,8 +15,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import {appIcons, type AppIconName} from '@/data/appIcons'
 import {getApps} from '@/services/apps'
 import { cn } from '@/lib/utils'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; currentAppId?: string }) {
+  const appsRevision = useAppDataRevision(undefined, ['app'])
   const [apps, setApps] = React.useState<Array<{
     id: string;
     name: string;
@@ -32,7 +34,7 @@ export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [appsRevision])
 
   return (
     <DropdownMenu>
@@ -40,7 +42,8 @@ export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; 
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+              <Button type="button" variant="ghost" size="icon" aria-label="应用启动器"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary">
                 <LayoutGrid className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -49,7 +52,8 @@ export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; 
         </Tooltip>
       ) : (
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" className="h-8 justify-start gap-3 px-3 text-muted-foreground hover:text-primary">
+          <Button type="button" variant="ghost" aria-label="应用启动器"
+                  className="h-8 justify-start gap-3 px-3 text-muted-foreground hover:text-primary">
             <LayoutGrid className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>

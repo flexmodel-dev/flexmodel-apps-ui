@@ -21,6 +21,7 @@ import {Textarea} from '@/components/ui/textarea'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {useAiAssistant} from './AiProvider'
 import {getApps, type App} from '@/services/apps'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {getAppPrimaryColor} from '@/theme/appPrimaryColors'
 import {type AiMessage, type AiRobot} from '@/services/ai'
 import {cn} from '@/lib/utils'
@@ -48,6 +49,10 @@ export function AiComposer({onSend, onStop, busy, placeholder = '发送消息，
   const [draft, setDraft] = React.useState(initialValue)
   const [caret, setCaret] = React.useState(0)
   const [apps, setApps] = React.useState<App[] | null>(null)
+  const appsRevision = useAppDataRevision(undefined, ['app'])
+  React.useEffect(() => {
+    setApps(null)
+  }, [appsRevision])
   const [dismissed, setDismissed] = React.useState(false)
   const [activeIndex, setActiveIndex] = React.useState(0)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
@@ -271,8 +276,23 @@ export function AiTypingIndicator({label = '正在回复'}: { label?: string }) 
   </div>
 }
 
+// 推理内容折叠块：生成时默认展开，结束后默认收起；用户手动操作不受后续渲染覆盖。
+export function AiReasoningBlock({title = '思考过程', defaultOpen = false, children}: {
+  title?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode
+}) {
+  return <details open={defaultOpen} className="mb-2 rounded-lg border bg-muted/40">
+    <summary
+      className="cursor-pointer select-none px-3 py-1.5 text-xs font-medium text-muted-foreground">{title}</summary>
+    <div
+      className="max-h-72 overflow-y-auto whitespace-pre-wrap break-words px-3 pb-3 text-xs leading-6 text-muted-foreground">{children}</div>
+  </details>
+}
+
 export function AiMessageView({message}: { message: Pick<AiMessage, 'role' | 'content'> & Partial<AiMessage> }) {
   const [copied, setCopied] = React.useState(false)
+  const reasoningParts = message.parts?.filter(part => part.type === 'reasoning' && part.content) ?? []
   return message.role === 'user' ? <div
       className="ml-auto max-w-[90%] whitespace-pre-wrap break-words rounded-xl bg-muted px-4 py-3 text-sm">{message.content}</div> :
     <div className="flex min-w-0 gap-3">
@@ -280,6 +300,7 @@ export function AiMessageView({message}: { message: Pick<AiMessage, 'role' | 'co
         className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-background text-primary"><Bot
         className="h-4 w-4"/></span>
       <div className="min-w-0 flex-1">
+        {reasoningParts.map((part, index) => <AiReasoningBlock key={index}>{part.content}</AiReasoningBlock>)}
         <div className="ai-markdown break-words text-sm leading-7"><ReactMarkdown remarkPlugins={markdownRemarkPlugins}
                                                                                   components={markdownComponents}>{message.content}</ReactMarkdown>
         </div>
@@ -313,16 +334,17 @@ export function AiChat({robot, compact = false, showSuggestions = true, receiveP
   React.useEffect(() => {
     const scroller = scrollRef.current
     if (scroller) scroller.scrollTop = scroller.scrollHeight
-  }, [messages.length, room.activeId, room.busy, room.streaming?.text])
+  }, [messages.length, room.activeId, room.busy, room.streaming?.text, room.streaming?.reasoning])
   React.useEffect(() => {
     // 快捷提问按机器人定向：未指定机器人时由内置助手消费。
+    // 首次挂载时 ensureRoom 已经把房间标记为加载中，这里必须等历史会话就绪，否则提问会被消费却发不出去。
     const promptTarget = !ai.request.robotId || ai.request.robotId === robot.id
-    if (receivePrompt && ai.request.prompt && promptTarget && !room.loading && !room.busy) {
+    if (receivePrompt && ai.request.prompt && promptTarget && room.initialized && !room.loading && !room.busy) {
       const prompt = ai.request.prompt
       ai.consumePrompt()
       void send(robot.id, prompt)
     }
-  }, [receivePrompt, ai.request, robot.id, room.loading, room.busy, send, ai.consumePrompt])
+  }, [receivePrompt, ai.request, robot.id, room.initialized, room.loading, room.busy, send, ai.consumePrompt])
   const sendText = (content: string) => send(robot.id, content)
   // 面板形态：标题在左，会话操作只保留图标。
   const iconOnly = !!title
@@ -381,6 +403,10 @@ export function AiChat({robot, compact = false, showSuggestions = true, receiveP
               className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-background text-primary"><Bot
               className="h-4 w-4"/></span>
             <div className="min-w-0 flex-1">
+              {room.streaming.reasoningParts.map((content, index) =>
+                <AiReasoningBlock key={index}>{content}</AiReasoningBlock>)}
+              {room.streaming.reasoning &&
+                <AiReasoningBlock defaultOpen>{room.streaming.reasoning}</AiReasoningBlock>}
               {room.streaming.tool &&
                 <p className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground"><Wrench
                   className="h-3.5 w-3.5 shrink-0"/>正在调用工具 {room.streaming.tool}…</p>}
@@ -388,7 +414,7 @@ export function AiChat({robot, compact = false, showSuggestions = true, receiveP
                 {room.streaming.text
                   ? <ReactMarkdown remarkPlugins={markdownRemarkPlugins}
                                    components={markdownComponents}>{room.streaming.text}</ReactMarkdown>
-                  : <AiTypingIndicator label="正在思考"/>}
+                  : !room.streaming.reasoning && !room.streaming.tool && <AiTypingIndicator label="正在思考"/>}
               </div>
             </div>
           </div>

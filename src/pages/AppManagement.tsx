@@ -9,6 +9,7 @@ import {AppCreateDialog} from '@/components/biz/AppCreateDialog'
 import {AppPackageExportDialog} from '@/components/biz/AppPackageExportDialog'
 import {AppPackageImportDialog} from '@/components/biz/AppPackageImportDialog'
 import {Empty} from '@/components/ui/empty'
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,} from '@/components/ui/dropdown-menu'
 import {appIcons} from '@/data/appIcons'
 import {type App, deleteApp, getApps, invalidateAppCaches} from '@/services/apps'
@@ -17,10 +18,12 @@ import type {AppPackagePreview} from '@/services/appPackages'
 import {listAppTemplates} from '@/services/appTemplates'
 import {useAiAssistant} from '@/components/ai/AiProvider'
 import {cn, toErrorMessage} from '@/lib/utils'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 export default function AppManagement() {
   const navigate = useNavigate()
   const ai = useAiAssistant()
+  const appsRevision = useAppDataRevision(undefined, ['app'])
   const [apps, setApps] = React.useState<App[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [listError, setListError] = React.useState<string | null>(null)
@@ -35,8 +38,8 @@ export default function AppManagement() {
   const [templateCount, setTemplateCount] = React.useState<number | null>(null)
   const showTemplateEntry = templateCount !== 0
 
-  const loadApps = React.useCallback(async () => {
-    setIsLoading(true)
+  const loadApps = React.useCallback(async (background = false) => {
+    if (!background) setIsLoading(true)
     setListError(null)
     try {
       setApps(await getApps())
@@ -49,8 +52,8 @@ export default function AppManagement() {
   }, [])
 
   React.useEffect(() => {
-    void loadApps()
-  }, [loadApps])
+    void loadApps(appsRevision > 0)
+  }, [loadApps, appsRevision])
 
   React.useEffect(() => {
     // 目录为空时隐藏模板创建方式；请求失败保留入口，由创建弹窗展示错误与重试。
@@ -112,32 +115,48 @@ export default function AppManagement() {
                   <div
                     key={app.id}
                     data-primary={getAppPrimaryColor(app.primaryColor).value}
-                    className="relative min-w-0 overflow-hidden rounded-lg border bg-background transition-colors hover:border-primary/60 hover:bg-accent/40"
+                    className="group relative min-w-0 overflow-hidden rounded-lg border bg-background transition-colors hover:border-primary/60 hover:bg-accent/40"
                   >
-                    <Link to={`/apps/${app.id}`} className="block min-w-0 p-4 pr-12">
-                      <div className="flex items-start gap-3">
+                    <Link to={`/apps/${app.id}`} className="block min-w-0 p-4">
+                      <div className="flex items-start gap-3 pr-8">
                         <span
                           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                           <Icon className="h-6 w-6" />
                         </span>
-                        <span className="min-w-0">
+                        <span className="min-w-0 flex-1">
                           <span className="block truncate text-base font-medium text-foreground">{app.name}</span>
-                          <span className="mt-1 line-clamp-2 block break-words text-sm leading-5 text-muted-foreground">
-                            {app.description || '暂无描述'}
-                          </span>
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="mt-1 block truncate text-sm leading-5 text-muted-foreground">
+                                  {app.description || '暂无描述'}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="whitespace-pre-wrap break-words">
+                                {app.description || '暂无描述'}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </span>
                       </div>
-                      <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>所有者：{app.owner}</span>
-                        <span className="h-3 w-px bg-border" />
-                        <span>更新于 {app.updatedAt}</span>
+                      <div
+                        className="ml-14 mt-4 flex min-w-0 items-center gap-3 whitespace-nowrap text-xs text-muted-foreground">
+                        <span className="min-w-0 truncate" title={`所有者：${app.owner}`}>所有者：{app.owner}</span>
+                        <span className="h-3 w-px shrink-0 bg-border"/>
+                        <span className="min-w-0 truncate"
+                              title={`更新于 ${app.updatedAt}`}>更新于 {app.updatedAt}</span>
                       </div>
                     </Link>
 
                     <div className="absolute right-3 top-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="secondary" size="icon" className="h-8 w-8" title="更多操作">
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+                            title="更多操作"
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>

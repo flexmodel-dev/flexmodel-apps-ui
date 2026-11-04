@@ -7,14 +7,16 @@ import {
 } from '@/services/ai'
 import {toErrorMessage} from '@/lib/utils'
 
-/** streaming：发送后到 done/error 之间的本地草稿（用户消息 + 增量回复 + 执行中的工具名）。 */
+/** streaming：发送后到 done/error 之间的本地草稿（用户消息 + 推理块 + 增量回复 + 执行中的工具名）。 */
 interface Room {
   conversations: AiConversation[]
   activeId?: string
   loading: boolean
   busy: boolean
   error?: string
-  streaming?: { user: string; text: string; tool?: string }
+  /** 历史会话是否已加载完毕；快捷提问要等它就绪，否则会和首次 ensureRoom 抢跑。 */
+  initialized?: boolean
+  streaming?: { user: string; text: string; tool?: string; reasoning: string; reasoningParts: string[] }
 }
 
 const emptyRoom: Room = {conversations: [], loading: false, busy: false}
@@ -53,9 +55,14 @@ function useAiState() {
     update(key, room => ({...room, loading: true, error: undefined}))
     try {
       const conversations = await getAiConversations(robot)
-      update(key, room => ({...room, conversations, loading: false}))
+      update(key, room => ({...room, conversations, loading: false, initialized: true}))
     } catch (error) {
-      update(key, room => ({...room, loading: false, error: toErrorMessage(error, '加载历史会话失败')}))
+      update(key, room => ({
+        ...room,
+        loading: false,
+        initialized: true,
+        error: toErrorMessage(error, '加载历史会话失败')
+      }))
     }
   }, [keyFor, update])
   const send = React.useCallback(async (robot: string, content: string) => {
@@ -63,11 +70,20 @@ function useAiState() {
     if (!content.trim() || roomRef.current[key]?.busy || roomRef.current[key]?.loading) return false
     const controller = new AbortController()
     controllersRef.current[key] = controller
-    update(key, room => ({...room, busy: true, error: undefined, streaming: {user: content, text: ''}}))
+    update(key, room => ({
+      ...room, busy: true, error: undefined,
+      streaming: {user: content, text: '', reasoning: '', reasoningParts: []}
+    }))
+    // token/tool 事件结束当前推理块；之后的 reasoning 增量属于新块，与后端块边界规则一致。
+    const closeReasoning = (draft: NonNullable<Room['streaming']>) => draft.reasoning
+      ? {...draft, reasoning: '', reasoningParts: [...draft.reasoningParts, draft.reasoning]}
+      : draft
     const appendToken = (delta: string) => update(key, room => room.streaming
-      ? {...room, streaming: {...room.streaming, text: room.streaming.text + delta}} : room)
+      ? {...room, streaming: {...closeReasoning(room.streaming), text: room.streaming.text + delta}} : room)
+    const appendReasoning = (delta: string) => update(key, room => room.streaming
+      ? {...room, streaming: {...room.streaming, reasoning: room.streaming.reasoning + delta}} : room)
     const markTool = (tool: string) => update(key, room => room.streaming
-      ? {...room, streaming: {...room.streaming, tool}} : room)
+      ? {...room, streaming: {...closeReasoning(room.streaming), tool}} : room)
     const handleDone = (conversation: AiConversation) => update(key, room => ({
       ...room, busy: false, streaming: undefined,
       conversations: [conversation, ...room.conversations.filter(item => item.id !== conversation.id)]
@@ -91,7 +107,13 @@ function useAiState() {
         content: draft.user,
         createdAt
       }]
-      if (draft.text) messages.push({id: `local-${stamp}-assistant`, role: 'assistant', content: draft.text, createdAt})
+      // 停止时已流出的推理块也一并落为本地消息，刷新后以服务端成功历史为准。
+      const reasoning = draft.reasoningParts.concat(draft.reasoning ? [draft.reasoning] : [])
+      if (draft.text || reasoning.length) messages.push({
+        id: `local-${stamp}-assistant`, role: 'assistant', content: draft.text,
+        parts: reasoning.length ? reasoning.map(content => ({type: 'reasoning' as const, content})) : undefined,
+        createdAt
+      })
       return {
         ...room, busy: false, streaming: undefined,
         conversations: room.conversations.map(item => item.id === active.id ? {...item, messages} : item)
@@ -108,6 +130,7 @@ function useAiState() {
       const contextApp = robot === AI_ASSISTANT_ROBOT_ID ? appId : undefined
       await streamAiMessage(id, content, {
         onToken: appendToken,
+        onReasoning: appendReasoning,
         onTool: markTool,
         onDone: handleDone,
         onError: handleError

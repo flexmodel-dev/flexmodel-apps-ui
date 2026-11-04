@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {Check, ChevronDown, Plus, Search, X} from 'lucide-react'
 import {
   Popover,
@@ -192,6 +193,7 @@ export function MultiChoice({
 }
 
 export function useApprovalForms(appId: string) {
+  const formRevision = useAppDataRevision(appId, ['form'])
   const [forms, setForms] = React.useState<ApprovalForm[]>(approvalDemoForms)
   const [error, setError] = React.useState('')
   const [loading, setLoading] = React.useState(false)
@@ -223,7 +225,7 @@ export function useApprovalForms(appId: string) {
     return () => {
       active = false
     }
-  }, [appId, revision])
+  }, [appId, revision, formRevision])
   return {forms, error, loading, reload}
 }
 

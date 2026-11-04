@@ -1,4 +1,5 @@
 import {requestJson, requestSse} from '@/services/http'
+import {flushAppDataChanges, notifyAppDataChange, type AppDataChange} from '@/services/appDataCache'
 
 export interface AiRobot {
   id: string
@@ -12,11 +13,18 @@ export interface AiRobot {
 
 export type AiRobotInput = Omit<AiRobot, 'id'>
 
+/** 消息内容块：reasoning 为供应商原生返回的推理文本，前端折叠展示。 */
+export interface AiMessagePart {
+  type: 'reasoning' | 'text'
+  content: string
+}
+
 export interface AiMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   createdAt: string
+  parts?: AiMessagePart[]
 }
 
 export interface AiConversation {
@@ -81,9 +89,10 @@ export const createAiConversation = (robotId: string = AI_ASSISTANT_ROBOT_ID) =>
 export const deleteAiConversation = (id: string) =>
   requestJson<null>(`${conversationsBase}/${encodeURIComponent(id)}`, {method: 'DELETE'})
 
-/** SSE 流式事件：token=增量文本、tool=正在执行的工具名、done=完成（携带完整会话）、error=失败原因。 */
+/** SSE 流式事件：token=增量文本、reasoning=推理增量、tool=工具名、change=变更范围、done=完整会话、error=失败原因。 */
 export interface AiStreamHandlers {
   onToken: (delta: string) => void
+  onReasoning?: (delta: string) => void
   onTool?: (tool: string) => void
   onDone: (conversation: AiConversation) => void
   onError: (message: string) => void
@@ -96,23 +105,42 @@ interface AiStreamEvent {
   type?: string;
   content?: string;
   conversation?: AiConversation
+  change?: AppDataChange
 }
 
-function streamEvents(path: string, payload: {
+async function streamEvents(path: string, payload: {
   content: string;
   appId?: string
 }, handlers: AiStreamHandlers, signal?: AbortSignal) {
-  return requestSse(path, {method: 'POST', body: JSON.stringify(payload), signal}, data => {
-    if (!data || data === '[DONE]') return
-    let event: AiStreamEvent
-    try {
-      event = JSON.parse(data) as AiStreamEvent
-    } catch {
-      return
-    }
-    if (event.type === 'token' && event.content) handlers.onToken(event.content)
-    else if (event.type === 'tool' && event.content) handlers.onTool?.(event.content)
-    else if (event.type === 'done' && event.conversation) handlers.onDone(event.conversation)
-    else if (event.type === 'error') handlers.onError(event.content || 'AI 模型调用失败，请重试')
-  })
+  const changes = new Map<string, AppDataChange>()
+  let finished = false
+  try {
+    await requestSse(path, {method: 'POST', body: JSON.stringify(payload), signal}, data => {
+      if (!data || data === '[DONE]') return
+      let event: AiStreamEvent
+      try {
+        event = JSON.parse(data) as AiStreamEvent
+      } catch {
+        return
+      }
+      if (event.type === 'token' && event.content) handlers.onToken(event.content)
+      else if (event.type === 'reasoning' && event.content) handlers.onReasoning?.(event.content)
+      else if (event.type === 'tool' && event.content) handlers.onTool?.(event.content)
+      else if (event.type === 'change' && event.change?.appId && event.change.resource) {
+        changes.set(JSON.stringify([event.change.appId, event.change.resource, event.change.formName]), event.change)
+        notifyAppDataChange(event.change)
+      } else if (event.type === 'done' && event.conversation) {
+        finished = true
+        handlers.onDone(event.conversation)
+      } else if (event.type === 'error') {
+        finished = true
+        handlers.onError(event.content || 'AI 模型调用失败，请重试')
+      }
+    })
+    if (!finished && !signal?.aborted) throw new Error('AI 连接已中断，请重试')
+  } finally {
+    // 成功、失败与主动停止均核对已经获知的写入，不能只在 done 时刷新。
+    changes.forEach(notifyAppDataChange)
+    flushAppDataChanges()
+  }
 }

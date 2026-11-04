@@ -37,8 +37,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 }
 
 /**
- * 消费 SSE 流式响应：每个 data: 行回调一次（去掉前缀）。
- * 事件边界按空行分割，容忍 data: 后有无可空格；连接结束即认为流完成。
+ * 消费 SSE 流式响应，支持 UTF-8/CRLF 分片和多行 data；业务层判断是否收到终态事件。
  */
 export async function requestSse(path: string, init: RequestInit, onEvent: (data: string) => void): Promise<void> {
   const token = getAuthToken()
@@ -54,19 +53,25 @@ export async function requestSse(path: string, init: RequestInit, onEvent: (data
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  for (; ;) {
-    const {done, value} = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, {stream: true})
-    let index = buffer.indexOf('\n\n')
-    while (index >= 0) {
-      const chunk = buffer.slice(0, index)
-      buffer = buffer.slice(index + 2)
-      for (const line of chunk.split('\n')) {
-        if (line.startsWith('data:')) onEvent(line.slice(5).trim())
+  try {
+    for (; ;) {
+      const {done, value} = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, {stream: true})
+      let boundary = /\r?\n\r?\n/.exec(buffer)
+      while (boundary) {
+        const chunk = buffer.slice(0, boundary.index)
+        buffer = buffer.slice(boundary.index + boundary[0].length)
+        const data = chunk.split(/\r?\n/).filter(line => line.startsWith('data:'))
+          .map(line => line.slice(5).trimStart()).join('\n')
+        if (data) onEvent(data)
+        boundary = /\r?\n\r?\n/.exec(buffer)
       }
-      index = buffer.indexOf('\n\n')
     }
+  } finally {
+    await reader.cancel().catch(() => {
+    })
+    reader.releaseLock()
   }
 }
 

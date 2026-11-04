@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {useNavigate, useParams} from 'react-router-dom'
 import {Pencil, Plus, Trash2} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
@@ -96,8 +97,19 @@ export default function FormSettings({section}: { section: FormSettingsSection }
   const [fieldDelete, setFieldDelete] = React.useState<AppFormField | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [availableForms, setAvailableForms] = React.useState<AppForm[]>([])
+  const formRevision = useAppDataRevision(appId, ['form'], formName)
+  const formsRevision = useAppDataRevision(appId, ['form'])
+  const editing = baseOpen || fieldDraft !== null || fieldDelete !== null || isSubmitting
 
-  const loadForm = React.useCallback(() => {
+  React.useEffect(() => {
+    setForm(null)
+    setIsLoading(true)
+    setBaseOpen(false)
+    setFieldDraft(null)
+    setFieldDelete(null)
+  }, [appId, formName])
+
+  const loadForm = React.useCallback((background = false) => {
     if (!appId || !formName) {
       setForm(null)
       setIsLoading(false)
@@ -105,7 +117,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       return
     }
     let cancelled = false
-    setIsLoading(true)
+    if (!background) setIsLoading(true)
     setError(null)
     getAppForm(appId, formName)
       .then((loadedForm) => {
@@ -128,7 +140,9 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     }
   }, [appId, formName])
 
-  React.useEffect(() => loadForm(), [loadForm])
+  React.useEffect(() => {
+    if (!editing) return loadForm(true)
+  }, [loadForm, formRevision, editing])
 
   React.useEffect(() => {
     if (!appId) {
@@ -146,7 +160,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     return () => {
       cancelled = true
     }
-  }, [appId])
+  }, [appId, formsRevision])
 
   if (isLoading || !form) {
     return (

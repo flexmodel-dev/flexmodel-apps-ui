@@ -8,6 +8,7 @@ import {MenuEditorDialog} from './MenuEditorDialog'
 import {getAppForm} from '@/services/appForms'
 import {FormSettingsNav} from '@/components/biz/FormSettingsNav'
 import {useAiAssistant} from '@/components/ai/AiProvider'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 export function AdminLayout({
                               children,
@@ -33,6 +34,7 @@ export function AdminLayout({
   const currentFormMatch = location.pathname.match(/^\/admin\/apps\/([^/]+)\/forms\/([^/]+)/)
   const currentAppId = currentFormMatch ? params.appId ?? currentFormMatch[1] : ''
   const currentFormName = currentFormMatch ? params.formName ?? currentFormMatch[2] : ''
+  const formRevision = useAppDataRevision(currentAppId, ['form'], currentFormName)
   const [currentFormLabel, setCurrentFormLabel] = React.useState(currentFormName)
 
   React.useEffect(() => {
@@ -52,7 +54,7 @@ export function AdminLayout({
     return () => {
       cancelled = true
     }
-  }, [currentAppId, currentFormName])
+  }, [currentAppId, currentFormName, formRevision])
 
   const mobileNavs = showFormSidebar && currentFormName
     ? [

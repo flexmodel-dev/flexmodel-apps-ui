@@ -10,6 +10,7 @@ import {Empty} from '@/components/ui/empty'
 import {type AppForm, createAppForm, getAppForms} from '@/services/appForms'
 import {toErrorMessage} from '@/lib/utils'
 import {Checkbox} from '@/components/ui/checkbox'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 interface FormCreateDraft {
   label: string
@@ -26,6 +27,7 @@ const emptyFormDraft: FormCreateDraft = {
 }
 
 export function FormManagementContent({appId}: { appId?: string }) {
+  const formsRevision = useAppDataRevision(appId, ['form'])
   const [forms, setForms] = React.useState<AppForm[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -33,14 +35,14 @@ export function FormManagementContent({appId}: { appId?: string }) {
   const [createDraft, setCreateDraft] = React.useState(emptyFormDraft)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-  const loadForms = React.useCallback(() => {
+  const loadForms = React.useCallback((background = false) => {
     if (!appId) {
       setForms([])
       setIsLoading(false)
       return
     }
     let cancelled = false
-    setIsLoading(true)
+    if (!background) setIsLoading(true)
     setError(null)
     getAppForms(appId)
       .then((loadedForms) => !cancelled && setForms(loadedForms))
@@ -54,7 +56,7 @@ export function FormManagementContent({appId}: { appId?: string }) {
     }
   }, [appId])
 
-  React.useEffect(() => loadForms(), [loadForms])
+  React.useEffect(() => loadForms(formsRevision > 0), [loadForms, formsRevision])
 
   const submitCreate = async () => {
     if (!appId || !createDraft.label.trim() || !createDraft.name.trim()) return

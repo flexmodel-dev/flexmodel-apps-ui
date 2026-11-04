@@ -1,4 +1,5 @@
 import * as React from 'react'
+import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {Link, useNavigate} from 'react-router-dom'
 import {
   ArrowDown,
@@ -68,6 +69,7 @@ export function FlowStatus({status}: { status: ApprovalFlow['status'] }) {
 }
 
 export default function ApprovalList({appId}: { appId?: string }) {
+  const approvalRevision = useAppDataRevision(appId, ['approval'])
   const navigate = useNavigate()
   const [flows, setFlows] = React.useState<ApprovalFlow[]>([])
   const [error, setError] = React.useState('')
@@ -96,7 +98,7 @@ export default function ApprovalList({appId}: { appId?: string }) {
   }, [appId])
   React.useEffect(() => {
     void load()
-  }, [load])
+  }, [load, approvalRevision])
   const perform = async (action: () => void | Promise<unknown>) => {
     try {
       await action()
