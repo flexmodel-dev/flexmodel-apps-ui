@@ -1,8 +1,9 @@
 import * as React from 'react'
-import {Check, Database, Loader2, RefreshCw} from 'lucide-react'
+import {Check, Database, Loader2, RefreshCw, Sparkles} from 'lucide-react'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
+import {Textarea} from '@/components/ui/textarea'
 import {BizDialog} from '@/components/ui/dialog'
 import {AppPrimaryColorPicker} from '@/components/biz/AppPrimaryColorPicker'
 import {IconPicker} from '@/components/biz/IconPicker'
@@ -11,9 +12,10 @@ import {type App, createApp} from '@/services/apps'
 import type {AppPackagePreview} from '@/services/appPackages'
 import {type AppTemplateSummary, instantiateAppTemplate, listAppTemplates} from '@/services/appTemplates'
 import {type AppPrimaryColor} from '@/theme/appPrimaryColors'
+import {AI_BUILDER_ROBOT} from '@/services/ai'
 import {cn, toErrorMessage} from '@/lib/utils'
 
-type CreateMode = 'blank' | 'template'
+type CreateMode = 'blank' | 'template' | 'ai'
 
 interface Props {
   open: boolean
@@ -23,19 +25,24 @@ interface Props {
   onCreated: (app: App) => void
   /** 模板已实例化为预导入计划，交由导入弹窗继续确认。 */
   onTemplateReady: (preview: AppPackagePreview, name: string) => void
+  /** 选择 AI 创建后，把输入内容带入右侧 AI 助手面板继续生成方案。 */
+  onAiCreate: (prompt: string) => void
 }
 
-const modes: Array<{ value: CreateMode; title: string; detail: string }> = [
-  {value: 'blank', title: '空白应用', detail: '从菜单与表单开始搭建'},
-  {value: 'template', title: '从模板创建', detail: '使用内置模板快速开始'},
-]
-
-export function AppCreateDialog({open, onOpenChange, templateEnabled, onCreated, onTemplateReady}: Props) {
+export function AppCreateDialog({
+                                  open,
+                                  onOpenChange,
+                                  templateEnabled,
+                                  onCreated,
+                                  onTemplateReady,
+                                  onAiCreate,
+                                }: Props) {
   const [name, setName] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [iconName, setIconName] = React.useState<AppIconName>('Boxes')
   const [primaryColor, setPrimaryColor] = React.useState<AppPrimaryColor>('blue')
-  const [mode, setMode] = React.useState<CreateMode>('blank')
+  const [mode, setMode] = React.useState<CreateMode>('ai')
+  const [aiPrompt, setAiPrompt] = React.useState('')
   const [templates, setTemplates] = React.useState<AppTemplateSummary[] | null>(null)
   const [templateId, setTemplateId] = React.useState('')
   const [isLoadingTemplates, setIsLoadingTemplates] = React.useState(false)
@@ -49,7 +56,8 @@ export function AppCreateDialog({open, onOpenChange, templateEnabled, onCreated,
     setDescription('')
     setIconName('Boxes')
     setPrimaryColor('blue')
-    setMode('blank')
+    setMode('ai')
+    setAiPrompt('')
     setTemplates(null)
     setTemplateId('')
     setIsLoadingTemplates(false)
@@ -57,6 +65,14 @@ export function AppCreateDialog({open, onOpenChange, templateEnabled, onCreated,
     setBusy(false)
     setError('')
   }, [open])
+
+  const modes: Array<{ value: CreateMode; title: string; detail: string }> = [
+    {value: 'ai', title: 'AI 创建应用', detail: '描述业务需求，由 AI 搭建应用'},
+    {value: 'blank', title: '空白应用', detail: '从菜单与表单开始搭建'},
+    ...(templateEnabled
+      ? [{value: 'template' as const, title: '从模板创建', detail: '使用内置模板快速开始'}]
+      : []),
+  ]
 
   const loadTemplates = async () => {
     setIsLoadingTemplates(true)
@@ -84,11 +100,19 @@ export function AppCreateDialog({open, onOpenChange, templateEnabled, onCreated,
     if (template) setName(current => (current.trim() ? current : template.name))
   }
 
-  const canSubmit = Boolean(name.trim()) && !busy && (mode === 'blank' || Boolean(templateId))
+  const canSubmit = mode === 'ai'
+    ? Boolean(aiPrompt.trim()) && !busy
+    : Boolean(name.trim()) && !busy && (mode === 'blank' || Boolean(templateId))
 
   const submit = async () => {
+    if (!canSubmit) return
+    if (mode === 'ai') {
+      onAiCreate(aiPrompt.trim())
+      onOpenChange(false)
+      return
+    }
     const trimmed = name.trim()
-    if (!trimmed || !canSubmit) return
+    if (!trimmed) return
     setBusy(true)
     setError('')
     try {
@@ -120,51 +144,56 @@ export function AppCreateDialog({open, onOpenChange, templateEnabled, onCreated,
       }}
       title="新建应用"
       width={720}
+      height={mode === 'ai' ? 'min(86vh, 720px)' : undefined}
       footer={
         <>
           <Button variant="secondary" disabled={busy} onClick={() => onOpenChange(false)}>取消</Button>
           <Button onClick={() => void submit()} disabled={!canSubmit}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin"/> : null}
-            {busy ? '处理中…' : mode === 'blank' ? '创建' : '预览并创建'}
+            {busy ? '处理中…' : mode === 'ai' ? <><Sparkles className="h-4 w-4"/>打开 AI
+              助手</> : mode === 'blank' ? '创建' : '预览并创建'}
           </Button>
         </>
       }
     >
       <div className="space-y-5">
         <div>
-          <label htmlFor="create-app-name" className="mb-1 block text-sm font-medium text-foreground">应用名称</label>
-          <Input
-            id="create-app-name"
-            value={name}
-            maxLength={100}
-            disabled={busy}
-            autoFocus
-            placeholder="例如：客户管理"
-            onChange={event => setName(event.target.value)}
-          />
+          <span className="mb-1 block text-sm font-medium text-foreground">创建方式</span>
+          <div className={cn('grid gap-3', modes.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
+            {modes.map(item => (
+              <button
+                key={item.value}
+                type="button"
+                disabled={busy}
+                aria-pressed={mode === item.value}
+                onClick={() => selectMode(item.value)}
+                className={cn(
+                  'rounded-lg border p-4 text-left transition-colors',
+                  mode === item.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/60 hover:bg-accent/40',
+                )}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  {item.value === 'ai' ? <Sparkles className="h-4 w-4 text-primary"/> : null}
+                  {item.title}
+                </span>
+                <span className="mt-2 block text-xs leading-5 text-muted-foreground">{item.detail}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {templateEnabled ? (
+        {mode !== 'ai' ? (
           <div>
-            <span className="mb-1 block text-sm font-medium text-foreground">创建方式</span>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {modes.map(item => (
-                <button
-                  key={item.value}
-                  type="button"
-                  disabled={busy}
-                  aria-pressed={mode === item.value}
-                  onClick={() => selectMode(item.value)}
-                  className={cn(
-                    'rounded-lg border p-4 text-left transition-colors',
-                    mode === item.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/60 hover:bg-accent/40',
-                  )}
-                >
-                  <span className="block text-sm font-medium text-foreground">{item.title}</span>
-                  <span className="mt-2 block text-xs leading-5 text-muted-foreground">{item.detail}</span>
-                </button>
-              ))}
-            </div>
+            <label htmlFor="create-app-name" className="mb-1 block text-sm font-medium text-foreground">应用名称</label>
+            <Input
+              id="create-app-name"
+              value={name}
+              maxLength={100}
+              disabled={busy}
+              autoFocus
+              placeholder="例如：客户管理"
+              onChange={event => setName(event.target.value)}
+            />
           </div>
         ) : null}
 
@@ -192,6 +221,57 @@ export function AppCreateDialog({open, onOpenChange, templateEnabled, onCreated,
             <div>
               <span className="mb-1 block text-sm font-medium text-foreground">应用主色</span>
               <AppPrimaryColorPicker value={primaryColor} onChange={setPrimaryColor}/>
+            </div>
+          </div>
+        ) : null}
+
+        {mode === 'ai' ? (
+          <div className="space-y-3">
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <div className="flex gap-3">
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Sparkles className="h-4 w-4"/>
+                </span>
+                <div className="min-w-0">
+                  <p className="m-0 text-sm font-medium">应用搭建助手</p>
+                  <p className="mb-0 mt-1 text-sm leading-6 text-muted-foreground">
+                    你好，描述你想管理的业务、需要记录的信息和希望完成的工作，我会帮你创建应用并完善表单、工作台与导航。
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col items-start gap-2">
+                {AI_BUILDER_ROBOT.suggestions.map(question => (
+                  <Button key={question} type="button" variant="outline" size="sm"
+                          className="h-auto whitespace-normal py-2 text-left font-normal"
+                          disabled={busy}
+                          onClick={() => setAiPrompt(question)}>
+                    {question}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label htmlFor="create-app-ai-prompt"
+                     className="mb-1 block text-sm font-medium text-foreground">需求描述</label>
+              <Textarea
+                id="create-app-ai-prompt"
+                value={aiPrompt}
+                rows={4}
+                maxLength={4000}
+                autoFocus
+                disabled={busy}
+                placeholder="例如：帮我搭建一个客户跟进管理应用，记录客户联系人和跟进情况"
+                onChange={event => setAiPrompt(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                    event.preventDefault()
+                    if (canSubmit) void submit()
+                  }
+                }}
+              />
+              <p className="mb-0 mt-1 text-xs text-muted-foreground">按 Enter 打开右侧 AI 助手继续完善，Shift + Enter
+                换行。</p>
             </div>
           </div>
         ) : null}

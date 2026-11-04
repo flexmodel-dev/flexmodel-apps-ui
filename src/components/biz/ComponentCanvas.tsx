@@ -8,6 +8,7 @@ import type {AppFormField} from '@/services/appForms'
 import {formatFieldValue} from '@/lib/fieldConfig'
 import {formatRecordValue} from '@/lib/recordValue'
 import {AppLoading} from '@/components/biz/AppLoading'
+import {WorkbenchAiCard} from '@/components/ai/WorkbenchAiCard'
 import {cn} from '@/lib/utils'
 
 export interface ComponentCanvasShortcut {
@@ -107,6 +108,7 @@ export function ComponentCanvas({
                                   onOpenMenu,
                                   columns = [],
                                   shortcutTargets = [],
+                                  appId,
                                 }: {
   component: WorkbenchComponent
   data?: WorkbenchComponentData | null
@@ -115,6 +117,7 @@ export function ComponentCanvas({
   onOpenMenu?: (to: string) => void
   columns?: AppFormField[]
   shortcutTargets?: ComponentCanvasShortcut[]
+  appId?: string
 }) {
   const config = component.config
   const dataErrorNode = dataError ? (
@@ -219,6 +222,8 @@ export function ComponentCanvas({
   }
 
   if (config.type === 'tasks') return <ApprovalFeed compact/>
+
+  if (config.type === 'ai') return <WorkbenchAiCard appId={appId} config={config}/>
 
   if (config.type !== 'chart') {
     throw new Error('工作台组件类型不合法')

@@ -13,6 +13,7 @@ export interface NavDestination {
   id: string
   label?: string
   workbenchId?: string | null
+  robotId?: string | null
 }
 
 export interface AppNav {
@@ -34,7 +35,12 @@ export interface AppNavInput {
   name: string
   iconName?: string | null
   parentId?: string | null
-  destination?: { type: NavDestinationType; id: string; workbenchId?: string | null } | null
+  destination?: {
+    type: NavDestinationType
+    id: string
+    workbenchId?: string | null
+    robotId?: string | null
+  } | null
 }
 
 export interface AppNavDestinations {

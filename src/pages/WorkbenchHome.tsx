@@ -52,6 +52,7 @@ function setGridItemAttributes(element: HTMLDivElement | null, component: Workbe
 }
 
 function ComponentCard({
+                         appId,
                          component,
                          data,
                          isLoadingData,
@@ -64,6 +65,7 @@ function ComponentCard({
                          onDelete,
                          onRefresh,
                        }: {
+  appId: string
   component: WorkbenchComponent
   data?: WorkbenchComponentData | null
   isLoadingData?: boolean
@@ -112,6 +114,7 @@ function ComponentCard({
               columns={columns}
               shortcutTargets={shortcutTargets}
               onOpenMenu={onOpenMenu}
+              appId={appId}
             />
           </div>
         </div>
@@ -166,6 +169,7 @@ function WorkbenchComponentCard({
 
   return (
     <ComponentCard
+      appId={appId}
       component={component}
       data={data}
       isLoadingData={isLoadingData}

@@ -22,11 +22,14 @@ import UserSettings from '@/pages/UserSettings'
 import FormDesign from '@/pages/FormDesign'
 import FormSettings from '@/pages/FormSettings'
 import FormDataPermissions from '@/pages/FormDataPermissions'
+import AiChatPage from '@/pages/AiChatPage'
 import {AdminApprovals, AdminRoles, AdminUsers,} from '@/pages/admin'
 import {MessageViewport} from '@/components/ui/message'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {getAuthSession} from '@/services/auth'
 import {NotificationProvider} from '@/components/notifications/NotificationProvider'
+import {AiProvider} from '@/components/ai/AiProvider'
+import {AiAssistantPanel} from '@/components/ai/AiAssistantPanel'
 
 const ApprovalDesigner = React.lazy(() => import('@/pages/Approvals/ApprovalDesigner'))
 
@@ -42,7 +45,12 @@ function RequireAuth() {
   if (!getAuthSession()) {
     return <Navigate to="/login" replace state={{from: location.pathname}}/>
   }
-  return <NotificationProvider><Outlet/></NotificationProvider>
+  return <NotificationProvider>
+    <AiProvider>
+      <Outlet/>
+      <AiAssistantPanel/>
+    </AiProvider>
+  </NotificationProvider>
 }
 
 initializeDarkMode()
@@ -59,6 +67,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/settings/user" element={<UserSettings/>}/>
           {/* 业务对象 */}
           <Route path="/apps/:appId" element={<AppHome/>}/>
+          <Route path="/apps/:appId/ai/chat/:robotId" element={<AiChatPage/>}/>
           <Route path="/apps/:appId/:navId" element={<AppMenuPage/>}/>
           <Route path="/apps/:appId/:navId/view/:recordId" element={<AppRecordView/>}/>
           <Route path="/menu/:menuId" element={<MenuPlaceholder/>}/>

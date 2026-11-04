@@ -36,6 +36,40 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   return (await (await requestResponse(path, init)).json().catch(() => null)) as T
 }
 
+/**
+ * 消费 SSE 流式响应：每个 data: 行回调一次（去掉前缀）。
+ * 事件边界按空行分割，容忍 data: 后有无可空格；连接结束即认为流完成。
+ */
+export async function requestSse(path: string, init: RequestInit, onEvent: (data: string) => void): Promise<void> {
+  const token = getAuthToken()
+  const headers = new Headers(init.headers)
+  headers.set('Content-Type', 'application/json')
+  headers.set('Accept', 'text/event-stream')
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(path, {...init, headers})
+  if (!response.ok || !response.body) {
+    const body = await response.text().catch(() => '')
+    throw new Error(errorMessage(response.status, body))
+  }
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for (; ;) {
+    const {done, value} = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, {stream: true})
+    let index = buffer.indexOf('\n\n')
+    while (index >= 0) {
+      const chunk = buffer.slice(0, index)
+      buffer = buffer.slice(index + 2)
+      for (const line of chunk.split('\n')) {
+        if (line.startsWith('data:')) onEvent(line.slice(5).trim())
+      }
+      index = buffer.indexOf('\n\n')
+    }
+  }
+}
+
 export interface PagedResult<T> {
   list: T[]
   total: number

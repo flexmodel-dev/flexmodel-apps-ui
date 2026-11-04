@@ -73,6 +73,7 @@ type EditorForm =
   text: string;
   link?: string;
   workbenchId?: string | null;
+  robotId?: string | null;
   icon: AppIconName | 'none';
   type: LeftMenuItemType
 }
@@ -83,6 +84,7 @@ type EditorForm =
   text: string;
   link?: string;
   workbenchId?: string | null;
+  robotId?: string | null;
   icon: AppIconName | 'none'
 }
 
@@ -374,11 +376,15 @@ function destinationFromValue(value?: string) {
   }
 }
 
-function destinationInput(link: string | undefined, workbenchId: string | null | undefined) {
+function destinationInput(link: string | undefined, workbenchId: string | null | undefined,
+                          robotId?: string | null) {
   const destination = destinationFromValue(link)
   if (!destination) return null
   if (destination.type === 'BUILTIN' && destination.id === 'workbench') {
     return {...destination, workbenchId: workbenchId || null}
+  }
+  if (destination.type === 'BUILTIN' && destination.id === 'chatbot') {
+    return {...destination, robotId: robotId || null}
   }
   return destination
 }
@@ -433,6 +439,7 @@ function MenuEditorDialog({
       text: draft.text ?? '',
       link: draft.link,
       workbenchId: null,
+      robotId: null,
       icon: 'none',
       type: 'menu',
     })
@@ -482,6 +489,7 @@ function MenuEditorDialog({
       text: item.text,
       link: appId ? destinationValue(destination) : item.to,
       workbenchId: destination?.workbenchId ?? null,
+      robotId: destination?.robotId ?? null,
       icon: iconName(item.icon),
       type: item.sub ? 'group' : 'menu',
     })
@@ -495,6 +503,7 @@ function MenuEditorDialog({
       text: item.text,
       link: appId ? destinationValue(destination) : item.to,
       workbenchId: destination?.workbenchId ?? null,
+      robotId: destination?.robotId ?? null,
       icon: iconName(item.icon),
     })
   }
@@ -569,7 +578,9 @@ function MenuEditorDialog({
             name: form.text.trim(),
             iconName: form.icon === 'none' ? null : form.icon,
             parentId: selectedTop.id,
-            destination: form.type === 'group' ? null : destinationInput(form.link, form.workbenchId),
+            destination: form.type === 'group'
+              ? null
+              : destinationInput(form.link, form.workbenchId, form.robotId),
           }
         } else {
           input = {
@@ -577,7 +588,7 @@ function MenuEditorDialog({
             name: form.text.trim(),
             iconName: form.icon === 'none' ? null : form.icon,
             parentId: form.parentId,
-            destination: destinationInput(form.link, form.workbenchId),
+            destination: destinationInput(form.link, form.workbenchId, form.robotId),
           }
         }
 
@@ -598,6 +609,7 @@ function MenuEditorDialog({
             text: saved.name,
             link: destinationValue(saved.destination),
             workbenchId: saved.destination?.workbenchId ?? null,
+            robotId: saved.destination?.robotId ?? null,
             icon: toIconValue(saved.iconName),
             type: saved.type === 'GROUP' ? 'group' : 'menu',
           })
@@ -609,6 +621,7 @@ function MenuEditorDialog({
             text: saved.name,
             link: destinationValue(saved.destination),
             workbenchId: saved.destination?.workbenchId ?? null,
+            robotId: saved.destination?.robotId ?? null,
             icon: toIconValue(saved.iconName),
           })
         }
@@ -771,6 +784,9 @@ function MenuEditorDialog({
             workbenchId: nav.destination.type === 'BUILTIN' && nav.destination.id === 'workbench'
               ? nav.destination.workbenchId ?? null
               : null,
+            robotId: nav.destination.type === 'BUILTIN' && nav.destination.id === 'chatbot'
+              ? nav.destination.robotId ?? null
+              : null,
           }
           : null,
       }
@@ -787,6 +803,7 @@ function MenuEditorDialog({
             text: nav.name,
             link: destinationValue(nav.destination),
             workbenchId: nav.destination?.workbenchId ?? null,
+            robotId: nav.destination?.robotId ?? null,
             icon: toIconValue(nav.iconName),
             type: 'menu',
           }
@@ -797,6 +814,7 @@ function MenuEditorDialog({
             text: nav.name,
             link: destinationValue(nav.destination),
             workbenchId: nav.destination?.workbenchId ?? null,
+            robotId: nav.destination?.robotId ?? null,
             icon: toIconValue(nav.iconName),
           })
       }
@@ -1054,10 +1072,17 @@ function MenuEditorDialog({
                     <label className="block text-xs font-medium text-foreground">关联项</label>
                     <NavDestinationPicker
                       value={form.link}
-                      onChange={(link) => setForm({...form, link})}
+                      onChange={(link) => setForm({
+                        ...form,
+                        link,
+                        workbenchId: link === 'BUILTIN:workbench' ? form.workbenchId : null,
+                        robotId: link === 'BUILTIN:chatbot' ? form.robotId : null,
+                      })}
                       appId={appId}
                       workbenchId={form.workbenchId}
                       onWorkbenchChange={(workbenchId) => setForm({...form, workbenchId})}
+                      robotId={form.robotId}
+                      onRobotChange={(robotId) => setForm({...form, robotId})}
                     />
                   </>
                 )}
@@ -1067,10 +1092,17 @@ function MenuEditorDialog({
                     <label className="block text-xs font-medium text-foreground">关联项</label>
                     <NavDestinationPicker
                       value={form.link}
-                      onChange={(link) => setForm({...form, link})}
+                      onChange={(link) => setForm({
+                        ...form,
+                        link,
+                        workbenchId: link === 'BUILTIN:workbench' ? form.workbenchId : null,
+                        robotId: link === 'BUILTIN:chatbot' ? form.robotId : null,
+                      })}
                       appId={appId}
                       workbenchId={form.workbenchId}
                       onWorkbenchChange={(workbenchId) => setForm({...form, workbenchId})}
+                      robotId={form.robotId}
+                      onRobotChange={(robotId) => setForm({...form, robotId})}
                     />
                   </>
                 )}

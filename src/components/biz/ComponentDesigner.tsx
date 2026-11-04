@@ -1,5 +1,5 @@
 import * as React from 'react'
-import {BarChart3, ClipboardCheck, Gauge, LineChart, type LucideIcon, PieChart, Star, Table2,} from 'lucide-react'
+import {BarChart3, Bot, ClipboardCheck, Gauge, LineChart, type LucideIcon, PieChart, Star, Table2,} from 'lucide-react'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {Checkbox} from '@/components/ui/checkbox'
@@ -10,12 +10,14 @@ import {AppLoading} from '@/components/biz/AppLoading'
 import {ComponentCanvas} from '@/components/biz/ComponentCanvas'
 import {type AppForm, type AppFormField, getAppForms} from '@/services/appForms'
 import {type AppNav, getAppNavigation, navIcon} from '@/services/appNavigation'
+import {useAiRobots} from '@/components/ai/AiProvider'
 import {
   WORKBENCH_GRID_COLUMNS,
   WORKBENCH_MAX_DECIMAL_PLACES,
   WORKBENCH_MAX_GRID_HEIGHT,
   WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES,
   type WorkbenchAggregationType,
+  type WorkbenchAiDisplayMode,
   type WorkbenchChartType,
   type WorkbenchComponent,
   type WorkbenchComponentConfig,
@@ -34,6 +36,7 @@ const componentTypeIcons: Record<string, LucideIcon> = {
   dataloader: Table2,
   shortcuts: Star,
   tasks: ClipboardCheck,
+  ai: Bot,
 }
 
 const componentTypes: Array<{
@@ -51,6 +54,7 @@ const componentTypes: Array<{
   {type: 'dataloader', label: '明细', description: '查看表单记录', w: 12, h: 5},
   {type: 'shortcuts', label: '快捷入口', description: '直达表单菜单', w: 6, h: 3},
   {type: 'tasks', label: '我的任务', description: '查看流程待办', w: 4, h: 4},
+  {type: 'ai', label: 'AI 对话', description: '通过机器人查询与分析业务信息', w: 6, h: 3},
 ]
 
 export interface ComponentDesignerResult {
@@ -81,6 +85,9 @@ interface DesignerConfig {
   visibleColumns: string[]
   shortcuts: string[]
   columnsPerRow: number
+  robotId: string
+  displayMode: WorkbenchAiDisplayMode
+  showSuggestions: boolean
 }
 
 type ComponentTypeOption = (typeof componentTypes)[number]
@@ -122,6 +129,9 @@ function baseConfig(form: AppForm | undefined): DesignerConfig {
     visibleColumns: form?.fields.slice(0, 6).map((field) => field.name) ?? [],
     shortcuts: [],
     columnsPerRow: 2,
+    robotId: '',
+    displayMode: 'shortcut',
+    showSuggestions: true,
   }
 }
 
@@ -173,6 +183,14 @@ function toDesignerConfig(
       }
     case 'tasks':
       return {...base, type: 'tasks'}
+    case 'ai':
+      return {
+        ...base,
+        type: 'ai',
+        robotId: config.robotId ?? '',
+        displayMode: config.displayMode === 'embedded' ? 'embedded' : 'shortcut',
+        showSuggestions: config.showSuggestions !== false,
+      }
   }
 }
 
@@ -227,6 +245,13 @@ function toWorkbenchConfig(result: ComponentDesignerResult): WorkbenchComponentC
       }
     case 'tasks':
       return {type: 'tasks'}
+    case 'ai':
+      return {
+        type: 'ai',
+        robotId: config.robotId,
+        displayMode: config.displayMode,
+        showSuggestions: config.showSuggestions,
+      }
   }
 }
 
@@ -261,6 +286,8 @@ export function ComponentDesigner({
     toResult(component),
   )
   const [titleError, setTitleError] = React.useState('')
+  const [dataError, setDataError] = React.useState('')
+  const {robots, loading: robotsLoading} = useAiRobots(appId)
   const previewStageRef = React.useRef<HTMLDivElement | null>(null)
   const [previewStageSize, setPreviewStageSize] = React.useState({width: 0, height: 0})
 
@@ -310,6 +337,7 @@ export function ComponentDesigner({
   const changeType = (preset: ComponentTypeOption) => {
     const selectedForm = forms.find((form) => form.name === result.config.formName) ?? forms[0]
     const nextBase = baseConfig(selectedForm)
+    setDataError('')
     setResult((previous) => ({
       ...previous,
       type: preset.type,
@@ -328,6 +356,9 @@ export function ComponentDesigner({
         metricField: null,
         showLegend: preset.chartType === 'pie',
         palette: preset.chartType === 'pie' ? 'multi' : 'primary',
+        robotId: preset.type === 'ai' ? (robots.find(robot => robot.enabled)?.id ?? robots[0]?.id ?? '') : '',
+        displayMode: 'shortcut',
+        showSuggestions: true,
       },
     }))
   }
@@ -346,12 +377,24 @@ export function ComponentDesigner({
     })
   }
 
+  React.useEffect(() => {
+    if (!open || result.type !== 'ai' || result.config.robotId) return
+    const fallback = robots.find((robot) => robot.enabled) ?? robots[0]
+    if (fallback) updateConfig({robotId: fallback.id})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, robots, result.type, result.config.robotId])
+
   const save = () => {
     const title = result.title.trim()
     if (!title) {
       setTitleError('请输入组件标题')
       return
     }
+    if (result.type === 'ai' && !result.config.robotId) {
+      setDataError('请选择 AI 对话使用的机器人')
+      return
+    }
+    setDataError('')
     if (result.w < 1 || result.w > WORKBENCH_GRID_COLUMNS || result.h < 1 || result.h > WORKBENCH_MAX_GRID_HEIGHT) {
       return
     }
@@ -629,6 +672,52 @@ export function ComponentDesigner({
                     </div>
                   ) : null}
                 </>
+              ) : result.type === 'ai' ? (
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-sm font-medium text-foreground">机器人</span>
+                    <Select value={result.config.robotId || undefined}
+                            onValueChange={(value) => {
+                              setDataError('');
+                              updateConfig({robotId: value})
+                            }}>
+                      <SelectTrigger className="mt-2"><SelectValue placeholder="请选择机器人"/></SelectTrigger>
+                      <SelectContent>
+                        {robots.map((robot) => (
+                          <SelectItem key={robot.id} value={robot.id}>
+                            {robot.name}{robot.enabled ? '' : '（已停用）'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {robotsLoading ? <p className="mt-1 text-xs text-muted-foreground">正在加载机器人…</p> : null}
+                    {!robotsLoading && robots.length === 0 ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        该应用还没有机器人，请先在「应用设置 - AI 助手」中创建。
+                      </p>
+                    ) : null}
+                    {dataError ? <p className="mt-1 text-xs text-destructive">{dataError}</p> : null}
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-foreground">展示方式</span>
+                    <Select value={result.config.displayMode ?? 'shortcut'}
+                            onValueChange={(value) => updateConfig({displayMode: value as WorkbenchAiDisplayMode})}>
+                      <SelectTrigger className="mt-2"><SelectValue/></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="shortcut">快捷提问（打开 AI 助手）</SelectItem>
+                        <SelectItem value="embedded">内嵌对话</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      快捷提问展示机器人介绍、推荐问题与输入框；内嵌对话在工作台内直接聊天。
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <Checkbox checked={result.config.showSuggestions !== false}
+                              onCheckedChange={(checked) => updateConfig({showSuggestions: Boolean(checked)})}/>
+                    展示推荐问题
+                  </label>
+                </div>
               ) : result.type === 'shortcuts' ? (
                 <div>
                   <span className="text-sm font-medium text-foreground">快捷入口</span>
@@ -788,6 +877,7 @@ export function ComponentDesigner({
                   data={previewData}
                   columns={previewColumns}
                   shortcutTargets={shortcutTargets}
+                  appId={appId}
                 />
               </div>
             </div>

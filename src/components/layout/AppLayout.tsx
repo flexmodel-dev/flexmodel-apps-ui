@@ -15,6 +15,7 @@ import {AppRecordCreateDialog} from '@/components/biz/AppRecordCreateDialog'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
 import {MenuEditorDialog, type MenuEditorDraft} from './MenuEditorDialog'
+import {useAiAssistant} from '@/components/ai/AiProvider'
 
 export function AppLayout({
   children,
@@ -38,6 +39,7 @@ export function AppLayout({
   onMenuEditorOpenChange?: (open: boolean) => void
 }) {
   const location = useLocation()
+  const ai = useAiAssistant()
   const appId = location.pathname.match(/^\/apps\/([^/]+)/)?.[1]
   const routeTopId = appId ? new URLSearchParams(location.search).get('top') : null
   const routeNavId = appId ? location.pathname.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1] : null
@@ -235,6 +237,7 @@ export function AppLayout({
           noOuterScroll ? 'overflow-hidden' : 'overflow-y-auto',
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
           hideHeader ? '' : hideNavigation ? 'md:ml-0' : collapsed ? 'md:ml-16' : 'md:ml-64',
+          !hideHeader && ai.panelOpen && 'lg:pr-[calc(var(--ai-panel-width)_+_1.5rem)]',
         )}
       >
         <div className={cn('w-full pt-4 md:pt-6', contentClassName)}>{children}</div>

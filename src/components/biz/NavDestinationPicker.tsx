@@ -13,6 +13,7 @@ import {Input} from '@/components/ui/input'
 import {formMenuLinks, systemMenuLinks} from '@/data/mock'
 import {getAppNavDestinations, isValidHttpUrl, type AppNavDestinations} from '@/services/appNavigation'
 import {getWorkbenches, type WorkbenchSummary} from '@/services/workbenches'
+import {useAiRobots} from '@/components/ai/AiProvider'
 
 interface NavDestinationOption {
   id: string
@@ -21,6 +22,7 @@ interface NavDestinationOption {
 }
 
 const WORKBENCH_DESTINATION_VALUE = 'BUILTIN:workbench'
+const CHATBOT_DESTINATION_VALUE = 'BUILTIN:chatbot'
 
 export function NavDestinationPicker({
                                        value,
@@ -28,12 +30,16 @@ export function NavDestinationPicker({
                                        appId,
                                        workbenchId,
                                        onWorkbenchChange,
+                                       robotId,
+                                       onRobotChange,
                                      }: {
   value?: string
   onChange: (value?: string) => void
   appId?: string
   workbenchId?: string | null
   onWorkbenchChange?: (workbenchId: string | null) => void
+  robotId?: string | null
+  onRobotChange?: (robotId: string | null) => void
 }) {
   const [appDestinations, setAppDestinations] = React.useState<AppNavDestinations>({
     builtIn: [],
@@ -41,6 +47,8 @@ export function NavDestinationPicker({
   })
   const [workbenches, setWorkbenches] = React.useState<WorkbenchSummary[]>([])
   const isWorkbenchSelected = appId && value === WORKBENCH_DESTINATION_VALUE
+  const isChatbotSelected = appId && value === CHATBOT_DESTINATION_VALUE
+  const {robots, loading: robotsLoading} = useAiRobots(isChatbotSelected ? appId : undefined)
 
   React.useEffect(() => {
     if (!appId) {
@@ -146,6 +154,31 @@ export function NavDestinationPicker({
               ))}
             </SelectContent>
           </Select>
+        </div>
+      ) : null}
+      {isChatbotSelected ? (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-foreground">对话机器人</label>
+          <Select
+            value={robotId || undefined}
+            onValueChange={(next) => onRobotChange?.(next || null)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="未选择时默认第一个机器人"/>
+            </SelectTrigger>
+            <SelectContent>
+              {robots.map((robot) => (
+                <SelectItem key={robot.id} value={robot.id}>
+                  {robot.name}{robot.enabled ? '' : '（已停用）'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {robotsLoading ? '正在加载机器人…' : robots.length === 0
+              ? '当前应用还没有机器人，保存后可在 AI 对话页面或 AI 助手中创建。'
+              : '未选择时默认第一个启用的机器人。'}
+          </p>
         </div>
       ) : null}
       {isCustomLink ? (

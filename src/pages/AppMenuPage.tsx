@@ -8,6 +8,7 @@ import WorkbenchHome from '@/pages/WorkbenchHome'
 import FeedsHome from '@/pages/FeedsHome'
 import FilesDocs from '@/pages/FilesDocs'
 import Notifications from '@/pages/Notifications'
+import AiChatPage from '@/pages/AiChatPage'
 import RecordList from '@/pages/RecordList'
 import {type AppNav, getAppNavigation} from '@/services/appNavigation'
 import {toErrorMessage} from '@/lib/utils'
@@ -21,10 +22,16 @@ function findNav(navs: AppNav[], navId?: string): AppNav | undefined {
   return undefined
 }
 
-function BuiltinPage({destinationId, workbenchId}: { destinationId: string; workbenchId?: string | null }) {
+function BuiltinPage({destinationId, workbenchId, robotId}: {
+  destinationId: string
+  workbenchId?: string | null
+  robotId?: string | null
+}) {
   switch (destinationId) {
     case 'workbench':
       return <WorkbenchHome workbenchId={workbenchId}/>
+    case 'chatbot':
+      return <AiChatPage robotId={robotId}/>
     case 'feeds':
       return <FeedsHome/>
     case 'files':
@@ -91,7 +98,8 @@ export default function AppMenuPage() {
   }
 
   if (nav.destination?.type === 'BUILTIN') {
-    return <BuiltinPage destinationId={nav.destination.id} workbenchId={nav.destination.workbenchId}/>
+    return <BuiltinPage destinationId={nav.destination.id} workbenchId={nav.destination.workbenchId}
+                        robotId={nav.destination.robotId}/>
   }
   if (nav.destination?.type === 'FORM') {
     return <RecordList formName={nav.destination.id}/>

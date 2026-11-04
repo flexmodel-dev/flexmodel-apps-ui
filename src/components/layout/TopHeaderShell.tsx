@@ -5,6 +5,7 @@ import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {UserAvatar} from '@/components/ui/avatar'
 import {NotificationBell} from '@/components/notifications/NotificationBell'
+import {AiHeaderButton} from '@/components/ai/AiHeaderButton'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -145,6 +146,7 @@ function TopHeaderShell({
 
         <div className="ml-auto flex items-center gap-1">
           {extraActions}
+          <AiHeaderButton className={headerActionClass}/>
           <Button
             variant="ghost"
             size="icon"

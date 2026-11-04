@@ -22,6 +22,15 @@ import type {AppIconName} from '@/data/appIcons'
  * 模拟业务对象（客户/商机/...）、记录、用户、部门等
  */
 
+export const aiRobotDefaults = {
+  name: '数据查询助手',
+  description: '查询业务记录，整理信息与分析结果',
+  greeting: '你好，我可以帮你查询应用中的记录、整理业务信息，也可以一起分析下一步行动。',
+  suggestions: ['最近有哪些新增记录？', '帮我汇总当前业务情况', '有哪些事项需要优先处理？'],
+  prompt: '你是当前应用的业务助手。回答清晰简洁，围绕应用中的业务问题提供帮助。',
+  enabled: true,
+}
+
 export interface User {
   id: string
   name: string

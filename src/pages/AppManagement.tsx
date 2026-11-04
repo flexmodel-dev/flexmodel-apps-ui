@@ -15,10 +15,12 @@ import {type App, deleteApp, getApps, invalidateAppCaches} from '@/services/apps
 import {getAppPrimaryColor} from '@/theme/appPrimaryColors'
 import type {AppPackagePreview} from '@/services/appPackages'
 import {listAppTemplates} from '@/services/appTemplates'
-import {toErrorMessage} from '@/lib/utils'
+import {useAiAssistant} from '@/components/ai/AiProvider'
+import {cn, toErrorMessage} from '@/lib/utils'
 
 export default function AppManagement() {
   const navigate = useNavigate()
+  const ai = useAiAssistant()
   const [apps, setApps] = React.useState<App[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [listError, setListError] = React.useState<string | null>(null)
@@ -100,7 +102,10 @@ export default function AppManagement() {
           ) : apps.length === 0 ? (
             <Empty description="暂无应用"/>
           ) : (
-            <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className={cn(
+              'grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2',
+              ai.panelOpen ? 'xl:grid-cols-3' : 'xl:grid-cols-4',
+            )}>
               {apps.map((app) => {
                 const Icon = appIcons[app.iconName] ?? appIcons.Boxes
                 return (
@@ -168,6 +173,10 @@ export default function AppManagement() {
           setTemplatePreview(preview)
           setTemplateName(name)
           setImportOpen(true)
+        }}
+        onAiCreate={prompt => {
+          setCreateOpen(false)
+          ai.openAssistant({prompt})
         }}
       />
 

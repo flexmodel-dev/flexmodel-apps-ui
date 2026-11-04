@@ -7,6 +7,7 @@ import {AdminLeftSidebar, adminNavs} from './AdminLeftSidebar'
 import {MenuEditorDialog} from './MenuEditorDialog'
 import {getAppForm} from '@/services/appForms'
 import {FormSettingsNav} from '@/components/biz/FormSettingsNav'
+import {useAiAssistant} from '@/components/ai/AiProvider'
 
 export function AdminLayout({
                               children,
@@ -22,6 +23,7 @@ export function AdminLayout({
   hideHeader?: boolean
 }) {
   const location = useLocation()
+  const ai = useAiAssistant()
   const params = useParams<{appId: string; formName: string}>()
   const [collapsed, setCollapsed] = React.useState(false)
   const [activeTopId, setActiveTopId] = React.useState(topNavs[0].id)
@@ -133,6 +135,7 @@ export function AdminLayout({
               : collapsed
                 ? 'md:ml-16'
                 : 'md:ml-64',
+          !hideHeader && ai.panelOpen && 'lg:pr-[calc(var(--ai-panel-width)_+_1.5rem)]',
         )}
       >
         <div className={cn('w-full pt-4 md:pt-6', contentClassName)}>{children}</div>

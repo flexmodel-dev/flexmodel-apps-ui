@@ -8,7 +8,8 @@ export const WORKBENCH_MAX_GRID_HEIGHT = 24
 export const WORKBENCH_METRIC_DEFAULT_DECIMAL_PLACES = 4
 export const WORKBENCH_MAX_DECIMAL_PLACES = 6
 
-export type WorkbenchComponentType = 'metric' | 'chart' | 'dataloader' | 'shortcuts' | 'tasks'
+export type WorkbenchComponentType = 'metric' | 'chart' | 'dataloader' | 'shortcuts' | 'tasks' | 'ai'
+export type WorkbenchAiDisplayMode = 'shortcut' | 'embedded'
 export type WorkbenchChartType = 'line' | 'bar' | 'pie'
 export type WorkbenchAggregationType = 'count' | 'sum' | 'avg'
 export type WorkbenchPaletteType = 'primary' | 'multi'
@@ -57,12 +58,21 @@ export interface WorkbenchTasksConfig {
   type: 'tasks'
 }
 
+/** 工作台 AI 对话组件：shortcut 打开右侧助手，embedded 内嵌完整对话。 */
+export interface WorkbenchAiConfig {
+  type: 'ai'
+  robotId: string
+  displayMode: WorkbenchAiDisplayMode
+  showSuggestions?: boolean | null
+}
+
 export type WorkbenchComponentConfig =
   | WorkbenchMetricConfig
   | WorkbenchChartConfig
   | WorkbenchDataLoaderConfig
   | WorkbenchShortcutsConfig
   | WorkbenchTasksConfig
+  | WorkbenchAiConfig
 
 export interface WorkbenchComponent {
   id: string
@@ -203,6 +213,14 @@ function normalizeComponentConfig(config: WorkbenchComponentConfig): WorkbenchCo
       showLabel: config.showLabel ?? true,
       smooth: config.chartType === 'line' ? (config.smooth ?? true) : undefined,
       palette: config.palette ?? (config.chartType === 'pie' ? 'multi' : 'primary'),
+    }
+  }
+  if (config.type === 'ai') {
+    return {
+      ...config,
+      robotId: config.robotId ?? '',
+      displayMode: config.displayMode === 'embedded' ? 'embedded' : 'shortcut',
+      showSuggestions: config.showSuggestions ?? true,
     }
   }
   return config
