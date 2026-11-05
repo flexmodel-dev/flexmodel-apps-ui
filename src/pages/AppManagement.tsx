@@ -20,6 +20,23 @@ import {useAiAssistant} from '@/components/ai/AiProvider'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
+function AppMetadataText({children}: { children: string }) {
+  const textRef = React.useRef<HTMLSpanElement>(null)
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <Tooltip open={open} onOpenChange={nextOpen => {
+      const element = textRef.current
+      setOpen(nextOpen && !!element && element.scrollWidth > element.clientWidth)
+    }}>
+      <TooltipTrigger asChild>
+        <span ref={textRef} className="min-w-0 truncate">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent className="whitespace-normal break-words">{children}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 export default function AppManagement() {
   const navigate = useNavigate()
   const ai = useAiAssistant()
@@ -139,13 +156,14 @@ export default function AppManagement() {
                           </TooltipProvider>
                         </span>
                       </div>
-                      <div
-                        className="ml-14 mt-4 flex min-w-0 items-center gap-3 whitespace-nowrap text-xs text-muted-foreground">
-                        <span className="min-w-0 truncate" title={`所有者：${app.owner}`}>所有者：{app.owner}</span>
-                        <span className="h-3 w-px shrink-0 bg-border"/>
-                        <span className="min-w-0 truncate"
-                              title={`更新于 ${app.updatedAt}`}>更新于 {app.updatedAt}</span>
-                      </div>
+                      <TooltipProvider delayDuration={200}>
+                        <div
+                          className="ml-14 mt-4 flex min-w-0 items-center gap-3 whitespace-nowrap text-xs text-muted-foreground">
+                          <AppMetadataText>{`所有者：${app.owner}`}</AppMetadataText>
+                          <span className="h-3 w-px shrink-0 bg-border"/>
+                          <AppMetadataText>{`更新于 ${app.updatedAt}`}</AppMetadataText>
+                        </div>
+                      </TooltipProvider>
                     </Link>
 
                     <div className="absolute right-3 top-3">

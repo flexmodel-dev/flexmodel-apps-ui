@@ -1,29 +1,49 @@
 import * as React from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
-import {BizDialog} from '@/components/ui/dialog'
-import { Globe, Smartphone } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  LayoutGrid,
+  Loader2,
+  LockKeyhole,
+  Moon,
+  Sun,
+  UserRound
+} from 'lucide-react'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
+import {Checkbox} from '@/components/ui/checkbox'
+import {Label} from '@/components/ui/label'
+import {useDarkMode} from '@/lib/useDarkMode'
 import {login} from '@/services/auth'
 import {toErrorMessage} from '@/lib/utils'
+import {LoginIllustration} from './LoginIllustration'
+import './Login.css'
 
-/** 用户登录页（复刻 signup/login.html） */
 export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [user, setUser] = React.useState('admin')
-  const [passwd, setPasswd] = React.useState('admin123')
+  const [isDark, setIsDark] = useDarkMode()
+  const [user, setUser] = React.useState('')
+  const [passwd, setPasswd] = React.useState('')
   const [remember, setRemember] = React.useState(true)
-  const [showMobile, setShowMobile] = React.useState(false)
-  const [langOpen, setLangOpen] = React.useState(false)
+  const [showPassword, setShowPassword] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
+  const submitting = React.useRef(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    if (submitting.current) return
     setError('')
+    if (!user.trim()) {
+      setError('请输入用户名或邮箱')
+      return
+    }
+    submitting.current = true
+    setLoading(true)
     try {
       await login(user.trim(), passwd, remember)
       const requestedFrom = (location.state as { from?: string } | null)?.from
@@ -32,155 +52,112 @@ export default function Login() {
     } catch (err) {
       setError(toErrorMessage(err, '登录失败，请稍后重试'))
     } finally {
+      submitting.current = false
       setLoading(false)
     }
   }
 
   return (
-    <div className="app-login-page relative min-h-screen">
-      <div
-        className="app-bgimg fixed inset-0 -z-10 bg-cover bg-center"
-        style={{ backgroundImage: 'url(/bg.jpg)' }}
-      >
-        <div className="absolute inset-0 bg-black/10" />
-      </div>
+    <div className="apps-login h-dvh overflow-y-auto bg-background text-foreground">
+      <div className="flex min-h-full flex-col">
+        <header className="flex h-20 shrink-0 items-center justify-between gap-4 px-6 sm:px-10 lg:px-12">
+          <div className="flex items-center gap-3">
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">F</span>
+            <span className="text-base font-semibold tracking-tight">Flexmodel <span
+              className="font-normal text-muted-foreground">Apps</span></span>
+          </div>
+          <Button variant="ghost" size="icon" aria-label={isDark ? '切换到浅色模式' : '切换到深色模式'}
+                  title={isDark ? '切换到浅色模式' : '切换到深色模式'} onClick={() => setIsDark(!isDark)}>
+            {isDark ? <Sun className="h-4 w-4"/> : <Moon className="h-4 w-4"/>}
+          </Button>
+        </header>
 
-      <div className="relative z-[2] flex min-h-screen items-start justify-center">
-        <div className="w-full max-w-[421px] px-4 pt-[50px]">
-          <div className="mb-[30px] rounded-xl border bg-card shadow-md">
-            <div className="mb-[20px] border-b border-[#e6e6e6] px-4 pb-0 pt-[40px] text-center">
-              <a className="logo-img mx-auto block h-[30px] w-[150px] bg-[url('/logo.png')] bg-auto bg-center bg-no-repeat" />
+        <main
+          className="login-stage mx-auto my-auto grid w-full max-w-[1180px] items-center gap-8 px-6 py-8 sm:px-10 lg:grid-cols-[1.15fr_1fr] lg:gap-16 lg:px-12 lg:py-12">
+          <section className="login-story hidden min-w-0 lg:block" aria-labelledby="login-intro">
+            <div
+              className="mb-5 inline-flex items-center gap-2 text-xs font-medium tracking-widest text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary"/>灵感，正在发生
             </div>
-            <div className="px-[30px] pb-[15px] pt-5">
-              <form id="login-form" onSubmit={submit}>
-                <div className="form-group mb-3">
-                  <Input
-                    id="user"
-                    placeholder="用户名 (或邮箱)"
-                    value={user}
-                    onChange={(e) => setUser(e.target.value)}
-                    autoComplete="username"
-                    required
-                    className="h-[41px]"
-                  />
+            <h1 id="login-intro" className="text-4xl font-semibold leading-[1.45] tracking-tight xl:text-[42px]">
+              每一个好想法，<br/>都值得<span className="text-primary">成为应用。</span>
+            </h1>
+            <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
+              连接数据、流程与团队。<br/>用更轻盈的方式，构建属于你的业务空间。
+            </p>
+            <LoginIllustration/>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <LayoutGrid className="h-3.5 w-3.5"/><span>数据表单</span><span
+              className="h-1 w-1 rounded-full bg-border"/>
+              <span>流程协作</span><span className="h-1 w-1 rounded-full bg-border"/><span>团队工作台</span>
+            </div>
+          </section>
+
+          <section aria-labelledby="login-title"
+                   className="login-form-panel mx-auto w-full max-w-[400px] rounded-2xl border bg-card p-6 sm:p-8 lg:p-9">
+            <div className="mb-8">
+              <span
+                className="mb-5 flex h-11 w-11 items-center justify-center rounded-lg border bg-background text-primary"><LockKeyhole
+                className="h-5 w-5"/></span>
+              <h2 id="login-title" className="text-2xl font-semibold tracking-tight">欢迎回来</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">登录 Flexmodel Apps，继续你的工作。</p>
+            </div>
+
+            <form id="login-form" onSubmit={submit} className="space-y-5" aria-busy={loading}>
+              <div className="space-y-2.5">
+                <Label htmlFor="user">用户名或邮箱</Label>
+                <div className="relative">
+                  <UserRound aria-hidden="true"
+                             className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground"/>
+                  <Input id="user" name="username" placeholder="请输入用户名或邮箱" value={user}
+                         onChange={(e) => setUser(e.target.value)} autoComplete="username" required
+                         disabled={loading} className="h-11 pl-10"/>
                 </div>
-                <div className="form-group mb-3">
-                  <Input
-                    id="passwd"
-                    type="password"
-                    placeholder="密码"
-                    value={passwd}
-                    onChange={(e) => setPasswd(e.target.value)}
-                    autoComplete="current-password"
-                    required
-                    className="h-[41px]"
-                  />
-                </div>
-                <div className="mb-3 mt-2.5 flex items-center pt-2.5">
-                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[#555]">
-                    <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} id="autoLogin" />
-                    记住登录
-                  </label>
-                  <a className="ml-auto text-sm text-primary hover:underline" onClick={(e) => e.preventDefault()}>
-                    找回密码
-                  </a>
-                </div>
-                <div className="mb-[18px] pt-[19px]">
-                  <Button type="submit" disabled={loading} aria-busy={loading}
-                          className="h-11 w-full text-base font-medium">
-                    {loading ? '登录中...' : '登录'}
+              </div>
+              <div className="space-y-2.5">
+                <Label htmlFor="passwd">密码</Label>
+                <div className="relative">
+                  <LockKeyhole aria-hidden="true"
+                               className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground"/>
+                  <Input id="passwd" name="password" type={showPassword ? 'text' : 'password'} placeholder="请输入密码"
+                         value={passwd} onChange={(e) => setPasswd(e.target.value)} autoComplete="current-password"
+                         required disabled={loading} className="h-11 pl-10 pr-12"/>
+                  <Button type="button" variant="ghost" size="icon"
+                          className="absolute right-1 top-1 h-9 w-9 text-muted-foreground"
+                          aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword}
+                          onClick={() => setShowPassword(!showPassword)}>
+                    {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
                   </Button>
-                  {error && (
-                    <p role="alert" className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                      {error}
-                    </p>
-                  )}
-                  <div className="mt-4 text-center text-sm text-muted-foreground">
-                    还没有账号?{' '}
-                    <a className="text-primary hover:underline" onClick={(e) => e.preventDefault()}>
-                      立即注册
-                    </a>
-                  </div>
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="autoLogin" checked={remember} onCheckedChange={(v) => setRemember(v === true)}
+                          disabled={loading}/>
+                <Label htmlFor="autoLogin"
+                       className="cursor-pointer text-sm font-normal text-muted-foreground">记住登录</Label>
+              </div>
+              {error && (
+                <div role="alert"
+                     className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2.5 text-sm">
+                  <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0"/><span>{error}</span>
+                </div>
+              )}
+              <Button type="submit" disabled={loading} className="group h-11 w-full">
+                {loading ? <><Loader2 className="h-4 w-4 animate-spin"/>正在登录…</> : <>登录<ArrowRight
+                  className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"/></>}
+              </Button>
+            </form>
+            <p
+              className="mt-7 border-t pt-5 text-center text-xs leading-6 text-muted-foreground">账号由管理员分配，如需帮助请联系管理员。</p>
+          </section>
+        </main>
 
-                <div className="login-with relative mt-[25px] hidden border-t border-[#ebebeb] pt-[25px] md:block">
-                  <span className="absolute left-1/2 top-[-9px] -ml-[44px] w-[88px] bg-card text-center text-sm text-muted-foreground">
-                    第三方登录
-                  </span>
-                  <div className="flex items-center justify-center gap-4">
-                    <a title="钉钉" onClick={(e) => e.preventDefault()}>
-                      <img
-                        src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzAwOGQ4MSIvPjx0ZXh0IHg9IjE2IiB5PSIyMiIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5qGNPC90ZXh0Pjwvc3ZnPg=="
-                        alt="钉钉"
-                        className="h-8 w-8 rounded-md bg-muted"
-                      />
-                    </a>
-                    <a title="企业微信" onClick={(e) => e.preventDefault()}>
-                      <img
-                        src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzAwOGQ4MSIvPjx0ZXh0IHg9IjE2IiB5PSIyMiIgZm9udC1zaXplPSIxMiIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+V1hHPC90ZXh0Pjwvc3ZnPg=="
-                        alt="企业微信"
-                        className="h-8 w-8 rounded-md bg-muted"
-                      />
-                    </a>
-                    <a title="飞书" onClick={(e) => e.preventDefault()}>
-                      <img
-                        src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzMzZGVlMCIvPjx0ZXh0IHg9IjE2IiB5PSIyMiIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5ZyfPC90ZXh0Pjwvc3ZnPg=="
-                        alt="飞书"
-                        className="h-8 w-8 rounded-md bg-muted"
-                      />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="mb-2 mt-5 flex items-center">
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-[13px] text-[#404040]"
-                    onClick={() => setShowMobile(true)}
-                  >
-                    <span className="flex h-[25px] w-[25px] items-center justify-center rounded-full bg-[#fc9a00] text-white">
-                      <Smartphone className="h-4 w-4" />
-                    </span>
-                    <span className="mt-[3px]">手机版</span>
-                  </button>
-                  <div className="relative ml-auto">
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-[13px] text-[#404040]"
-                      onClick={() => setLangOpen((o) => !o)}
-                    >
-                      <Globe className="h-4 w-4" />
-                      <span>中文</span>
-                    </button>
-                    {langOpen && (
-                      <div className="app-dropdown-content absolute right-0 top-full mt-1 w-[100px]">
-                        <a className="app-dropdown-item block" onClick={() => setLangOpen(false)}>中文</a>
-                        <a className="app-dropdown-item block" onClick={() => setLangOpen(false)}>繁体</a>
-                        <a className="app-dropdown-item block" onClick={() => setLangOpen(false)}>English</a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-          <div className="splash-footer mt-4 text-center">
-            <div className="copyright text-[13px] text-white/90" style={{ textShadow: '0 1px 1px #555' }}>
-              © flexmodel-apps
-            </div>
-          </div>
-        </div>
+        <footer
+          className="shrink-0 px-6 py-6 text-center text-xs text-muted-foreground">© {new Date().getFullYear()} Flexmodel
+          Apps
+        </footer>
       </div>
-
-      {/* 手机版二维码弹层 */}
-      <BizDialog open={showMobile} onOpenChange={setShowMobile} title="手机版" width={320}>
-        <div className="flex flex-col items-center gap-3 py-2">
-          <div className="flex h-[180px] w-[180px] items-center justify-center rounded border bg-muted text-muted-foreground">
-            <Smartphone className="h-14 w-14" />
-          </div>
-          <div className="text-sm text-muted-foreground">使用手机浏览器扫描二维码访问</div>
-        </div>
-      </BizDialog>
     </div>
   )
 }

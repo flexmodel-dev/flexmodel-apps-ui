@@ -1,0 +1,110 @@
+.apps-login {
+  background-image: radial-gradient(ellipse at 22% 50%, hsl(var(--primary) / .055), transparent 55%);
+}
+
+.apps-login .login-form-panel {
+  box-shadow: 0 12px 48px -24px hsl(var(--foreground) / .12);
+}
+
+.apps-login input {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.apps-login .login-svg-card {
+  fill: hsl(var(--card));
+  stroke: hsl(var(--border));
+  filter: drop-shadow(0 6px 10px hsl(var(--primary) / .06));
+}
+
+.apps-login .login-svg-text {
+  fill: hsl(var(--foreground));
+}
+
+.apps-login .login-story {
+  animation: login-enter .8s ease-out both;
+}
+
+.apps-login .login-form-panel {
+  animation: login-enter .8s .12s ease-out both;
+}
+
+.apps-login .login-float-main {
+  animation: login-float 8s ease-in-out infinite;
+}
+
+.apps-login .login-float-back {
+  animation: login-float 6s -2s ease-in-out infinite;
+}
+
+.apps-login .login-float-front {
+  animation: login-float 7s -4s ease-in-out infinite;
+}
+
+.apps-login .login-orbit {
+  animation: login-float 5s -1s ease-in-out infinite;
+}
+
+.apps-login .login-flow {
+  animation: login-flow 12s linear infinite;
+}
+
+.apps-login .login-dot {
+  animation: login-pulse 3s ease-in-out infinite;
+}
+
+.apps-login .login-progress {
+  stroke-dasharray: 83;
+  animation: login-progress 5s ease-in-out infinite;
+}
+
+@keyframes login-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes login-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+@keyframes login-flow {
+  to {
+    stroke-dashoffset: -120;
+  }
+}
+
+@keyframes login-pulse {
+  0%, 100% {
+    opacity: .35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes login-progress {
+  0%, 100% {
+    stroke-dashoffset: 45;
+  }
+  50% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apps-login *, .apps-login *::before, .apps-login *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
