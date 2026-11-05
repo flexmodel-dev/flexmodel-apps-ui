@@ -179,7 +179,6 @@ interface FormDesignerProps {
   onBack: () => void
   backLabel?: string
   onFormChange: (form: AppForm) => void
-  onEditingChange?: (editing: boolean) => void
 }
 
 type DesignLayoutItem =
@@ -310,7 +309,6 @@ export function FormDesigner({
                                onBack,
                                backLabel = '返回表单列表',
                                onFormChange,
-                               onEditingChange,
                              }: FormDesignerProps) {
   const [form, setForm] = React.useState<DesignForm>(() => toDesignForm(initialForm))
   const [items, setItems] = React.useState<AppFormItem[]>([])
@@ -342,13 +340,6 @@ export function FormDesigner({
   const [isSavingLayout, setIsSavingLayout] = React.useState(false)
   const [layoutError, setLayoutError] = React.useState<string | null>(null)
   const [saved, setSaved] = React.useState(false)
-  const editing = JSON.stringify(items) !== JSON.stringify(form.layout.items)
-    || JSON.stringify(controls) !== JSON.stringify(form.layout.controls ?? {})
-    || Boolean(editingItem || creatingField || subformDraft || resizing || isSavingLayout)
-
-  React.useEffect(() => {
-    onEditingChange?.(editing)
-  }, [editing, onEditingChange])
 
   React.useEffect(() => {
     const designForm = toDesignForm(initialForm)

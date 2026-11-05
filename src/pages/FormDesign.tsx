@@ -1,5 +1,4 @@
 import * as React from 'react'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {useNavigate, useParams} from 'react-router-dom'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import {FormDesigner} from '@/components/biz/FormDesigner'
@@ -18,32 +17,19 @@ export default function FormDesign() {
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [editing, setEditing] = React.useState(false)
-  const [loadedRevision, setLoadedRevision] = React.useState(0)
-  const formRevision = useAppDataRevision(appId, ['form'], formName)
 
   React.useEffect(() => {
-    setForm(null)
-    setIsLoading(true)
-    setEditing(false)
-    setLoadedRevision(0)
-  }, [appId, formName])
-
-  React.useEffect(() => {
-    if (editing) return
     if (!appId || !formName) {
       setForm(null)
       setIsLoading(false)
       return
     }
     let cancelled = false
+    setIsLoading(true)
     setError(null)
     getAppForm(appId, formName)
       .then((loadedForm) => {
-        if (!cancelled) {
-          setForm(loadedForm)
-          setLoadedRevision(formRevision)
-        }
+        if (!cancelled) setForm(loadedForm)
       })
       .catch((caught) => {
         if (!cancelled) { setForm(null); setError(toErrorMessage(caught, '加载表单失败')) }
@@ -54,7 +40,7 @@ export default function FormDesign() {
     return () => {
       cancelled = true
     }
-  }, [appId, formName, formRevision, editing])
+  }, [appId, formName])
 
   if (isLoading || !form) {
     return (
@@ -73,17 +59,12 @@ export default function FormDesign() {
 
   return (
     <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
-      {editing && formRevision > loadedRevision && (
-        <p role="status"
-           className="mb-2 text-sm text-muted-foreground">应用有新的配置，当前草稿已保留，结束编辑后自动同步。</p>
-      )}
       <FormDesigner
         appId={appId}
         initialForm={form}
         onBack={() => navigate(backPath)}
         backLabel={backLabel}
         onFormChange={setForm}
-        onEditingChange={setEditing}
       />
     </AdminLayout>
   )

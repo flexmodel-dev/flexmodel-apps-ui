@@ -12,7 +12,6 @@ import AiChatPage from '@/pages/AiChatPage'
 import RecordList from '@/pages/RecordList'
 import {type AppNav, getAppNavigation} from '@/services/appNavigation'
 import {toErrorMessage} from '@/lib/utils'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 function findNav(navs: AppNav[], navId?: string): AppNav | undefined {
   for (const nav of navs) {
@@ -54,18 +53,14 @@ function BuiltinPage({destinationId, workbenchId, robotId}: {
 
 export default function AppMenuPage() {
   const {appId, navId} = useParams<{ appId: string; navId: string }>()
-  const navigationRevision = useAppDataRevision(appId, ['navigation'])
   const [navs, setNavs] = React.useState<AppNav[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    setIsLoading(true)
-  }, [appId, navId])
-
-  React.useEffect(() => {
     if (!appId) return
     let cancelled = false
+    setIsLoading(true)
     setError(null)
     getAppNavigation(appId)
       .then((loadedNavs) => !cancelled && setNavs(loadedNavs))
@@ -77,7 +72,7 @@ export default function AppMenuPage() {
     return () => {
       cancelled = true
     }
-  }, [appId, navId, navigationRevision])
+  }, [appId, navId])
 
   if (isLoading) {
     return <AppLayout><AppLoading center className="min-h-[400px]"/></AppLayout>

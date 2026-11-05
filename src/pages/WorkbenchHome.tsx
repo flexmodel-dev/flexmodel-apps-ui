@@ -1,5 +1,4 @@
 import * as React from 'react'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {Maximize, Minimize, MoreVertical, Pencil, Plus, RefreshCw, Trash2, type LucideIcon} from 'lucide-react'
 import {useNavigate, useParams} from 'react-router-dom'
 import {AppLayout} from '@/components/layout/AppLayout'
@@ -185,9 +184,6 @@ export default function WorkbenchHome({workbenchId}: { workbenchId?: string | nu
   const navigate = useNavigate()
   const {appId: routeAppId} = useParams<{ appId: string }>()
   const appId = routeAppId ?? ''
-  const layoutRevision = useAppDataRevision(appId, ['workbench'])
-  const metadataRevision = useAppDataRevision(appId, ['workbench', 'form', 'navigation'])
-  const dataRevision = useAppDataRevision(appId, ['record', 'form'])
   const [workbenches, setWorkbenches] = React.useState<WorkbenchSummary[]>([])
   const [selectedWorkbenchId, setSelectedWorkbenchId] = React.useState<string | undefined>()
   const [workbench, setWorkbench] = React.useState<Workbench | null>(null)
@@ -211,24 +207,13 @@ export default function WorkbenchHome({workbenchId}: { workbenchId?: string | nu
   const [editOpen, setEditOpen] = React.useState(false)
   const [editName, setEditName] = React.useState('')
   const [editDescription, setEditDescription] = React.useState('')
-  const editing = editable || designerOpen || editOpen
-
-  React.useEffect(() => {
-    setWorkbench(null)
-    setIsLoading(true)
-    setEditable(false)
-    setDesignerOpen(false)
-    setEditOpen(false)
-    setDraftLayout(null)
-    setSelectedWorkbenchId(undefined)
-  }, [appId])
 
   React.useEffect(() => {
     if (workbenchId) setSelectedWorkbenchId(workbenchId)
-  }, [appId, workbenchId])
+  }, [workbenchId])
 
   React.useEffect(() => {
-    if (!appId || editing) return
+    if (!appId) return
     let cancelled = false
     setIsLoading(true)
     setError(null)
@@ -251,10 +236,10 @@ export default function WorkbenchHome({workbenchId}: { workbenchId?: string | nu
     return () => {
       cancelled = true
     }
-  }, [appId, metadataRevision, editing])
+  }, [appId])
 
   React.useEffect(() => {
-    if (!appId || !selectedWorkbenchId || editing) return
+    if (!appId || !selectedWorkbenchId) return
     let cancelled = false
     setIsLoading(true)
     setError(null)
@@ -268,7 +253,7 @@ export default function WorkbenchHome({workbenchId}: { workbenchId?: string | nu
     return () => {
       cancelled = true
     }
-  }, [appId, selectedWorkbenchId, layoutRevision, editing])
+  }, [appId, selectedWorkbenchId])
 
   React.useEffect(() => {
     const handleFullscreenChange = () => setFullscreen(Boolean(document.fullscreenElement))
@@ -662,7 +647,7 @@ export default function WorkbenchHome({workbenchId}: { workbenchId?: string | nu
                     appId={appId}
                     workbenchId={workbench.id}
                     component={component}
-                    refreshKey={refreshKey + dataRevision}
+                    refreshKey={refreshKey}
                     editable={editable}
                     columns={selectedForm?.fields ?? []}
                     shortcutTargets={shortcutTargets}

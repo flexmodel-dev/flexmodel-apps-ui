@@ -7,11 +7,9 @@ import {Empty} from '@/components/ui/empty'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {findFirstEntryRoute, findFirstEntryRouteInNav, getAppNavigation} from '@/services/appNavigation'
 import {toErrorMessage} from '@/lib/utils'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 export default function AppHome() {
   const {appId = ''} = useParams<{ appId: string }>()
-  const navigationRevision = useAppDataRevision(appId, ['navigation'])
   const location = useLocation()
   const navigate = useNavigate()
   const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
@@ -44,7 +42,7 @@ export default function AppHome() {
     return () => {
       cancelled = true
     }
-  }, [appId, location.search, navigate, reloadKey, navigationRevision])
+  }, [appId, location.search, navigate, reloadKey])
 
   const retry = () => {
     setIsLoading(true)

@@ -16,7 +16,6 @@ import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
 import {MenuEditorDialog, type MenuEditorDraft} from './MenuEditorDialog'
 import {useAiAssistant} from '@/components/ai/AiProvider'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 export function AppLayout({
   children,
@@ -42,8 +41,6 @@ export function AppLayout({
   const location = useLocation()
   const ai = useAiAssistant()
   const appId = location.pathname.match(/^\/apps\/([^/]+)/)?.[1]
-  const appRevision = useAppDataRevision(appId, ['app'])
-  const navigationRevision = useAppDataRevision(appId, ['navigation'])
   const routeTopId = appId ? new URLSearchParams(location.search).get('top') : null
   const routeNavId = appId ? location.pathname.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1] : null
   const [collapsed, setCollapsed] = React.useState(false)
@@ -110,19 +107,14 @@ export function AppLayout({
   }, [appId, routeNavId, navs, app, isAppLoading, isNavsLoading])
 
   React.useEffect(() => {
-    setApp(null)
-    setNavs([])
-    setIsAppLoading(Boolean(appId))
-    setIsNavsLoading(Boolean(appId))
-  }, [appId])
-
-  React.useEffect(() => {
     if (!appId) {
       setApp(null)
       setIsAppLoading(false)
       return
     }
     let cancelled = false
+    setApp(null)
+    setIsAppLoading(true)
     getAppById(appId)
       .then((loadedApp) => {
         if (cancelled) return
@@ -138,7 +130,7 @@ export function AppLayout({
     return () => {
       cancelled = true
     }
-  }, [appId, appRevision])
+  }, [appId])
 
   React.useEffect(() => {
     setMenuEditorDraft(null)
@@ -156,6 +148,8 @@ export function AppLayout({
       return
     }
     let cancelled = false
+    setNavs([])
+    setIsNavsLoading(true)
     getAppNavigation(appId)
       .then((loadedNavs) => !cancelled && setNavs(loadedNavs))
       .catch(() => !cancelled && setNavs([]))
@@ -165,7 +159,7 @@ export function AppLayout({
     return () => {
       cancelled = true
     }
-  }, [appId, navVersion, navigationRevision])
+  }, [appId, navVersion])
 
   const topNavItems = appId
     ? navs.map((nav) => toTopNavigationItem(nav, appId))

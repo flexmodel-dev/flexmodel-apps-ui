@@ -18,7 +18,6 @@ import type {AppPackagePreview} from '@/services/appPackages'
 import {listAppTemplates} from '@/services/appTemplates'
 import {useAiAssistant} from '@/components/ai/AiProvider'
 import {cn, toErrorMessage} from '@/lib/utils'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 
 function AppMetadataText({children}: { children: string }) {
   const textRef = React.useRef<HTMLSpanElement>(null)
@@ -40,7 +39,6 @@ function AppMetadataText({children}: { children: string }) {
 export default function AppManagement() {
   const navigate = useNavigate()
   const ai = useAiAssistant()
-  const appsRevision = useAppDataRevision(undefined, ['app'])
   const [apps, setApps] = React.useState<App[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [listError, setListError] = React.useState<string | null>(null)
@@ -55,8 +53,8 @@ export default function AppManagement() {
   const [templateCount, setTemplateCount] = React.useState<number | null>(null)
   const showTemplateEntry = templateCount !== 0
 
-  const loadApps = React.useCallback(async (background = false) => {
-    if (!background) setIsLoading(true)
+  const loadApps = React.useCallback(async () => {
+    setIsLoading(true)
     setListError(null)
     try {
       setApps(await getApps())
@@ -69,8 +67,8 @@ export default function AppManagement() {
   }, [])
 
   React.useEffect(() => {
-    void loadApps(appsRevision > 0)
-  }, [loadApps, appsRevision])
+    void loadApps()
+  }, [loadApps])
 
   React.useEffect(() => {
     // 目录为空时隐藏模板创建方式；请求失败保留入口，由创建弹窗展示错误与重试。

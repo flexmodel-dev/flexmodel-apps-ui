@@ -1,5 +1,4 @@
 import * as React from 'react'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {Link, useNavigate, useParams} from 'react-router-dom'
 import {Download, Pencil, Trash2} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
@@ -54,16 +53,8 @@ export default function AppSettings({ section }: { section: string }) {
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [exportOpen, setExportOpen] = React.useState(false)
-  const appRevision = useAppDataRevision(appId, ['app'])
 
   React.useEffect(() => {
-    setApp(null)
-    setIsLoading(true)
-    setFormOpen(false)
-  }, [appId])
-
-  React.useEffect(() => {
-    if (formOpen) return
     if (!appId) {
       setApp(null)
       setIsLoading(false)
@@ -72,6 +63,7 @@ export default function AppSettings({ section }: { section: string }) {
     }
 
     let cancelled = false
+    setIsLoading(true)
     setLoadError(null)
     getAppById(appId)
       .then((loadedApp) => {
@@ -95,7 +87,7 @@ export default function AppSettings({ section }: { section: string }) {
     return () => {
       cancelled = true
     }
-  }, [appId, appRevision, formOpen])
+  }, [appId])
 
   if (isLoading || !app) {
     return (

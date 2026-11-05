@@ -28,7 +28,7 @@ import {MessageViewport} from '@/components/ui/message'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {getAuthSession} from '@/services/auth'
 import {NotificationProvider} from '@/components/notifications/NotificationProvider'
-import {AiProvider} from '@/components/ai/AiProvider'
+import {AiProvider, useAiAssistant} from '@/components/ai/AiProvider'
 import {AiAssistantPanel} from '@/components/ai/AiAssistantPanel'
 
 const ApprovalDesigner = React.lazy(() => import('@/pages/Approvals/ApprovalDesigner'))
@@ -40,6 +40,12 @@ function ApprovalDesignerRoute() {
     key={current.pathname}/></React.Suspense>
 }
 
+// 全局刷新只重建业务页面，外层 AI 会话和侧栏继续保留。
+function AppPage() {
+  const {refreshVersion} = useAiAssistant()
+  return <React.Fragment key={refreshVersion}><Outlet/></React.Fragment>
+}
+
 function RequireAuth() {
   const location = useLocation()
   if (!getAuthSession()) {
@@ -47,7 +53,7 @@ function RequireAuth() {
   }
   return <NotificationProvider>
     <AiProvider>
-      <Outlet/>
+      <AppPage/>
       <AiAssistantPanel/>
     </AiProvider>
   </NotificationProvider>

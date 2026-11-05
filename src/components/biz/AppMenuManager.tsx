@@ -1,5 +1,4 @@
 import * as React from 'react'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {
   closestCenter,
   DndContext,
@@ -165,10 +164,9 @@ export function AppMenuManager({
   const [pendingDelete, setPendingDelete] = React.useState<AppNav | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [authorization, setAuthorization] = React.useState<AppNav | null>(null)
-  const navigationRevision = useAppDataRevision(appId, ['navigation', 'form', 'workbench'])
 
-  const loadNavs = React.useCallback(async (background = false): Promise<AppNav[]> => {
-    if (!background) setIsLoading(true)
+  const loadNavs = React.useCallback(async (): Promise<AppNav[]> => {
+    setIsLoading(true)
     setError(null)
     try {
       const [loadedNavs, loadedDestinations] = await Promise.all([
@@ -187,8 +185,8 @@ export function AppMenuManager({
   }, [appId])
 
   React.useEffect(() => {
-    void loadNavs(navigationRevision > 0)
-  }, [loadNavs, navigationRevision])
+    void loadNavs()
+  }, [loadNavs])
 
   const refreshNavs = async () => {
     try {

@@ -64,10 +64,8 @@ export function isValidHttpUrl(value: string): boolean {
 
 const API_BASE = '/api/apps'
 
-const navCache = createAppDataCache<AppNav[]>(appId => ({appId, resources: ['navigation']}))
-const destinationCache = createAppDataCache<AppNavDestinations>(appId => ({
-  appId, resources: ['navigation', 'form', 'workbench'],
-}))
+const navCache = createAppDataCache<AppNav[]>()
+const destinationCache = createAppDataCache<AppNavDestinations>()
 
 export function invalidateAppNavigation(appId: string) {
   navCache.delete(appId)

@@ -1,5 +1,4 @@
 import * as React from 'react'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {useLocation, useNavigate} from 'react-router-dom'
 import {
   closestCenter,
@@ -418,7 +417,6 @@ function MenuEditorDialog({
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [isSaving, setIsSaving] = React.useState(false)
   const [authorization, setAuthorization] = React.useState<AppNav | null>(null)
-  const navigationRevision = useAppDataRevision(appId, ['navigation'])
 
   React.useEffect(() => {
     if (!open) setAuthorization(null)
@@ -447,9 +445,9 @@ function MenuEditorDialog({
     })
   }, [open, appId, draft])
 
-  const loadNavs = React.useCallback(async (background = false): Promise<AppNav[]> => {
+  const loadNavs = React.useCallback(async (): Promise<AppNav[]> => {
     if (!appId) return []
-    if (!background) setIsLoading(true)
+    setIsLoading(true)
     setActionError(null)
     try {
       const loadedNavs = await getAppNavigation(appId)
@@ -465,8 +463,8 @@ function MenuEditorDialog({
 
   React.useEffect(() => {
     if (!open || !appId) return
-    void loadNavs(navigationRevision > 0)
-  }, [open, appId, loadNavs, navigationRevision])
+    void loadNavs()
+  }, [open, appId, loadNavs])
 
   const topMenus = React.useMemo(
     () => appId ? navs.map((nav) => toTopNavigationItem(nav, appId)) : topNavs,

@@ -216,11 +216,8 @@ export interface AppFormLayout {
 }
 
 const API_BASE = '/api/apps'
-const formListCache = createAppDataCache<AppForm[]>(appId => ({appId, resources: ['form']}))
-const formCache = createAppDataCache<AppForm>(key => {
-  const [appId, formName] = key.split(':')
-  return {appId, formName, resources: ['form']}
-})
+const formListCache = createAppDataCache<AppForm[]>()
+const formCache = createAppDataCache<AppForm>()
 
 function detailKey(appId: string, name: string) {
   return `${appId}:${name}`

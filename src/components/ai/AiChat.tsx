@@ -23,7 +23,6 @@ import {Textarea} from '@/components/ui/textarea'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {useAiAssistant} from './AiProvider'
 import {getApps, type App} from '@/services/apps'
-import {useAppDataRevision} from '@/lib/useAppDataRevision'
 import {getAppPrimaryColor} from '@/theme/appPrimaryColors'
 import {type AiMessage, type AiRobot} from '@/services/ai'
 import {cn} from '@/lib/utils'
@@ -51,10 +50,10 @@ export function AiComposer({onSend, onStop, busy, placeholder = '发送消息，
   const [draft, setDraft] = React.useState(initialValue)
   const [caret, setCaret] = React.useState(0)
   const [apps, setApps] = React.useState<App[] | null>(null)
-  const appsRevision = useAppDataRevision(undefined, ['app'])
+  const {refreshVersion} = useAiAssistant()
   React.useEffect(() => {
     setApps(null)
-  }, [appsRevision])
+  }, [refreshVersion])
   const [dismissed, setDismissed] = React.useState(false)
   const [activeIndex, setActiveIndex] = React.useState(0)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)

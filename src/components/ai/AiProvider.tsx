@@ -1,6 +1,7 @@
 import * as React from 'react'
 import {useLocation} from 'react-router-dom'
 import {getAuthSession} from '@/services/auth'
+import {clearAppDataCache} from '@/services/appDataCache'
 import {
   AI_ASSISTANT_ROBOT_ID, createAiConversation, deleteAiConversation, getAiConversations, getAiRobots,
   streamAiMessage, type AiConversation, type AiMessage, type AiRobot,
@@ -35,6 +36,7 @@ interface OpenRequest {
 function useAiState() {
   const location = useLocation()
   const [panelOpen, setPanelOpen] = React.useState(false)
+  const [refreshVersion, refreshPage] = React.useReducer(version => version + 1, 0)
   const [request, setRequest] = React.useState<OpenRequest>({})
   const [rooms, setRooms] = React.useState<Record<string, Room>>({})
   const roomRef = React.useRef(rooms)
@@ -69,6 +71,7 @@ function useAiState() {
     const key = keyFor(robot)
     if (!content.trim() || roomRef.current[key]?.busy || roomRef.current[key]?.loading) return false
     const controller = new AbortController()
+    let usedTools = false
     controllersRef.current[key] = controller
     update(key, room => ({
       ...room, busy: true, error: undefined,
@@ -82,8 +85,11 @@ function useAiState() {
       ? {...room, streaming: {...closeReasoning(room.streaming), text: room.streaming.text + delta}} : room)
     const appendReasoning = (delta: string) => update(key, room => room.streaming
       ? {...room, streaming: {...room.streaming, reasoning: room.streaming.reasoning + delta}} : room)
-    const markTool = (tool: string) => update(key, room => room.streaming
-      ? {...room, streaming: {...closeReasoning(room.streaming), tool}} : room)
+    const markTool = (tool: string) => {
+      usedTools = true
+      update(key, room => room.streaming
+        ? {...room, streaming: {...closeReasoning(room.streaming), tool}} : room)
+    }
     const handleDone = (conversation: AiConversation) => update(key, room => ({
       ...room, busy: false, streaming: undefined,
       conversations: [conversation, ...room.conversations.filter(item => item.id !== conversation.id)]
@@ -150,6 +156,11 @@ function useAiState() {
       return false
     } finally {
       delete controllersRef.current[key]
+      // 一轮工具调用结束后统一刷新；失败或停止也可能已有部分写入。
+      if (usedTools) {
+        clearAppDataCache()
+        refreshPage()
+      }
     }
   }, [appId, keyFor, update])
   const stop = React.useCallback((robot: string) => {
@@ -170,7 +181,7 @@ function useAiState() {
     }
   }
   return {
-    panelOpen, request, appId, isAdmin,
+    panelOpen, request, appId, isAdmin, refreshVersion,
     openAssistant: (input: OpenRequest = {}) => {
       setRequest({...input, nonce: Date.now()});
       setPanelOpen(true)
