@@ -134,19 +134,35 @@ function useAiState() {
       }
       // 隐藏应用上下文：仅内置助手携带当前所在应用；应用机器人的上下文由后端按机器人归属解析。
       const contextApp = robot === AI_ASSISTANT_ROBOT_ID ? appId : undefined
-      await streamAiMessage(id, content, {
+      // 流式回复在后台进行：send 在消息真正发出后立即返回，输入框才能像主流聊天应用一样即时清空；
+      // 结束/失败状态由 room 的 busy/streaming/error 承载，没有调用方需要等待整轮完成。
+      void streamAiMessage(id, content, {
         onToken: appendToken,
         onReasoning: appendReasoning,
         onTool: markTool,
         onDone: handleDone,
         onError: handleError
       }, contextApp, controller.signal)
+        .catch(error => {
+          // 主动终止不算失败：把已流出的片段落到本地会话，否则提问和半截回复会一起消失。
+          if (controller.signal.aborted) {
+            finalizeStopped()
+            return
+          }
+          handleError(toErrorMessage(error, '发送失败，请重试'))
+        })
+        .finally(() => {
+          delete controllersRef.current[key]
+          // 一轮工具调用结束后统一刷新；失败或停止也可能已有部分写入。
+          if (usedTools) {
+            clearAppDataCache()
+            refreshPage()
+          }
+        })
       return true
     } catch (error) {
-      if (controller.signal.aborted) {
-        finalizeStopped();
-        return true
-      }
+      // 会话没建出来就失败：消息尚未发出，恢复空闲并让输入框保留草稿。
+      delete controllersRef.current[key]
       update(key, room => ({
         ...room,
         busy: false,
@@ -154,13 +170,6 @@ function useAiState() {
         error: toErrorMessage(error, '发送失败，请重试')
       }))
       return false
-    } finally {
-      delete controllersRef.current[key]
-      // 一轮工具调用结束后统一刷新；失败或停止也可能已有部分写入。
-      if (usedTools) {
-        clearAppDataCache()
-        refreshPage()
-      }
     }
   }, [appId, keyFor, update])
   const stop = React.useCallback((robot: string) => {
