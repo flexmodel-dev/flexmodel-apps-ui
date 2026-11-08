@@ -36,24 +36,24 @@ const historyIcons: Record<string, LucideIcon> = {
   RECORD_CREATED: Plus,
   RECORD_UPDATED: Pencil,
   RECORD_DELETED: Trash2,
-  APPROVAL_SUBMITTED: Send,
+  FLOW_STARTED: Send,
   APPROVAL_TASK_APPROVED: Check,
   APPROVAL_TASK_REJECTED: X,
-  APPROVAL_APPROVED: Check,
-  APPROVAL_REJECTED: X,
-  APPROVAL_TERMINATED: Minus,
+  FLOW_SUCCEEDED: Check,
+  FLOW_REJECTED: X,
+  FLOW_TERMINATED: Minus,
 }
 
 const historyTones: Record<string, string> = {
   RECORD_CREATED: 'border-primary/25 bg-primary/10 text-primary',
   RECORD_UPDATED: 'border-border bg-muted text-muted-foreground',
   RECORD_DELETED: 'border-destructive/25 bg-destructive/10 text-destructive',
-  APPROVAL_SUBMITTED: 'border-primary/25 bg-primary/10 text-primary',
+  FLOW_STARTED: 'border-primary/25 bg-primary/10 text-primary',
   APPROVAL_TASK_APPROVED: 'border-green-600/25 bg-green-600/10 text-green-700 dark:text-green-400',
   APPROVAL_TASK_REJECTED: 'border-destructive/25 bg-destructive/10 text-destructive',
-  APPROVAL_APPROVED: 'border-green-600/25 bg-green-600/10 text-green-700 dark:text-green-400',
-  APPROVAL_REJECTED: 'border-destructive/25 bg-destructive/10 text-destructive',
-  APPROVAL_TERMINATED: 'border-border bg-muted text-muted-foreground',
+  FLOW_SUCCEEDED: 'border-green-600/25 bg-green-600/10 text-green-700 dark:text-green-400',
+  FLOW_REJECTED: 'border-destructive/25 bg-destructive/10 text-destructive',
+  FLOW_TERMINATED: 'border-border bg-muted text-muted-foreground',
 }
 
 const dayKey = (value: string) => {

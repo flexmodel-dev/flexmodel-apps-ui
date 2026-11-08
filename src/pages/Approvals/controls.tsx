@@ -232,10 +232,15 @@ export function variableOptions(
   nodeId: string,
   forms: ApprovalForm[],
 ) {
-  const form = forms.find((item) => formKey(item.ref) === formKey(flow.form))
+  const start = flow.definition.nodes[0]?.data.config;
+  const form = start?.kind === 'start' && start.trigger?.type === 'SCHEDULE' ? undefined : forms.find((item) => formKey(item.ref) === formKey(flow.form))
   const options = [
-    {value: 'reviewerIds', label: '流程变量 · 审批人 ID 列表'},
-    {value: 'record', label: '发起记录 · 完整记录'},
+    {value: 'context', label: '流程上下文'},
+    {value: 'trigger', label: '触发信息'},
+    ...(start?.kind === 'start' && start.trigger?.type === 'SCHEDULE' ? [] : [{
+      value: 'record',
+      label: '发起记录 · 完整记录'
+    }, {value: 'input', label: '发起参数'}]),
     ...(form?.fields ?? []).map((field) => ({
       value: `record.${field.name}`,
       label: `发起记录 · ${field.label}`,
@@ -244,6 +249,7 @@ export function variableOptions(
   for (const node of upstreamNodes(flow.definition.nodes, nodeId) ?? []) {
     const c = node.data.config
     if ('output' in c && c.output) {
+      options.push({value: `nodes.${node.id}`, label: `${node.data.title} · 节点输出`})
       options.push({value: c.output, label: `${node.data.title} · 输出`})
       const fields =
         forms.find((item) => formKey(item.ref) === formKey(c.form))?.fields ??
@@ -371,6 +377,8 @@ export function ConditionsEditor({
     {value: 'lt', label: '小于'},
     {value: 'lte', label: '小于等于'},
     {value: 'contains', label: '包含'},
+    {value: 'isEmpty', label: '为空'},
+    {value: 'notEmpty', label: '非空'},
   ]
   return (
     <div className="space-y-3">
@@ -392,7 +400,7 @@ export function ConditionsEditor({
             ),
           )
         const availableOperators =
-          field?.type === 'BOOL'
+          field?.type === 'JSON' ? operators : field?.type === 'BOOL'
             ? operators.slice(0, 2)
             : ['NUMBER', 'DECIMAL', 'DATE', 'DATETIME'].includes(
               field?.type ?? '',

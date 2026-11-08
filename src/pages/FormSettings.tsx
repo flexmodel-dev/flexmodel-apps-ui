@@ -34,9 +34,12 @@ import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
 import {FormSettingsNav, formSettingsBackPath} from '@/components/biz/FormSettingsNav'
 import {Checkbox} from '@/components/ui/checkbox'
 
+import ApprovalList from './Approvals/ApprovalList'
+
 const sections = {
   base: '基本信息',
   fields: '字段管理',
+  flows: '工作流',
 } as const
 
 const fieldTypes: Array<{ type: AppFormFieldType; label: string }> = [
@@ -257,7 +260,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
     <AdminLayout noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
         <SettingsPageHeader title={`${sections[section]}`}
-          description={section === 'base' ? '管理表单信息与主显字段。' : '管理字段类型、默认值与校验规则。'}
+                            description={section === 'base' ? '管理表单信息与主显字段。' : section === 'flows' ? '管理绑定本表单的手动和数据事件工作流。定时流程在应用设置中管理。' : '管理字段类型、默认值与校验规则。'}
           onBack={() => navigate(backPath)} backLabel={backLabel}
           badge={form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
           actions={<>
@@ -339,7 +342,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
               </ul> : <Empty description="暂无字段，点击右上角新建字段开始配置。"/>}
             </>
           ) : (
-            <Empty description={`${sections[section]}功能开发中`}/>
+            <div className="h-full p-4 sm:p-6"><ApprovalList appId={appId} boundFormName={formName}/></div>
           )}
         </div>
       </div>

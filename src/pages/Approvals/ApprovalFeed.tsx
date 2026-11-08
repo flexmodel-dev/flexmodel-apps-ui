@@ -1,3 +1,4 @@
+import {InstanceDrawer} from './InstanceDrawer'
 import * as React from 'react'
 import {useParams} from 'react-router-dom'
 import {ClipboardCheck, RefreshCw} from 'lucide-react'
@@ -133,7 +134,9 @@ export function ApprovalFeed({appId, compact = false, showAppFilter = false}: {
     {!compact &&
       <div className="border-t py-3"><Pagination page={page} pages={Math.max(1, Math.ceil(total / 30))} total={total}
                                                  size={30} onChange={setPage}/></div>}
-    {selected &&
+    {selected && !selected.recordId &&
+      <InstanceDrawer item={selected} onClose={() => setSelected(null)} onChanged={refresh}/>}
+    {selected && !!selected.recordId &&
       <AppRecordDrawer
         open
         onOpenChange={(open) => {

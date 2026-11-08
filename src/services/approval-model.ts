@@ -9,19 +9,16 @@ export interface FlowElement {
 }
 
 export interface ApprovalFlowRecord {
-  flow_module_id: string
-  flow_name: string
-  flow_key: string
-  flow_model: string
-  status: number
-  remark: string
-  revision?: number
-  archive?: number
-  is_deleted?: number
-  created_by?: string
-  updated_by?: string
-  created_at?: string
-  updated_at?: string
+  id: string;
+  name: string;
+  flowKey: string;
+  description: string;
+  model: { flowElementList: FlowElement[] };
+  status: ApprovalFlow['status'];
+  updatedAt?: string;
+  publishedTrigger?: ApprovalFlow['publishedTrigger'];
+  deploymentId?: string;
+  hasDraftChanges?: boolean
 }
 
 // FlowGram's tree is an editor view; only the Flow graph crosses the API boundary.
@@ -35,7 +32,7 @@ export function encodeApprovalFlow(flow: ApprovalFlow): ApprovalFlowRecord {
       outgoing: [],
       properties: {
         name: node.data.title,
-        config: node.data.config,
+        config: {...node.data.config},
         designer: {parent, order, container: node.blocks !== undefined}
       }
     })
@@ -79,21 +76,28 @@ export function encodeApprovalFlow(flow: ApprovalFlow): ApprovalFlowRecord {
   }
   connect(flow.definition.nodes)
   const start = flow.definition.nodes[0]
-  if (start) graph.get(start.id)!.properties.form = flow.form
-  return {
-    flow_module_id: flow.id,
-    flow_name: flow.name,
-    flow_key: flow.flowKey ?? (flow.id ? `form_${flow.id}` : ''),
-    flow_model: JSON.stringify({flowElementList: [...graph.values()]}),
-    status: flow.status === 'enabled' ? 2 : flow.status === 'disabled' ? 3 : 1,
-    remark: flow.description,
-    revision: flow.revision,
-    updated_at: flow.updatedAt
+  if (start) {
+    const cfg = graph.get(start.id)!.properties.config as { kind: string; trigger?: unknown }
+    cfg.trigger = start.data.config.kind === 'start' && start.data.config.trigger ? start.data.config.trigger : {
+      type: 'MANUAL',
+      formName: flow.form.name,
+      lockRecord: false
+    }
   }
+  return {
+    id: flow.id,
+    name: flow.name,
+    flowKey: flow.flowKey ?? '',
+    description: flow.description,
+    model: {flowElementList: [...graph.values()]},
+    status: flow.status,
+    updatedAt: flow.updatedAt
+  }
+
 }
 
 export function decodeApprovalFlow(record: ApprovalFlowRecord, appId: string): ApprovalFlow {
-  const {flowElementList: elements} = JSON.parse(record.flow_model) as { flowElementList: FlowElement[] }
+  const {flowElementList: elements} = record.model as { flowElementList: FlowElement[] }
   const nodes = new Map<string, ApprovalNode>(),
     groups = new Map<string, Array<{ node: ApprovalNode; order: number }>>()
   let form: FormRef = {kind: 'app', name: ''}
@@ -111,22 +115,26 @@ export function decodeApprovalFlow(record: ApprovalFlowRecord, appId: string): A
     const group = groups.get(designer.parent) ?? []
     group.push({node, order: designer.order});
     groups.set(designer.parent, group)
-    if (config.kind === 'start') form = element.properties.form as FormRef
+    if (config.kind === 'start') form = {
+      kind: 'app',
+      name: config.trigger && 'formName' in config.trigger ? config.trigger.formName : ''
+    }
   }
   for (const [parent, group] of groups) {
     group.sort((a, b) => a.order - b.order)
     if (parent) nodes.get(parent)!.blocks = group.map(item => item.node)
   }
   return {
-    id: record.flow_module_id,
+    id: record.id,
     appId,
-    flowKey: record.flow_key,
-    name: record.flow_name,
-    description: record.remark,
+    flowKey: record.flowKey,
+    name: record.name,
+    description: record.description,
     form,
-    status: record.status === 2 ? 'enabled' : record.status === 3 ? 'disabled' : 'draft',
-    revision: record.revision,
-    updatedAt: record.updated_at ?? '',
+    status: record.status,
+    publishedTrigger: record.publishedTrigger,
+    deploymentId: record.deploymentId, hasDraftChanges: record.hasDraftChanges,
+    updatedAt: record.updatedAt ?? '',
     definition: {nodes: (groups.get('') ?? []).map(item => item.node)}
   }
 }

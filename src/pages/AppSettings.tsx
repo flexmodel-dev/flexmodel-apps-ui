@@ -22,14 +22,14 @@ const settingsNavs = [
   { key: 'basic', label: '基本设置' },
   {key: 'menus', label: '菜单管理'},
   {key: 'forms', label: '表单管理'},
-  { key: 'approvals', label: '审批流程' },
+  {key: 'approvals', label: '工作流'},
 ]
 
 const sectionDescriptions: Record<string, string> = {
   basic: '管理应用信息、图标与主题。',
   menus: '配置应用导航与页面入口。',
   forms: '管理业务表单、字段及布局。',
-  approvals: '管理审批流程与流转规则。',
+  approvals: '管理手动、数据事件和定时工作流。',
 }
 
 export default function AppSettings({ section }: { section: string }) {
@@ -288,7 +288,7 @@ export default function AppSettings({ section }: { section: string }) {
           }}
           title="删除应用"
           message={<>
-            确认删除应用「{app.name}」吗？将同时删除该应用菜单、审批流程及独占表单和记录。
+            确认删除应用「{app.name}」吗？将同时删除该应用菜单、工作流及独占表单和记录。
             {deleteError ? (
               <div className="mt-2 text-sm text-destructive" role="alert">{deleteError}</div>
             ) : null}

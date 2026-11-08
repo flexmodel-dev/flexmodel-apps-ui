@@ -16,7 +16,7 @@ const app = {
   updatedAt: '2026-10-21',
 }
 test.beforeEach(async ({page}) => {
-  let flows = structuredClone(createApprovalTemplates('approval-demo')).map(flow => ({...flow, revision: 1}))
+  let flows = structuredClone(createApprovalTemplates('approval-demo'))
   await page.addInitScript((userId) => {
     localStorage.setItem('flexmodel-apps.auth.token', 'local-e2e-token')
     localStorage.setItem(
@@ -30,10 +30,10 @@ test.beforeEach(async ({page}) => {
   }, users[3].id)
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())
-    const root = '/api/apps/approval-demo/approval-flows'
+    const root = '/api/apps/approval-demo/flows'
     const method = route.request().method()
     const body = method === 'POST' || method === 'PUT' ? route.request().postDataJSON() : null
-    if (url.pathname === '/api/apps/approval-demo/approval-directory') {
+    if (url.pathname === '/api/apps/approval-demo/directory') {
       return route.fulfill({
         json: {
           ...approvalDirectory,
@@ -42,18 +42,30 @@ test.beforeEach(async ({page}) => {
       })
     }
     if (url.pathname === root + '/validate') return route.fulfill({
-      json: validateFlow(decodeApprovalFlow(body, app.id), flows, [...approvalDemoForms, {
-        ref: {
-          kind: 'app',
-          name: 'purchase'
+      json: validateFlow(decodeApprovalFlow(body, app.id), flows, [
+        ...approvalDemoForms,
+        {
+          ref: {kind: 'app', name: 'expense'},
+          label: '报销单',
+          fields: [{name: 'id', label: '记录 ID', type: 'TEXT'}, {
+            name: 'title', label: '报销事由', type: 'TEXT'
+          }, {name: 'amount', label: '报销金额', type: 'DECIMAL'}, {
+            name: 'category', label: '费用类型', type: 'TEXT'
+          }]
         },
-        label: '采购申请',
-        fields: [{name: 'id', label: 'ID', type: 'TEXT'}, {
-          name: 'title',
-          label: '申请事由',
-          type: 'TEXT'
-        }, {name: 'amount', label: '申请金额', type: 'DECIMAL'}]
-      }])
+        {
+          ref: {
+            kind: 'app',
+            name: 'purchase'
+          },
+          label: '采购申请',
+          fields: [{name: 'id', label: 'ID', type: 'TEXT'}, {
+            name: 'title',
+            label: '申请事由',
+            type: 'TEXT'
+          }, {name: 'amount', label: '申请金额', type: 'DECIMAL'}]
+        }
+      ])
     })
     if (url.pathname === root && method === 'GET') return route.fulfill({json: flows.map(encodeApprovalFlow)})
     if (url.pathname === root && method === 'POST') {
@@ -61,24 +73,34 @@ test.beforeEach(async ({page}) => {
         ...decodeApprovalFlow(body, app.id),
         id: crypto.randomUUID(),
         status: 'draft' as const,
-        revision: 1,
         updatedAt: new Date().toISOString()
       }
       flows.unshift(created);
       return route.fulfill({status: 201, json: encodeApprovalFlow(created)})
     }
     if (url.pathname.startsWith(root + '/')) {
-      const id = url.pathname.slice(root.length + 1).split('/')[0]
+      const segments = url.pathname.slice(root.length + 1).split('/')
+      const id = segments[0]
       const index = flows.findIndex(flow => flow.id === id)
       if (method === 'DELETE') {
         flows = flows.filter(flow => flow.id !== id);
         return route.fulfill({status: 204})
       }
-      if (index >= 0 && (method === 'PUT' || method === 'POST')) {
+      if (segments[1] === 'publish' && method === 'POST' && index >= 0) {
+        flows[index] = {...flows[index], status: 'enabled' as const}
+        return route.fulfill({json: encodeApprovalFlow(flows[index])})
+      }
+      if (segments[1] === 'enabled' && method === 'PUT' && index >= 0) {
         flows[index] = {
-          ...flows[index], ...(method === 'PUT' ? decodeApprovalFlow(body, app.id) : {}),
-          status: method === 'PUT' ? 'draft' : body.status === 2 ? 'enabled' : 'disabled',
-          revision: (flows[index].revision ?? 0) + 1,
+          ...flows[index],
+          status: body.enabled ? 'enabled' as const : 'disabled' as const
+        }
+        return route.fulfill({json: encodeApprovalFlow(flows[index])})
+      }
+      if (index >= 0 && method === 'PUT') {
+        flows[index] = {
+          ...flows[index], ...decodeApprovalFlow(body, app.id),
+          status: 'draft' as const,
           updatedAt: new Date().toISOString()
         }
         return route.fulfill({json: encodeApprovalFlow(flows[index])})
@@ -91,6 +113,42 @@ test.beforeEach(async ({page}) => {
           ? [app]
           : url.pathname === '/api/apps/approval-demo/forms'
             ? [
+              {
+                name: 'expense',
+                label: '报销单',
+                description: '',
+                fields: [
+                  {
+                    name: 'id',
+                    label: '记录 ID',
+                    type: 'TEXT',
+                    required: true,
+                    builtin: true,
+                  },
+                  {
+                    name: 'title',
+                    label: '报销事由',
+                    type: 'TEXT',
+                    required: true,
+                    builtin: false,
+                  },
+                  {
+                    name: 'amount',
+                    label: '报销金额',
+                    type: 'DECIMAL',
+                    required: true,
+                    builtin: false,
+                  },
+                  {
+                    name: 'category',
+                    label: '费用类型',
+                    type: 'TEXT',
+                    required: false,
+                    builtin: false,
+                  },
+                ],
+                layout: {items: []},
+              },
               {
                 name: 'purchase',
                 label: '采购申请',
@@ -129,7 +187,10 @@ test('模板可完整模拟，列表与设计器保存恢复并适配主题', as
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('/#/admin/apps/approval-demo/settings/approvals')
-  await expect(page.getByText('把审批规则，变成清晰的流程')).toBeVisible()
+  await expect(page.getByText('管理手动、数据事件和定时工作流。')).toBeVisible()
+  await expect(page.getByRole('columnheader', {name: '触发方式', exact: true})).toBeVisible()
+  await expect(page.getByRole('columnheader', {name: '节点', exact: true})).toHaveCount(0)
+  await expect(page.getByRole('cell', {name: '手动触发', exact: true}).first()).toBeVisible()
   await page.screenshot({
     animations: 'disabled',
     path: 'artifacts/approvals-list-light.png',
@@ -149,6 +210,7 @@ test('模板可完整模拟，列表与设计器保存恢复并适配主题', as
     path: 'artifacts/approvals-designer-light.png',
   })
   await page.getByRole('button', {name: '模拟预览', exact: true}).click()
+  await page.getByLabel('模拟报销金额').fill('8600')
   await page.getByRole('button', {name: '开始模拟', exact: true}).click()
   await expect(page.getByRole('heading', {name: '等待审批'})).toBeVisible()
   await page.getByRole('button', {name: '同意钱迅', exact: true}).click()
@@ -231,13 +293,16 @@ test('真实字段可配置记录节点，多组审批人可保存，校验定�
                                                                           page,
                                                                         }) => {
   await page.goto('/#/admin/apps/approval-demo/settings/approvals')
-  await page.getByRole('button', {name: '新建流程', exact: true}).click()
+  await page
+    .getByRole('button', {name: '新建流程', exact: true})
+    .first()
+    .click()
   await page
     .getByRole('textbox', {name: '流程名称', exact: true})
     .fill('采购审批测试')
   await page
-    .getByLabel('关联表单', {exact: true})
-    .selectOption('app:purchase')
+    .getByLabel('流程关联表单', {exact: true})
+    .selectOption('purchase')
   await page.getByRole('button', {name: '创建并设计'}).click()
   await expect(
     page.getByRole('heading', {name: '采购审批测试', exact: true}),
@@ -373,10 +438,10 @@ test('拖动节点可更改顺序并保存，未保存修改离开时提醒', as
   await page.getByRole('button', {name: '保存草稿', exact: true}).click()
   await expect(page.getByText('流程草稿已保存到服务器', {exact: true})).toBeVisible()
   const order = await page.evaluate(async () => {
-    const response = await fetch('/api/apps/approval-demo/approval-flows')
+    const response = await fetch('/api/apps/approval-demo/flows')
     const flows = await response.json()
-    const record = flows.find((flow: { flow_module_id: string }) => flow.flow_module_id === 'demo-expense')
-    return JSON.parse(record.flow_model).flowElementList
+    const record = flows.find((flow: { id: string }) => flow.id === 'demo-expense')
+    return record.model.flowElementList
       .filter((element: {
         properties: { designer?: { parent: string } }
       }) => element.properties.designer?.parent === '')

@@ -1,3 +1,4 @@
+import {FlowTriggerEditor} from './FlowTriggerEditor'
 import * as React from 'react'
 import {useDirectory} from './directory'
 import {DirectoryMemberPicker} from '@/components/biz/DirectoryMemberPicker'
@@ -324,10 +325,10 @@ export default function NodePanel(props: Props) {
   const flowForm = forms.find(
     (form) => formKey(form.ref) === formKey(flow.form),
   )
-  const gatewayFields = (flowForm?.fields ?? []).map((field) => ({
+  const gatewayFields = [...(flowForm?.fields ?? []).map((field) => ({
     ...field,
     name: `record.${field.name}`,
-  }))
+  })), ...variables.map(v => ({name: v.value, label: v.label, type: 'JSON'}))]
   const title = node ? nodeLabels[node.type] : '流程设置'
   const parentGateway =
     node?.type === 'branch'
@@ -351,7 +352,7 @@ export default function NodePanel(props: Props) {
         <div>
           <h2 className="text-sm font-semibold">{title}</h2>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            {node ? '配置节点的行为与数据' : '配置当前应用的审批流程'}
+            {node ? '配置节点的行为与数据' : '配置当前应用的工作流'}
           </p>
         </div>
         <Button
@@ -390,23 +391,7 @@ export default function NodePanel(props: Props) {
                   placeholder="描述这个流程的用途"
                 />
               </Field>
-              <Field label="关联表单">
-                <Choice
-                  label="流程关联表单"
-                  value={formKey(flow.form)}
-                  options={forms.map((form) => ({
-                    value: formKey(form.ref),
-                    label: form.label,
-                  }))}
-                  onChange={(key) =>
-                    props.onFlowChange({
-                      ...flow,
-                      form: forms.find((form) => formKey(form.ref) === key)!
-                        .ref,
-                    })
-                  }
-                />
-              </Field>
+
             </Section>
             <Section title="如何搭建流程">
               <div className="space-y-4 text-xs leading-6 text-muted-foreground">
@@ -446,21 +431,26 @@ export default function NodePanel(props: Props) {
             </div>
           </Section>
         )}
-        {config?.kind === 'start' && (
-          <Section title="发起数据">
-            <p className="text-xs leading-6 text-muted-foreground">
-              发起流程时关联「{flowForm?.label ?? flow.form.name}
-              」的一条记录。后续节点可以通过“发起记录”引用字段。
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => props.onSelect('')}
-            >
-              配置关联表单
-            </Button>
-          </Section>
-        )}
+        {(!node || config?.kind === 'start') && <Section title="流程触发">
+          <FlowTriggerEditor appId={flow.appId} forms={forms}
+                             value={flow.definition.nodes[0]?.data.config.kind === 'start' ? flow.definition.nodes[0].data.config.trigger ?? {
+                               type: 'MANUAL',
+                               formName: flow.form.name,
+                               lockRecord: false
+                             } : {type: 'MANUAL', formName: flow.form.name, lockRecord: false}}
+                             onChange={trigger => {
+                               const start = flow.definition.nodes[0];
+                               const next = {
+                                 ...start,
+                                 data: {...start.data, config: {kind: 'start' as const, trigger}}
+                               };
+                               props.onFlowChange({
+                                 ...flow,
+                                 form: {kind: 'app', name: 'formName' in trigger ? trigger.formName : ''},
+                                 definition: {...flow.definition, nodes: [next, ...flow.definition.nodes.slice(1)]}
+                               })
+                             }}/>
+        </Section>}
         {config?.kind === 'end' && (
           <Section title="流程完成">
             <p className="text-xs leading-6 text-muted-foreground">

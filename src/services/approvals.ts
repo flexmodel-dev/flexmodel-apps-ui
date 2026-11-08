@@ -1,12 +1,11 @@
-import type {ApprovalFlow, ApprovalMember, FormRef, MemberDirectory, ValidationIssue} from '../types/approval'
-import {createApprovalTemplates} from '../data/mock'
-import {cloneNode, emptyDocument, flattenNodes} from '../lib/approval'
+import type {ApprovalFlow, ApprovalMember, FlowTrigger, MemberDirectory, ValidationIssue} from '../types/approval'
+import {cloneNode, emptyDocument} from '../lib/approval'
 import {requestJson} from './http'
 import {cachedFetch, createAppDataCache} from './appDataCache'
 import {decodeApprovalFlow, encodeApprovalFlow, type ApprovalFlowRecord} from './approval-model'
 import {getDirectory} from './directory'
 
-const base = (appId: string) => `/api/apps/${encodeURIComponent(appId)}/approval-flows`
+const base = (appId: string) => `/api/apps/${encodeURIComponent(appId)}/flows`
 export const getApprovalFlows = async (appId: string) => (await requestJson<ApprovalFlowRecord[]>(base(appId))).map(record => decodeApprovalFlow(record, appId))
 export const getApprovalFlow = async (appId: string, id: string) => decodeApprovalFlow(await requestJson<ApprovalFlowRecord>(`${base(appId)}/${encodeURIComponent(id)}`), appId)
 export const getApprovalDirectory = (appId: string) => getDirectory(appId) as Promise<MemberDirectory>
@@ -32,32 +31,26 @@ export const saveApprovalFlow = async (flow: ApprovalFlow) => decodeApprovalFlow
   method: 'PUT',
   body: JSON.stringify(encodeApprovalFlow(flow))
 }), flow.appId)
-export const setApprovalFlowStatus = async (flow: ApprovalFlow, status: 'enabled' | 'disabled') => decodeApprovalFlow(await requestJson<ApprovalFlowRecord>(`${base(flow.appId)}/${encodeURIComponent(flow.id)}/status`, {
-  method: 'POST',
-  body: JSON.stringify({status: status === 'enabled' ? 2 : 3, revision: flow.revision})
+export const publishFlow = async (flow: ApprovalFlow) => decodeApprovalFlow(await requestJson<ApprovalFlowRecord>(`${base(flow.appId)}/${encodeURIComponent(flow.id)}/publish`, {
+  method: 'POST'
 }), flow.appId)
+export const setApprovalFlowStatus = async (flow: ApprovalFlow, status: 'enabled' | 'disabled') => {
+  if (flow.status === 'draft' && status === 'enabled') return publishFlow(flow)
+  return decodeApprovalFlow(await requestJson<ApprovalFlowRecord>(`${base(flow.appId)}/${encodeURIComponent(flow.id)}/enabled`, {
+    method: 'PUT',
+    body: JSON.stringify({enabled: status === 'enabled'})
+  }), flow.appId)
+}
 
-export async function createApprovalFlow(appId: string, name: string, template = false, form?: FormRef): Promise<ApprovalFlow> {
-  const body = template ? createApprovalTemplates(appId)[0] : {
-    name,
-    description: '',
-    form: form ?? {kind: 'app', name: ''},
-    definition: emptyDocument()
+export async function createApprovalFlow(appId: string, name: string, trigger: FlowTrigger): Promise<ApprovalFlow> {
+  const body: ApprovalFlow = {
+    id: '', appId, name, description: '', form: {kind: 'app', name: ''},
+    status: 'draft', updatedAt: '', definition: emptyDocument()
   }
   body.name = name
-  if (form) body.form = form
-  if (template) flattenNodes(body.definition.nodes).forEach(node => {
-    const cfg = node.data.config
-    if (cfg.kind === 'approval') cfg.rules = [{
-      id: crypto.randomUUID(),
-      source: 'initiator',
-      values: [],
-      scope: 'self',
-      includeChildren: false
-    }]
-    if ('form' in cfg && cfg.form.kind === 'demo' && form) cfg.form = form
-    if (cfg.kind === 'subflow') cfg.flowId = ''
-  })
+  body.form = {kind: 'app', name: 'formName' in trigger ? trigger.formName : ''}
+  const start = body.definition.nodes[0]
+  body.definition.nodes[0] = {...start, data: {...start.data, config: {kind: 'start', trigger}}}
   const draft = {...body, id: '', appId, status: 'draft' as const, updatedAt: ''}
   return decodeApprovalFlow(await requestJson<ApprovalFlowRecord>(base(appId), {
     method: 'POST',
@@ -76,7 +69,6 @@ export async function duplicateApprovalFlow(flow: ApprovalFlow) {
     ...flow,
     id: '',
     flowKey: '',
-    revision: undefined,
     name: `${flow.name}（副本）`,
     definition: {nodes: container.blocks!}
   }
@@ -89,6 +81,8 @@ export async function duplicateApprovalFlow(flow: ApprovalFlow) {
 export const deleteApprovalFlow = (appId: string, id: string) => requestJson<void>(`${base(appId)}/${encodeURIComponent(id)}`, {method: 'DELETE'})
 
 export interface ApprovalItem {
+  triggerType?: 'MANUAL' | 'DATA_EVENT' | 'SCHEDULE' | 'SUBFLOW';
+  principal?: string;
   id: string;
   appId: string;
   appName: string;
@@ -105,22 +99,22 @@ export interface ApprovalItem {
 
 export interface ApprovalTask {
   id: string;
-  user_id: string;
+  userId: string;
   status: string;
   decision?: string;
   comment?: string;
-  decided_at?: string;
+  decidedAt?: string;
   position: number;
-  wait_id: string
+  waitId: string
 }
 
 export interface ApprovalUpcomingNode {
   id: string;
   title: string;
   kind: string;
-  sign_mode?: string;
+  signMode?: string;
   certain: boolean;
-  candidates?: Array<{ id: string; title: string; kind: string; sign_mode?: string }>
+  candidates?: Array<{ id: string; title: string; kind: string; signMode?: string }>
 }
 
 export interface ApprovalEndingNode {
@@ -136,7 +130,7 @@ export interface ApprovalDetail extends ApprovalItem {
   variables: Record<string, unknown>;
   error: string
   tasks: ApprovalTask[];
-  waits: Array<{ id: string; title: string; members: string[]; status: string; sign_mode: string }>
+  waits: Array<{ id: string; title: string; members: string[]; status: string; signMode: string }>
   upcoming: ApprovalUpcomingNode[]
   ending?: ApprovalEndingNode | null
   logs: Array<{ id: string; title: string; kind: string; input: unknown; output: unknown }>
@@ -146,18 +140,19 @@ export interface ApprovalDetail extends ApprovalItem {
 }
 
 export const approvalStatus: Record<string, string> = {
-  SUBMITTING: '提交中',
-  RUNNING: '审批中',
-  APPROVED: '已通过',
+  QUEUED: '提交中',
+  RUNNING: '运行中',
+  WAITING: '等待审批',
+  SUCCEEDED: '已完成',
   REJECTING: '正在拒绝',
   REJECTED: '已拒绝',
   TERMINATING: '正在终止',
   TERMINATED: '已终止',
-  ERROR: '执行异常'
+  FAILED: '执行异常'
 }
 
 /** 审批已结束的状态集合 */
-export const FINISHED_STATUS = ['APPROVED', 'REJECTED', 'TERMINATED']
+export const FINISHED_STATUS = ['SUCCEEDED', 'REJECTED', 'TERMINATED']
 
 export function listPersonalApprovals(view: 'pending' | 'handled' | 'initiated', appId?: string, search = '', page = 1) {
   const params = new URLSearchParams({view, search, page: String(page), size: '30'})
@@ -165,18 +160,50 @@ export function listPersonalApprovals(view: 'pending' | 'handled' | 'initiated',
   return requestJson<{
     list: ApprovalItem[];
     total: number
-  }>(`/api/approvals/${view === 'initiated' ? 'instances' : 'tasks'}?${params}`)
+  }>(`/api/flows/mine/${view === 'initiated' ? 'instances' : 'tasks'}?${params}`)
 }
 
-export const getApprovalDetail = (appId: string, id: string) => requestJson<ApprovalDetail>(`/api/apps/${encodeURIComponent(appId)}/approval-instances/${encodeURIComponent(id)}`)
-export const decideApproval = (appId: string, taskId: string, decision: 'approve' | 'reject', comment: string, requestKey: string) => requestJson(`/api/apps/${encodeURIComponent(appId)}/approval-tasks/${encodeURIComponent(taskId)}/decision`, {
+export const getApprovalDetail = (appId: string, id: string) => requestJson<ApprovalDetail>(`/api/apps/${encodeURIComponent(appId)}/flow-instances/${encodeURIComponent(id)}`)
+export const decideApproval = (appId: string, taskId: string, decision: 'approve' | 'reject', comment: string, requestKey: string) => requestJson(`/api/apps/${encodeURIComponent(appId)}/flow-tasks/${encodeURIComponent(taskId)}/decisions`, {
   method: 'POST',
   body: JSON.stringify({decision, comment, requestKey})
 })
-export const manageApproval = (appId: string, id: string, action: 'retry' | 'terminate') => requestJson(`/api/apps/${encodeURIComponent(appId)}/approval-instances/${encodeURIComponent(id)}/${action}`, {method: 'POST'})
-const recordPath = (appId: string, form: string, id: string) => `/api/apps/${encodeURIComponent(appId)}/forms/${encodeURIComponent(form)}/records/${encodeURIComponent(id)}/approvals`
-export const retryApprovalNotifications = (appId: string, id: string) => requestJson(`/api/apps/${encodeURIComponent(appId)}/approval-instances/${encodeURIComponent(id)}/retry-notifications`, {method: 'POST'})
-export const recordApprovals = (appId: string, form: string, id: string) => requestJson<ApprovalItem[]>(recordPath(appId, form, id))
-export const submitApproval = (appId: string, form: string, id: string, flowId: string, requestKey: string) => requestJson<{
+export const manageApproval = (appId: string, id: string, action: 'retry' | 'terminate') => requestJson(`/api/apps/${encodeURIComponent(appId)}/flow-instances/${encodeURIComponent(id)}/${action}`, {method: 'POST'})
+const recordPath = (appId: string, form: string, id: string) => `/api/apps/${encodeURIComponent(appId)}/flow-instances?${new URLSearchParams({
+  formName: form,
+  recordId: id
+})}`
+export const retryApprovalNotifications = (appId: string, id: string) => requestJson(`/api/apps/${encodeURIComponent(appId)}/flow-instances/${encodeURIComponent(id)}/retry-notifications`, {method: 'POST'})
+export const recordApprovals = (appId: string, form: string, id: string) => requestJson<{
+  list: ApprovalItem[];
+  total: number
+}>(recordPath(appId, form, id)).then(page => page.list)
+export const submitApproval = (appId: string, _form: string, id: string, flowId: string, requestKey: string) => requestJson<{
   id: string
-}>(recordPath(appId, form, id), {method: 'POST', body: JSON.stringify({flowId, requestKey})})
+}>(`${base(appId)}/${encodeURIComponent(flowId)}/instances`, {
+  method: 'POST',
+  body: JSON.stringify({recordId: id, requestKey})
+})
+
+export const previewFlowSchedule = (appId: string, config: {
+  cron: string;
+  timezone: string;
+  startAt?: string;
+  endAt?: string
+}) => requestJson<string[]>(`${base(appId)}/cron-preview?${new URLSearchParams({
+  cron: config.cron,
+  timezone: config.timezone,
+  startAt: config.startAt ?? '',
+  endAt: config.endAt ?? ''
+})}`)
+export const listFlowInstances = (appId: string, id: string) => requestJson<{
+  list: ApprovalItem[];
+  total: number
+}>(`${base(appId)}/${encodeURIComponent(id)}/instances`).then(page => page.list)
+export const getFlowTriggerLogs = (appId: string, id: string) => requestJson<Array<{
+  id: string;
+  state: string;
+  reason: string;
+  instanceId: string;
+  createdAt: string
+}>>(`${base(appId)}/${encodeURIComponent(id)}/trigger-logs`)

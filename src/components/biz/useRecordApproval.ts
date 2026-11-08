@@ -59,7 +59,7 @@ export function useRecordApproval({appId, formName, recordId, instanceId, enable
             const detail = await getApprovalDetail(appId, target)
             if (cancelled) return
             const actor = getAuthSession()?.user.id
-            const task = detail.tasks.find((task) => task.user_id === actor && task.status === 'PENDING')
+            const task = detail.tasks.find((task) => task.userId === actor && task.status === 'PENDING')
             setMyTask(task?.id ?? null)
           } catch {
             if (!cancelled) setMyTask(null)

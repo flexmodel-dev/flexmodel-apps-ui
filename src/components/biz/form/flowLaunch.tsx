@@ -24,7 +24,7 @@ export function useFormApprovalFlows({appId, formName, enabled}: {
     getApprovalFlows(appId)
       .then((definitions) => {
         if (!cancelled) setFlows(definitions.filter((flow) =>
-          flow.status === 'enabled' && flow.form.kind === 'app' && flow.form.name === formName))
+          flow.status === 'enabled' && flow.publishedTrigger?.type === 'MANUAL' && flow.publishedTrigger.formName === formName))
       })
       .catch(() => {
         if (!cancelled) setFlows([])
@@ -36,7 +36,7 @@ export function useFormApprovalFlows({appId, formName, enabled}: {
   return flows
 }
 
-/** 发起流程弹窗：选择审批流程并确认 */
+/** 发起流程弹窗：选择工作流并确认 */
 export function FlowStartDialog({open, onOpenChange, flows, flowId, onFlowIdChange, isStarting, onConfirm}: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -62,10 +62,10 @@ export function FlowStartDialog({open, onOpenChange, flows, flowId, onFlowIdChan
     >
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground">选择审批流程</label>
+          <label className="text-xs text-muted-foreground">选择工作流</label>
           <Select value={flowId} onValueChange={onFlowIdChange}>
             <SelectTrigger>
-              <SelectValue placeholder="请选择审批流程"/>
+              <SelectValue placeholder="请选择工作流"/>
             </SelectTrigger>
             <SelectContent>
               {flows.map((flow) => (
@@ -75,7 +75,7 @@ export function FlowStartDialog({open, onOpenChange, flows, flowId, onFlowIdChan
           </Select>
         </div>
         <p className="text-sm text-muted-foreground">
-          提交时会保存记录快照。审批结束前，人工编辑和删除将被锁定，流程配置的数据操作继续执行。
+          发起时保存记录快照；是否锁定记录由所选流程配置决定。
         </p>
       </div>
     </BizDialog>

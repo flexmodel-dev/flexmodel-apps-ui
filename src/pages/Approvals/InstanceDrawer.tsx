@@ -31,7 +31,7 @@ export function InstanceDrawer({item, onClose, onChanged}: {
     await load()
     onChanged?.()
   })
-  const task = detail?.tasks.find(task => task.user_id === actor && task.status === 'PENDING')
+  const task = detail?.tasks.find(task => task.userId === actor && task.status === 'PENDING')
   const act = (kind: 'approve' | 'reject') => {
     void decision.decide(task?.id, kind)
   }
@@ -90,9 +90,9 @@ export function InstanceDrawer({item, onClose, onChanged}: {
                 setBusy(false)
               }
             }}>重试通知</Button>}</div>}
-        <section className="space-y-3"><h3 className="text-sm font-medium">提交时的表单快照</h3>
+        <section className="space-y-3"><h3 className="text-sm font-medium">启动数据</h3>
           <div
-            className="grid grid-cols-2 gap-3 rounded-lg border bg-card p-4">{Object.entries(detail.snapshot).map(([key, value]) =>
+            className="grid grid-cols-2 gap-3 rounded-lg border bg-card p-4">{Object.entries(detail.recordId ? detail.snapshot : detail.variables).map(([key, value]) =>
             <div key={key} className="min-w-0"><p className="text-xs text-muted-foreground">{key}</p><p
               className="mt-1 break-words text-sm">{typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—')}</p>
             </div>)}</div>

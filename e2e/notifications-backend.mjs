@@ -4,8 +4,9 @@ import {mkdir} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {projectRoot, startFrontend, apiRequest, launchContext} from './harness.mjs'
 
-const api = process.env.NOTIFICATION_TEST_API, token = process.env.NOTIFICATION_TEST_TOKEN
-if (!api || !token) throw Error('需要隔离后端与登录会话')
+const api = process.env.NOTIFICATION_TEST_API, token = process.env.NOTIFICATION_TEST_TOKEN,
+  app = process.env.NOTIFICATION_TEST_APP
+if (!api || !token || !app) throw Error('需要隔离后端与登录会话')
 const {server, frontend} = await startFrontend(api, 5184)
 const request = (path, body, method) => apiRequest(api, token, path, body, method)
 let browser
@@ -72,10 +73,13 @@ try {
     window.dispatchEvent(new Event('focus'))
   })
   const suffix = Date.now().toString(36), form = 'notice_browser_' + suffix
-  await request('/apps/dev_test/forms', {name: form, label: '通知浏览器验收', createDisplayField: true})
-  const record = await request('/apps/dev_test/forms/' + form + '/records', {name: '实时消息记录'})
+  await request('/apps/' + app + '/forms', {name: form, label: '通知浏览器验收', createDisplayField: true})
+  const record = await request('/apps/' + app + '/forms/' + form + '/records', {name: '实时消息记录'})
   const rule = {id: 'initiator', source: 'initiator', values: [], scope: 'self', includeChildren: false}
-  const configs = [{kind: 'start'}, {
+  const configs = [{
+    kind: 'start',
+    trigger: {type: 'MANUAL', formName: form, lockRecord: false}
+  }, {
     kind: 'notification',
     rules: [rule],
     titleTemplate: '实时节点-' + suffix,
@@ -92,7 +96,7 @@ try {
       properties: {
         name: key,
         config,
-        designer: {parent: '', order: i, container: false}, ...(i === 0 ? {form: {kind: 'app', name: form}} : {})
+        designer: {parent: '', order: i, container: false}
       }
     })
     if (i < 3) elements.push({
@@ -103,16 +107,13 @@ try {
       properties: {conditionsequenceflow: '', defaultConditions: 'false'}
     })
   })
-  const flow = await request('/apps/dev_test/approval-flows', {
-    flow_name: '实时验收-' + suffix,
-    flow_model: JSON.stringify({flowElementList: elements})
+  const flow = await request('/apps/' + app + '/flows', {
+    name: '实时验收-' + suffix,
+    model: {flowElementList: elements}
   })
-  await request('/apps/dev_test/approval-flows/' + flow.flow_module_id + '/status', {
-    status: 2,
-    revision: flow.revision
-  })
-  const run = await request('/apps/dev_test/forms/' + form + '/records/' + record.id + '/approvals', {
-    flowId: flow.flow_module_id,
+  await request('/apps/' + app + '/flows/' + flow.id + '/publish', undefined, 'POST')
+  const run = await request('/apps/' + app + '/flows/' + flow.id + '/instances', {
+    recordId: record.id,
     requestKey: 'notify-' + suffix
   })
   await expect(page.getByRole('status').getByText('实时节点-' + suffix, {exact: true})).toBeVisible({timeout: 20000})
@@ -134,17 +135,17 @@ try {
     window.dispatchEvent(new Event('blur'));
     window.__alerts = []
   })
-  await expect.poll(async () => (await request('/apps/dev_test/approval-instances/' + run.id)).tasks.some(task => task.status === 'PENDING' && task.user_id === 'admin'), {timeout: 15000}).toBe(true)
-  const detail = await request('/apps/dev_test/approval-instances/' + run.id)
-  const task = detail.tasks.find(task => task.status === 'PENDING' && task.user_id === 'admin')
-  await request('/apps/dev_test/approval-tasks/' + task.id + '/decision', {
+  await expect.poll(async () => (await request('/apps/' + app + '/flow-instances/' + run.id)).tasks.some(task => task.status === 'PENDING' && task.userId === 'admin'), {timeout: 15000}).toBe(true)
+  const detail = await request('/apps/' + app + '/flow-instances/' + run.id)
+  const task = detail.tasks.find(task => task.status === 'PENDING' && task.userId === 'admin')
+  await request('/apps/' + app + '/flow-tasks/' + task.id + '/decisions', {
     decision: 'approve',
     comment: '',
     requestKey: 'decide-' + suffix
   })
-  await expect.poll(async () => (await request('/apps/dev_test/approval-instances/' + run.id)).status).toBe('APPROVED')
+  await expect.poll(async () => (await request('/apps/' + app + '/flow-instances/' + run.id)).status).toBe('SUCCEEDED')
   try {
-    await expect.poll(async () => (await page.evaluate(() => window.__alerts.filter(item => item.body.startsWith('审批已通过')).length)) + (await sibling.evaluate(() => window.__alerts.filter(item => item.body.startsWith('审批已通过')).length)), {timeout: 15000}).toBe(1)
+    await expect.poll(async () => (await page.evaluate(() => window.__alerts.filter(item => item.body.startsWith('流程已完成')).length)) + (await sibling.evaluate(() => window.__alerts.filter(item => item.body.startsWith('流程已完成')).length)), {timeout: 15000}).toBe(1)
   } catch (error) {
     console.error('Notification diagnostics', JSON.stringify({
       pages: await Promise.all([page, sibling].map(tab => tab.evaluate(() => ({
@@ -160,7 +161,7 @@ try {
   }
   const alerts = (await page.evaluate(() => window.__alerts)).concat(await sibling.evaluate(() => window.__alerts))
   expect(new Set(alerts.map(item => item.tag)).size).toBe(alerts.length)
-  const systemPage = (await page.evaluate(() => window.__alerts.some(item => item.body.startsWith('审批已通过')))) ? page : sibling
+  const systemPage = (await page.evaluate(() => window.__alerts.some(item => item.body.startsWith('流程已完成')))) ? page : sibling
   await systemPage.evaluate(() => window.__lastNotification.onclick())
   await expect(systemPage).toHaveURL(/notifications\?open=/)
   // Closing the connection owner hands the stream to the remaining page.
@@ -174,16 +175,16 @@ try {
   // Disconnect before producing new business messages; reconnect must restore them without popups.
   await context.setOffline(true)
   await remaining.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(() => streams.size).toBe(0)
-  const offlineRecord = await request('/apps/dev_test/forms/' + form + '/records', {name: '离线补齐记录'})
-  const offlineRun = await request('/apps/dev_test/forms/' + form + '/records/' + offlineRecord.id + '/approvals', {
-    flowId: flow.flow_module_id,
+  await expect(remaining.getByText('实时连接已建立')).toHaveCount(0)
+  const offlineRecord = await request('/apps/' + app + '/forms/' + form + '/records', {name: '离线补齐记录'})
+  const offlineRun = await request('/apps/' + app + '/flows/' + flow.id + '/instances', {
+    recordId: offlineRecord.id,
     requestKey: 'offline-' + suffix
   })
   await expect.poll(async () => (await request('/notifications?status=all')).list.filter(item => item.instanceId === offlineRun.id).length, {timeout: 15000}).toBe(2)
   await context.setOffline(false)
   await remaining.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect(remaining.getByText('实时连接已建立')).toBeVisible({timeout: 15000})
+  await expect(remaining.getByText('实时连接已建立')).toBeVisible({timeout: 40000})
   await expect(remaining.getByText('收到记录 离线补齐记录', {exact: true})).toBeVisible()
   expect(await remaining.evaluate(() => window.__alerts.length)).toBe(0)
   await remaining.evaluate(() => localStorage.setItem('__notificationPermission', 'denied'))

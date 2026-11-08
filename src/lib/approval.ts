@@ -43,7 +43,7 @@ export const signLabels = {all: '会签', any: '或签', sequential: '依次审�
 export const uid = () => crypto.randomUUID()
 
 export function notificationTemplatePaths(template: string) {
-  const pattern = /\{\{\s*([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*)\s*}}/g
+  const pattern = /\{\{\s*([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_-]+)*)\s*}}/g
   const remaining = template.replace(pattern, '')
   if (remaining.includes('{{') || remaining.includes('}}')) throw new Error('通知变量格式无效')
   return [...template.matchAll(pattern)].map(match => match[1])
@@ -51,7 +51,7 @@ export function notificationTemplatePaths(template: string) {
 
 export function renderNotificationTemplate(template: string, variables: Record<string, unknown>, max: number) {
   notificationTemplatePaths(template)
-  const value = template.replace(/\{\{\s*([\w.]+)\s*}}/g, (_slot, path: string) => {
+  const value = template.replace(/\{\{\s*([\w.\-]+)\s*}}/g, (_slot, path: string) => {
     let current: unknown = variables
     for (const part of path.split('.')) current = current && typeof current === 'object' && Object.prototype.hasOwnProperty.call(current, part) ? (current as Record<string, unknown>)[part] : undefined
     return current == null ? '' : typeof current === 'object' ? JSON.stringify(current) : String(current)
@@ -252,6 +252,9 @@ export function matchesConditions(
   const results = conditions.map((condition) => {
     const left = getPath(record, condition.field),
       right = bindingValue(condition.value, variables)
+    const empty = left == null || left === '' || Array.isArray(left) && !left.length || typeof left === 'object' && !Object.keys(left).length
+    if (condition.operator === 'isEmpty') return empty
+    if (condition.operator === 'notEmpty') return !empty
     if (left === undefined || right === undefined) return false
     const compareLeft =
       typeof left === 'string' && typeof right === 'string'
@@ -416,7 +419,7 @@ export function validateFlow(
   const add = (nodeId: string, message: string) =>
     issues.push({nodeId, message})
   if (!flow.name.trim()) add('', '请填写流程名称')
-  if (forms && !forms.some((form) => formKey(form.ref) === formKey(flow.form)))
+  if (flow.definition.nodes[0]?.data.config.kind === 'start' && flow.definition.nodes[0].data.config.trigger?.type !== 'SCHEDULE' && forms && !forms.some((form) => formKey(form.ref) === formKey(flow.form)))
     add('', '关联表单不存在，请重新选择')
   for (const node of nodes) {
     const config = node.data.config
@@ -428,7 +431,7 @@ export function validateFlow(
           ? item.data.config.outputs.map((output) => output.field)
           : [],
     )
-    const availableRoots = new Set(['record', 'initiator', 'reviewerIds', ...outputNames])
+    const availableRoots = new Set(['input', 'context', 'trigger', 'nodes', ...(flow.definition.nodes[0]?.data.config.kind === 'start' && flow.definition.nodes[0].data.config.trigger?.type === 'SCHEDULE' ? [] : ['record']), ...outputNames])
     const bindings: ValueBinding[] = [
       ...('conditions' in config
         ? config.conditions.map((item) => item.value)

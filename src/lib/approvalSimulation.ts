@@ -39,6 +39,15 @@ export class ApprovalSimulation {
     records: RecordStore,
   ) {
     this.context = structuredClone(context)
+    const cfg = flow.definition.nodes[0]?.data.config
+    if (cfg?.kind === 'start' && cfg.trigger?.type === 'SCHEDULE') {
+      delete this.context.variables.record;
+      this.context.initiatorId = ''
+    }
+    this.context.variables.input ??= {}
+    this.context.variables.nodes ??= {}
+    this.context.variables.trigger ??= {type: cfg?.kind === 'start' ? cfg.trigger?.type : 'MANUAL'}
+    this.context.variables.context ??= {initiator: this.context.initiatorId, principal: this.context.initiatorId}
     this.records = structuredClone(records)
     this.iterator = this.execute(
       flow.definition.nodes,
@@ -188,6 +197,8 @@ export class ApprovalSimulation {
           )
           output = {affectedCount: matches.length, records: matches}
         } else output = c.queryMode === 'one' ? (matches[0] ?? null) : matches
+        ;
+        (variables.nodes as Record<string, unknown>)[node.id] = structuredClone(output)
         if (c.output) variables[c.output] = structuredClone(output)
         this.event(
           node,

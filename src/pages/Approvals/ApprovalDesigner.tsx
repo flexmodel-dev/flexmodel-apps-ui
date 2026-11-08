@@ -39,7 +39,7 @@ import {
   getApprovalDirectory,
   getApprovalFlows,
   saveApprovalFlow,
-  setApprovalFlowStatus,
+  publishFlow,
   validateApprovalFlow
 } from '@/services/approvals'
 import {ApprovalDirectoryContext} from './directory'
@@ -178,7 +178,7 @@ export default function ApprovalDesigner() {
     try {
       const current = await saveApprovalFlow({
         ...flow,
-        status: dirty ? 'draft' : flow.status,
+        status: flow.status,
       })
       setFlow(current)
       setSaved(JSON.stringify(current))
@@ -336,9 +336,6 @@ export default function ApprovalDesigner() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="mr-1 hidden rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground xl:inline">
-            服务端保存
-          </span>
           <Button
             title="切换明暗主题"
             variant="ghost"
@@ -385,11 +382,11 @@ export default function ApprovalDesigner() {
                   }
                   if (!(await check())) return
                   try {
-                    const enabled = await setApprovalFlowStatus(flow, 'enabled')
+                    const enabled = await publishFlow(flow)
                     setFlow(enabled)
                     setSaved(JSON.stringify(enabled))
                     setFlows(await getApprovalFlows(appId))
-                    message.success('流程已发布并启用')
+                    message.success('流程新版本已发布')
                   } catch (error) {
                     message.error(
                       toErrorMessage(error, '启用失败'),
@@ -398,7 +395,7 @@ export default function ApprovalDesigner() {
                 }}
               >
                 <Play className="h-4 w-4"/>
-                发布并启用
+                发布新版本
               </DropdownMenuItem>
               <DropdownMenuSeparator/>
               <DropdownMenuItem onSelect={() => select('')}>

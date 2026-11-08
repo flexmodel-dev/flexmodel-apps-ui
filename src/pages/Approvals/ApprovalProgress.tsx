@@ -65,8 +65,8 @@ function waitTone(status: string): Tone {
 }
 
 function instanceTone(status: string): Tone {
-  if (status === 'APPROVED') return 'success'
-  if (['REJECTED', 'REJECTING', 'ERROR'].includes(status)) return 'danger'
+  if (status === 'SUCCEEDED') return 'success'
+  if (['REJECTED', 'REJECTING', 'FAILED'].includes(status)) return 'danger'
   if (['TERMINATED', 'TERMINATING'].includes(status)) return 'muted'
   return 'active'
 }
@@ -82,8 +82,9 @@ export function ApprovalTimeline({detail, names, avatars = {}, upcoming = [], en
   if (!detail.waits.length && !upcoming.length && !ending) return <div
     className="rounded-lg border border-dashed p-4 text-center">
     <GitBranch className="mx-auto mb-2 h-5 w-5 text-muted-foreground" aria-hidden="true"/>
-    <p className="text-sm font-medium">{detail.status === 'APPROVED' ? '流程已完成' : '暂无审批节点'}</p>
-    <p className="mt-1 text-xs leading-5 text-muted-foreground">{['RUNNING', 'SUBMITTING'].includes(detail.status)
+    <p className="text-sm font-medium">{detail.status === 'SUCCEEDED' ? '流程已完成' : '暂无审批节点'}</p>
+    <p
+      className="mt-1 text-xs leading-5 text-muted-foreground">{['RUNNING', 'QUEUED', 'WAITING'].includes(detail.status)
       ? '流程正在流转，暂未进入人工审批节点。' : '当前流程没有人工审批记录。'}</p>
   </div>
 
@@ -92,7 +93,7 @@ export function ApprovalTimeline({detail, names, avatars = {}, upcoming = [], en
   return <ol aria-label="审批节点" className="min-w-0">
     {detail.waits.map((wait, index) => {
       const tone = waitTone(wait.status)
-      const tasks = detail.tasks.filter(task => task.wait_id === wait.id).sort((a, b) => a.position - b.position)
+      const tasks = detail.tasks.filter(task => task.waitId === wait.id).sort((a, b) => a.position - b.position)
       return <li key={wait.id} className="relative min-w-0 pb-6 last:pb-0"
                  aria-current={wait.status === 'WAITING' ? 'step' : undefined}>
         {index < total - 1 && <span aria-hidden="true" className="absolute bottom-0 left-3.5 top-7 w-px bg-border"/>}
@@ -107,18 +108,18 @@ export function ApprovalTimeline({detail, names, avatars = {}, upcoming = [], en
             <StatusBadge tone={tone}>{waitStatusLabel[wait.status] ?? wait.status}</StatusBadge>
           </div>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {signModeLabel[wait.sign_mode] ?? wait.sign_mode}{tasks.length > 0 &&
+            {signModeLabel[wait.signMode] ?? wait.signMode}{tasks.length > 0 &&
             <span> · {tasks.length} 位审批人</span>}
           </p>
           <div className="mt-3 space-y-4">
             {tasks.map(task => {
               const state = taskState(task)
-              const name = names[task.user_id] ?? task.user_id
+              const name = names[task.userId] ?? task.userId
               const comment = task.comment?.trim()
-              const decidedAt = formatTime(task.decided_at)
+              const decidedAt = formatTime(task.decidedAt)
               return <div key={task.id} className="min-w-0">
                 <div className="flex items-start gap-2.5">
-                  <UserAvatar name={name} src={avatars[task.user_id]} size={28} className="shrink-0"/>
+                  <UserAvatar name={name} src={avatars[task.userId]} size={28} className="shrink-0"/>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                       <span
@@ -129,7 +130,7 @@ export function ApprovalTimeline({detail, names, avatars = {}, upcoming = [], en
                         <StateIcon tone={state.tone}/>{state.label}
                       </span>
                     </div>
-                    {decidedAt && <time dateTime={task.decided_at}
+                    {decidedAt && <time dateTime={task.decidedAt}
                                         className="mt-0.5 block text-xs leading-5 tabular-nums text-muted-foreground">{decidedAt}</time>}
                   </div>
                 </div>
@@ -160,14 +161,14 @@ export function ApprovalTimeline({detail, names, avatars = {}, upcoming = [], en
             <StatusBadge tone="muted">{item.certain ? '预测' : '待定'}</StatusBadge>
           </div>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {kindLabel[item.kind] ?? item.kind}{item.sign_mode &&
-            <span> · {signModeLabel[item.sign_mode] ?? item.sign_mode}</span>}
+            {kindLabel[item.kind] ?? item.kind}{item.signMode &&
+            <span> · {signModeLabel[item.signMode] ?? item.signMode}</span>}
           </p>
           {!item.certain && <div className="mt-2 space-y-1">
             <p className="text-xs leading-5 text-muted-foreground">可能进入：</p>
             {(item.candidates ?? []).map(candidate => <p key={candidate.id}
                                                          className="break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-              · {candidate.title} · {candidate.sign_mode ? signModeLabel[candidate.sign_mode] ?? candidate.sign_mode : kindLabel[candidate.kind] ?? candidate.kind}
+              · {candidate.title} · {candidate.signMode ? signModeLabel[candidate.signMode] ?? candidate.signMode : kindLabel[candidate.kind] ?? candidate.kind}
             </p>)}
             {!item.candidates?.length && <p className="text-xs leading-5 text-muted-foreground">分支内暂无审批节点</p>}
           </div>}
@@ -201,7 +202,7 @@ export function ApprovalProgressView({detail, names, avatars = {}, error = '', t
 }) {
   const current = detail?.status === 'RUNNING' ? detail.waits.filter(wait => wait.status === 'WAITING') : []
   const pendingNames = detail ? [...new Set(detail.tasks.filter(task => task.status === 'PENDING')
-    .map(task => names[task.user_id] ?? task.user_id))] : []
+    .map(task => names[task.userId] ?? task.userId))] : []
   const startedAt = formatTime(detail?.createdAt, true)
   return <section aria-label="流程进度" className="min-w-0 space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-2">

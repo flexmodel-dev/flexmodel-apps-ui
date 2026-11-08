@@ -1,9 +1,9 @@
+import {FlowRunsDrawer} from './FlowRunsDrawer'
+import {FlowTriggerEditor} from './FlowTriggerEditor'
 import * as React from 'react'
 import {Link, useNavigate} from 'react-router-dom'
 import {
-  ArrowDown,
   ArrowUpRight,
-  Check,
   CirclePlus,
   Copy,
   FileText,
@@ -11,7 +11,6 @@ import {
   MoreHorizontal,
   Pencil,
   Play,
-  Sparkles,
   Trash2,
   Workflow,
 } from 'lucide-react'
@@ -36,14 +35,25 @@ import {
   setApprovalFlowStatus,
 } from '@/services/approvals'
 import {flattenNodes, formKey, validateFlow} from '@/lib/approval'
-import type {ApprovalFlow} from '@/types/approval'
-import {Choice, Field, useApprovalForms} from './controls'
+import type {ApprovalFlow, FlowTrigger} from '@/types/approval'
+import {Field, useApprovalForms} from './controls'
 import {cn, toErrorMessage} from '@/lib/utils'
 
 export const statusLabels = {
   draft: '草稿',
   enabled: '已启用',
   disabled: '已停用',
+}
+
+export const triggerLabels: Record<FlowTrigger['type'], string> = {
+  MANUAL: '手动触发',
+  DATA_EVENT: '表单事件触发',
+  SCHEDULE: '定时触发',
+}
+
+export function flowTrigger(flow: ApprovalFlow): FlowTrigger | undefined {
+  const start = flow.definition.nodes[0]?.data.config
+  return start?.kind === 'start' ? start.trigger : undefined
 }
 
 export function FlowStatus({status}: { status: ApprovalFlow['status'] }) {
@@ -67,7 +77,7 @@ export function FlowStatus({status}: { status: ApprovalFlow['status'] }) {
   )
 }
 
-export default function ApprovalList({appId}: { appId?: string }) {
+export default function ApprovalList({appId, boundFormName}: { appId?: string; boundFormName?: string }) {
   const navigate = useNavigate()
   const [flows, setFlows] = React.useState<ApprovalFlow[]>([])
   const [error, setError] = React.useState('')
@@ -76,9 +86,9 @@ export default function ApprovalList({appId}: { appId?: string }) {
   const [page, setPage] = React.useState(1)
   const [selected, setSelected] = React.useState<string[]>([])
   const [createOpen, setCreateOpen] = React.useState(false)
-  const [template, setTemplate] = React.useState(true)
   const [name, setName] = React.useState('')
-  const [formName, setFormName] = React.useState('demo:expense')
+  const [trigger, setTrigger] = React.useState<FlowTrigger>({type: 'MANUAL', formName: '', lockRecord: false})
+  const [runFlow, setRunFlow] = React.useState<ApprovalFlow | null>(null)
   const [deleteIds, setDeleteIds] = React.useState<string[]>([])
   const {
     forms,
@@ -88,12 +98,16 @@ export default function ApprovalList({appId}: { appId?: string }) {
   const load = React.useCallback(async () => {
     if (!appId) return
     try {
-      setFlows(await getApprovalFlows(appId))
+      const all = await getApprovalFlows(appId)
+      setFlows(boundFormName ? all.filter(flow => {
+        const trigger = flowTrigger(flow)
+        return trigger?.type !== 'SCHEDULE' && trigger?.formName === boundFormName
+      }) : all)
       setError('')
     } catch (cause) {
       setError(String(cause instanceof Error ? cause.message : cause))
     }
-  }, [appId])
+  }, [appId, boundFormName])
   React.useEffect(() => {
     void load()
   }, [load])
@@ -113,19 +127,23 @@ export default function ApprovalList({appId}: { appId?: string }) {
   const pages = Math.max(1, Math.ceil(filtered.length / 30))
   const currentPage = Math.min(page, pages),
     rows = filtered.slice((currentPage - 1) * 30, currentPage * 30)
-  const openCreate = (useTemplate: boolean) => {
-    setTemplate(useTemplate)
-    setName(useTemplate ? '费用报销审批' : '')
-    setFormName(forms.find(form => form.ref.kind === 'app') ? formKey(forms.find(form => form.ref.kind === 'app')!.ref) : 'demo:expense')
+  const manualDefault = (): FlowTrigger => ({
+    type: 'MANUAL',
+    formName: boundFormName ?? forms.find(form => form.ref.kind === 'app')?.ref.name ?? '',
+    lockRecord: false,
+  })
+  const openCreate = () => {
+    setName('')
+    setTrigger(manualDefault())
     setCreateOpen(true)
   }
   if (!appId)
     return (
       <div className="rounded-xl border bg-card px-6 py-16 text-center">
         <Workflow className="mx-auto mb-4 h-10 w-10 text-primary"/>
-        <h2 className="text-lg font-medium">为应用配置审批流程</h2>
+        <h2 className="text-lg font-medium">为应用配置工作流</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          先选择一个应用，再创建和管理它的审批流程。
+          先选择一个应用，再创建和管理它的工作流。
         </p>
         <Button asChild className="mt-6">
           <Link to="/admin/apps">
@@ -183,7 +201,7 @@ export default function ApprovalList({appId}: { appId?: string }) {
               setSelected([])
             }}
           />
-          <Button size="sm" onClick={() => openCreate(false)}>
+          <Button size="sm" onClick={openCreate}>
             <CirclePlus className="h-4 w-4"/>
             新建流程
           </Button>
@@ -246,8 +264,8 @@ export default function ApprovalList({appId}: { appId?: string }) {
               </th>
               <th>流程名称</th>
               <th>关联表单</th>
+              <th>触发方式</th>
               <th>状态</th>
-              <th>节点</th>
               <th>更新时间</th>
               <th className="w-24">操作</th>
             </tr>
@@ -295,19 +313,18 @@ export default function ApprovalList({appId}: { appId?: string }) {
                       <FileText className="h-3.5 w-3.5"/>
                       {forms.find(
                         (form) => formKey(form.ref) === formKey(flow.form),
-                      )?.label ?? flow.form.name}
+                      )?.label ?? (flow.form.name || '—')}
                     </span>
                 </td>
                 <td>
-                  <FlowStatus status={flow.status}/>
+                  <span
+                    className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                    {triggerLabels[flowTrigger(flow)?.type ?? 'MANUAL']}
+                  </span>
                 </td>
-                <td className="text-xs text-muted-foreground">
-                  {
-                    flattenNodes(flow.definition.nodes).filter(
-                      (node) =>
-                        !['start', 'end', 'branch'].includes(node.type),
-                    ).length
-                  }
+                <td>
+                  <FlowStatus status={flow.status}/>{flow.deploymentId && flow.hasDraftChanges &&
+                  <span className="ml-2 text-xs text-muted-foreground">有未发布修改</span>}
                 </td>
                 <td className="text-xs text-muted-foreground">
                   {new Date(flow.updatedAt).toLocaleString('zh-CN', {
@@ -343,6 +360,7 @@ export default function ApprovalList({appId}: { appId?: string }) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => setRunFlow(flow)}>执行记录</DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={() =>
                             perform(async () => {
@@ -398,17 +416,17 @@ export default function ApprovalList({appId}: { appId?: string }) {
               <p className="text-sm text-muted-foreground">
                 {search || status !== 'all'
                   ? '没有找到匹配的流程'
-                  : '还没有审批流程，从第一个节点开始吧'}
+                  : '还没有工作流，从第一个节点开始吧'}
               </p>
-              <Button variant="link" onClick={() => openCreate(true)}>
-                使用示例模板
+              <Button variant="link" onClick={openCreate}>
+                新建流程
               </Button>
             </div>
           )}
         </div>
         <div className="flex items-center justify-between border-t px-4 py-3">
           <span className="text-[11px] text-muted-foreground">
-            启用后可从关联表单记录提交审批；模拟预览使用独立数据副本
+            工作流支持手动、表单事件和定时触发；模拟预览使用独立数据副本
           </span>
           <Pagination
             page={currentPage}
@@ -422,17 +440,17 @@ export default function ApprovalList({appId}: { appId?: string }) {
       <BizDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="新建审批流程"
+        title="新建工作流"
         footer={
           <>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               取消
             </Button>
             <Button
-              disabled={!name.trim()}
+              disabled={!name.trim() || (trigger.type !== 'SCHEDULE' && !trigger.formName)}
               onClick={() =>
                 perform(async () => {
-                  const flow = await createApprovalFlow(appId, name.trim(), template, forms.find(form => formKey(form.ref) === formName)?.ref)
+                  const flow = await createApprovalFlow(appId, name.trim(), trigger)
                   setCreateOpen(false)
                   navigate(`/admin/apps/${appId}/approvals/${flow.id}/design`)
                 })
@@ -454,57 +472,21 @@ export default function ApprovalList({appId}: { appId?: string }) {
               maxLength={80}
             />
           </Field>
-          <Field label="创建方式">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                {
-                  value: false,
-                  title: '空白流程',
-                  detail: '从开始与结束节点搭建',
-                },
-                {
-                  value: true,
-                  title: '报销审批模板',
-                  detail: '体验条件分流与自动归档',
-                },
-              ].map((item) => (
-                <button
-                  key={String(item.value)}
-                  onClick={() => setTemplate(item.value)}
-                  className={cn(
-                    'rounded-lg border p-4 text-left',
-                    template === item.value && 'border-primary bg-primary/5',
-                  )}
-                >
-                  <span className="block text-sm font-medium text-foreground">
-                    {item.title}
-                  </span>
-                  <span className="mt-2 block text-xs leading-5">
-                    {item.detail}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </Field>
-          {!template && (
-            <Field label="关联表单">
-              <Choice
-                label="关联表单"
-                value={formName}
-                onChange={setFormName}
-                options={forms.map((form) => ({
-                  value: formKey(form.ref),
-                  label: form.label,
-                }))}
-              />
-            </Field>
-          )}
+          <FlowTriggerEditor
+            appId={appId ?? ''}
+            forms={forms}
+            value={trigger}
+            onChange={setTrigger}
+            cards
+            allowedTypes={boundFormName ? ['MANUAL', 'DATA_EVENT'] : undefined}
+            lockForm={!!boundFormName}
+          />
         </div>
       </BizDialog>
       <BizDialog
         open={deleteIds.length > 0}
         onOpenChange={(open) => !open && setDeleteIds([])}
-        title="删除审批流程"
+        title="删除工作流"
         footer={
           <>
             <Button variant="outline" onClick={() => setDeleteIds([])}>
@@ -543,6 +525,7 @@ export default function ApprovalList({appId}: { appId?: string }) {
           确认删除 {deleteIds.length} 条流程吗？历史审批及发布版本将保留。
         </p>
       </BizDialog>
+      {runFlow && <FlowRunsDrawer flow={runFlow} onClose={() => setRunFlow(null)}/>}
     </div>
   )
 }

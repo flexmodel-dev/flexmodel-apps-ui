@@ -18,7 +18,6 @@ beforeEach(() => {
 const flow = (): ApprovalFlow => ({
   id: 'flow-id',
   appId: 'app-a',
-  revision: 3,
   name: '测试',
   description: '',
   status: 'draft',
@@ -33,18 +32,16 @@ describe('服务端审批契约', () => {
     transport.mockRejectedValueOnce(new Error('网络失败'))
     await expect(getApprovalFlows('app-a')).rejects.toThrow('网络失败')
   })
-  it('保存传递版本，启用走独立发布接口', async () => {
+  it('保存走模型契约，启用走独立发布接口', async () => {
     const item = flow();
     transport.mockResolvedValue(encodeApprovalFlow(item))
     await saveApprovalFlow(item)
-    expect(JSON.parse(transport.mock.calls[0][1].body).revision).toBe(3)
     const body = JSON.parse(transport.mock.calls[0][1].body)
-    expect(body.flow_module_id).toBe(item.id)
-    expect(typeof body.flow_model).toBe('string')
+    expect(body.id).toBe(item.id)
+    expect(body.model.flowElementList).toBeInstanceOf(Array)
     expect(body.definition).toBeUndefined()
     await setApprovalFlowStatus(item, 'enabled')
-    expect(transport.mock.calls[1][0]).toContain('/flow-id/status')
-    expect(JSON.parse(transport.mock.calls[1][1].body).status).toBe(2)
+    expect(transport.mock.calls[1][0]).toContain('/flow-id/publish')
   })
   it('复制重建节点引用，不复用发布身份', async () => {
     const item = flow(), first = createApprovalNode('approval'), second = createApprovalNode('approval')
@@ -60,11 +57,28 @@ describe('服务端审批契约', () => {
     const config = copy.definition.nodes[2].data.config
     expect(config.kind === 'approval' && config.rules[0].values).toEqual([copy.definition.nodes[1].id])
   })
-  it('示例模板绑定真实表单并清除模拟人员', async () => {
+  it('表单事件触发创建的流程携带事件类型与监听表单', async () => {
     transport.mockImplementation((_path, init) => Promise.resolve(JSON.parse(init.body)))
-    const created = await createApprovalFlow('app-a', '报销', true, {kind: 'app', name: 'expense'})
-    expect(created.form).toEqual({kind: 'app', name: 'expense'})
-    const approval = created.definition.nodes.find(node => node.type === 'approval')
-    expect(approval?.data.config.kind === 'approval' && approval.data.config.rules[0].source).toBe('initiator')
+    const created = await createApprovalFlow('app-a', '订单事件', {
+      type: 'DATA_EVENT',
+      formName: 'orders',
+      operations: ['CREATE', 'UPDATE']
+    })
+    expect(created.form).toEqual({kind: 'app', name: 'orders'})
+    const start = created.definition.nodes[0]
+    const trigger = start.data.config.kind === 'start' ? start.data.config.trigger : undefined
+    expect(trigger?.type === 'DATA_EVENT' && trigger.operations).toEqual(['CREATE', 'UPDATE'])
+  })
+  it('定时触发创建的流程不带表单，Cron 随触发配置保存', async () => {
+    transport.mockImplementation((_path, init) => Promise.resolve(JSON.parse(init.body)))
+    const created = await createApprovalFlow('app-a', '每日汇总', {
+      type: 'SCHEDULE',
+      cron: '0 0 9 * * ?',
+      timezone: 'Asia/Shanghai'
+    })
+    expect(created.form).toEqual({kind: 'app', name: ''})
+    const start = created.definition.nodes[0]
+    const trigger = start.data.config.kind === 'start' ? start.data.config.trigger : undefined
+    expect(trigger?.type === 'SCHEDULE' && trigger.cron).toBe('0 0 9 * * ?')
   })
 })

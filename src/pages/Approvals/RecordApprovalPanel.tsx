@@ -51,7 +51,7 @@ export function RecordApprovalPanel({appId, formName, recordId, onLocked}: {
         try {
           const instance = await getApprovalDetail(appId, active.id)
           const actor = getAuthSession()?.user.id
-          const task = instance.tasks.find(task => task.user_id === actor && task.status === 'PENDING')
+          const task = instance.tasks.find(task => task.userId === actor && task.status === 'PENDING')
           setMyTask(task ? {instanceId: active.id, taskId: task.id} : null)
         } catch {
           setMyTask(null)

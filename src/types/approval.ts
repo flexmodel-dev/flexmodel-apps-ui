@@ -1,5 +1,16 @@
 import type {FlowDocumentJSON} from '@flowgram.ai/fixed-layout-editor'
 
+export type FlowTrigger =
+  | { type: 'MANUAL'; formName: string; lockRecord: boolean }
+  | {
+  type: 'DATA_EVENT';
+  formName: string;
+  operations: Array<'CREATE' | 'UPDATE' | 'DELETE'>;
+  watchedFields?: string[];
+  conditions?: { match: 'all' | 'any'; conditions: Condition[] }
+}
+  | { type: 'SCHEDULE'; cron: string; timezone: string; startAt?: string; endAt?: string }
+
 export type NodeKind =
   | 'start'
   | 'end'
@@ -35,7 +46,7 @@ export type ValueBinding = {
 export interface Condition {
   id: string
   field: string
-  operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains'
+  operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'isEmpty' | 'notEmpty'
   value: ValueBinding
 }
 
@@ -64,7 +75,8 @@ export interface AssigneeRule {
 
 export type SignMode = 'all' | 'any' | 'sequential'
 export type ApprovalConfig =
-  | { kind: 'start' | 'end' | 'gateway' }
+  | { kind: 'start'; trigger?: FlowTrigger }
+  | { kind: 'end' | 'gateway' }
   | { kind: 'approval'; rules: AssigneeRule[]; signMode: SignMode }
   | { kind: 'notification'; rules: AssigneeRule[]; titleTemplate: string; contentTemplate: string }
   | {
@@ -102,12 +114,14 @@ export interface ApprovalDocument extends FlowDocumentJSON {
 
 export interface ApprovalFlow {
   flowKey?: string
-  revision?: number
   id: string
   appId: string
   name: string
   description: string
   form: FormRef
+  deploymentId?: string
+  hasDraftChanges?: boolean
+  publishedTrigger?: FlowTrigger
   status: 'draft' | 'enabled' | 'disabled'
   updatedAt: string
   definition: ApprovalDocument
