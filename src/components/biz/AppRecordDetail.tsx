@@ -87,7 +87,9 @@ export function AppRecordDetail({
       <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
         <div className="min-w-0">
           <div className="truncate text-lg font-semibold">
-            {recordTitle(record[form.displayField ?? 'id'], String(record.id))}
+            {form.displayField
+              ? recordTitle(record[form.displayField], String(record.id))
+              : `查看${form.label}`}
           </div>
         </div>
         {!approvalLocked && (
