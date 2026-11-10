@@ -54,6 +54,7 @@ export function AppTopHeader({
                                isNavsLoading = false,
                                createRecordItems,
                                onCreateRecord,
+                               onTopNavsReorder,
                              }: {
   activeTopId: string
   onTopNavChange: (id: string) => void
@@ -68,6 +69,7 @@ export function AppTopHeader({
   isNavsLoading?: boolean
   createRecordItems: Array<{ id: string; label: string }>
   onCreateRecord: (formName: string) => void
+  onTopNavsReorder?: (orderedIds: string[]) => void
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -152,6 +154,7 @@ export function AppTopHeader({
       topNavs={topNavItems}
       activeTopId={activeTopId}
       onTopNavChange={onTopNavChange}
+      onTopNavsReorder={onTopNavsReorder}
       leading={showBack ? (
         <Button
           variant="ghost"

@@ -12,19 +12,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {appIcons, type AppIconName} from '@/data/appIcons'
-import {getApps} from '@/services/apps'
+import {appIcons} from '@/data/appIcons'
+import {type App, getApps} from '@/services/apps'
+import {getAppPrimaryColor} from '@/theme/appPrimaryColors'
 import { cn } from '@/lib/utils'
 
 export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; currentAppId?: string }) {
-  const [apps, setApps] = React.useState<Array<{
-    id: string;
-    name: string;
-    description?: string;
-    iconName: AppIconName
-  }>>([])
+  const [apps, setApps] = React.useState<App[]>([])
+  const [open, setOpen] = React.useState(false)
 
+  // 启动器常驻侧栏，挂载期拉取会错过排序/删除/导入等变更；每次打开时刷新（命中会话缓存）
   React.useEffect(() => {
+    if (!open) return
     let cancelled = false
     getApps()
       .then((loadedApps) => !cancelled && setApps(loadedApps))
@@ -32,10 +31,10 @@ export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [open])
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       {collapsed ? (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -70,30 +69,32 @@ export function AppLauncher({ collapsed, currentAppId }: { collapsed?: boolean; 
         </div>
         <DropdownMenuSeparator />
         <div className="max-h-72 overflow-y-auto p-1">
-          {apps.length === 0 && <Empty className="py-8" description="暂无应用"/>}
-          {apps.map((app) => {
-            const Icon = appIcons[app.iconName] ?? appIcons.Boxes
-            const active = app.id === currentAppId
-            return (
-              <DropdownMenuItem key={app.id} asChild>
-                <Link
-                  to={`/apps/${app.id}`}
-                  className={cn(
-                    'flex items-start gap-3 rounded-md p-2',
-                    active && 'bg-primary/10 text-primary',
-                  )}
-                >
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{app.name}</span>
-                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{app.description}</span>
-                  </span>
-                </Link>
-              </DropdownMenuItem>
-            )
-          })}
+          {apps.length === 0 ? (
+            <Empty className="py-8" description="暂无应用"/>
+          ) : (
+            apps.map((app) => {
+              const Icon = appIcons[app.iconName] ?? appIcons.Boxes
+              const active = app.id === currentAppId
+              return (
+                <DropdownMenuItem key={app.id} asChild>
+                  <Link
+                    to={`/apps/${app.id}`}
+                    data-primary={getAppPrimaryColor(app.primaryColor).value}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md p-2',
+                      active && 'bg-primary/10 text-primary',
+                    )}
+                  >
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <Icon className="h-4 w-4"/>
+                    </span>
+                    <span className="min-w-0 truncate text-sm font-medium">{app.name}</span>
+                  </Link>
+                </DropdownMenuItem>
+              )
+            })
+          )}
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

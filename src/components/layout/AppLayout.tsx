@@ -9,9 +9,14 @@ import {
   findNavById,
   findTopNavIdForNav,
   getAppNavigation,
+  navOrderInput,
+  reorderAppNavigation,
+  reorderNavChildren,
   toTopNavigationItem
 } from '@/services/appNavigation'
 import {AppRecordCreateDialog} from '@/components/biz/AppRecordCreateDialog'
+import {message} from '@/components/ui/message'
+import {rememberAppLocation} from '@/lib/appLocationMemory'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
 import {MenuEditorDialog, type MenuEditorDraft} from './MenuEditorDialog'
@@ -107,6 +112,12 @@ export function AppLayout({
   }, [appId, routeNavId, navs, app, isAppLoading, isNavsLoading])
 
   React.useEffect(() => {
+    if (!appId) return
+    const match = location.pathname.match(/^\/apps\/[^/]+\/([^/]+)(?:\/view\/[^/]+)?\/?$/)
+    if (match) rememberAppLocation(appId, `/apps/${appId}/${match[1]}`)
+  }, [appId, location.pathname])
+
+  React.useEffect(() => {
     if (!appId) {
       setApp(null)
       setIsAppLoading(false)
@@ -172,6 +183,31 @@ export function AppLayout({
     ? topNavItems.find((nav) => nav.id === resolvedActiveTopId) ?? (isNavsLoading ? undefined : topNavItems[0])
     : topNavItems.find((nav) => nav.id === activeTopId) ?? topNavItems[0]
   const createRecordItems = React.useMemo(() => findFormNavDestinations(navs), [navs])
+
+  const persistNavOrder = React.useCallback((nextNavs: AppNav[]) => {
+    if (!appId) return
+    setNavs(nextNavs)
+    reorderAppNavigation(appId, navOrderInput(nextNavs))
+      .then((savedNavs) => setNavs(savedNavs))
+      .catch(() => {
+        message.error('保存菜单顺序失败，请稍后重试。')
+        getAppNavigation(appId).then((reverted) => setNavs(reverted)).catch(() => undefined)
+      })
+  }, [appId])
+
+  const handleTopNavsReorder = React.useCallback((orderedIds: string[]) => {
+    if (orderedIds.length !== navs.length) return
+    const navsById = new Map(navs.map((nav) => [nav.id, nav]))
+    const nextNavs = orderedIds
+      .map((id) => navsById.get(id))
+      .filter((nav): nav is AppNav => Boolean(nav))
+    if (nextNavs.length === navs.length) persistNavOrder(nextNavs)
+  }, [navs, persistNavOrder])
+
+  const handleMenusReorder = React.useCallback((parentId: string, orderedChildIds: string[]) => {
+    if (!parentId) return
+    persistNavOrder(reorderNavChildren(navs, parentId, orderedChildIds))
+  }, [navs, persistNavOrder])
   const editMenus = (draft?: MenuEditorDraft) => {
     setMenuEditorDraft(draft ?? null)
     setEffectiveMenuEditorOpen(true)
@@ -198,6 +234,7 @@ export function AppLayout({
           isNavsLoading={isNavsLoading}
           createRecordItems={createRecordItems}
           onCreateRecord={openRecordForm}
+          onTopNavsReorder={appId ? handleTopNavsReorder : undefined}
         />
       )}
 
@@ -208,6 +245,7 @@ export function AppLayout({
           sectionKey={activeTop?.id ?? ''}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
           onEditMenus={editMenus}
+          onMenusReorder={appId ? handleMenusReorder : undefined}
         />
       )}
 

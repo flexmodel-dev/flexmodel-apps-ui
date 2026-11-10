@@ -1,6 +1,16 @@
 import * as React from 'react'
 import {Link} from 'react-router-dom'
 import {Menu, Moon, Sun, type LucideIcon} from 'lucide-react'
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {arrayMove, horizontalListSortingStrategy, SortableContext, useSortable} from '@dnd-kit/sortable'
+import {CSS} from '@dnd-kit/utilities'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {UserAvatar} from '@/components/ui/avatar'
@@ -23,6 +33,79 @@ export const headerActionClass =
   'text-white/80 hover:bg-white/15 hover:text-white data-[state=open]:bg-white/20 data-[state=open]:text-white dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white'
 
 
+interface SortableLinkProps {
+  ref?: (node: HTMLElement | null) => void
+  style?: React.CSSProperties
+  dragAttributes?: Record<string, unknown>
+  listeners?: Record<string, unknown>
+  isDragging?: boolean
+}
+
+function TopNavLink({
+                      nav,
+                      activeTopId,
+                      isDark,
+                      onTopNavChange,
+                      sortable,
+                    }: {
+  nav: TopNavItem
+  activeTopId?: string
+  isDark: boolean
+  onTopNavChange?: (id: string) => void
+  sortable?: SortableLinkProps
+}) {
+  const active = activeTopId === nav.id
+  return (
+    <Link
+      ref={sortable?.ref}
+      to={nav.to}
+      draggable={false}
+      style={sortable?.style}
+      onClick={() => onTopNavChange?.(nav.id)}
+      {...(sortable?.dragAttributes ?? {})}
+      {...(sortable?.listeners ?? {})}
+      className={cn(
+        'relative flex h-16 items-center px-3 text-sm transition-colors',
+        active
+          ? isDark
+            ? 'bg-white/10 font-medium text-white'
+            : 'bg-black/20 font-medium text-primary-foreground'
+          : isDark
+            ? 'text-white/65 hover:bg-white/5 hover:text-white'
+            : 'text-primary-foreground/75 hover:bg-primary-foreground/15 hover:text-primary-foreground',
+        sortable?.isDragging && 'z-10 opacity-60',
+      )}
+    >
+      {nav.text}
+      <span
+        className={cn(
+          'absolute bottom-0 left-1/2 h-[3px] w-3.5 -translate-x-1/2 rounded-full transition-opacity',
+          isDark ? 'bg-primary/90' : 'bg-primary-foreground/90',
+          active ? 'opacity-100' : 'opacity-0',
+        )}
+      />
+    </Link>
+  )
+}
+
+function SortableTopNavLink(props: Omit<Parameters<typeof TopNavLink>[0], 'sortable'>) {
+  const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({id: props.nav.id})
+  const {role: _attributeRole, tabIndex: _attributeTabIndex, ...dragAttributes} = attributes
+  return (
+    <TopNavLink
+      {...props}
+      sortable={{
+        ref: setNodeRef,
+        style: {transform: CSS.Translate.toString(transform), transition},
+        dragAttributes,
+        listeners,
+        isDragging,
+      }}
+    />
+  )
+}
+
+
 function TopHeaderShell({
                           brand, brandTo,
                           logoIcon,
@@ -31,6 +114,7 @@ function TopHeaderShell({
                           topNavs,
                           activeTopId,
                           onTopNavChange,
+                          onTopNavsReorder,
                           leading,
                           extraActions,
                         }: {
@@ -41,12 +125,14 @@ function TopHeaderShell({
   topNavs?: TopNavItem[]
   activeTopId?: string
   onTopNavChange?: (id: string) => void
+  onTopNavsReorder?: (orderedIds: string[]) => void
   leading?: React.ReactNode
   extraActions?: React.ReactNode
   logoIcon?: LucideIcon
 }) {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
   const [authUser, setAuthUser] = React.useState(() => getAuthSession()?.user ?? null)
+  const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 4}}))
   React.useEffect(() => {
     const syncUser = () => setAuthUser(getAuthSession()?.user ?? null)
     window.addEventListener('auth-user-updated', syncUser)
@@ -64,6 +150,16 @@ function TopHeaderShell({
     setAuthUser(null)
   }
   const hasNavigation = mobileNavs.length > 0 || (topNavs?.length ?? 0) > 0
+
+  const handleTopDragEnd = (event: DragEndEvent) => {
+    const {active, over} = event
+    if (!over || !onTopNavsReorder || !topNavs) return
+    const ids = topNavs.map((nav) => nav.id)
+    const oldIndex = ids.indexOf(String(active.id))
+    const newIndex = ids.indexOf(String(over.id))
+    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return
+    onTopNavsReorder(arrayMove(ids, oldIndex, newIndex))
+  }
 
   return (
     <header
@@ -115,32 +211,31 @@ function TopHeaderShell({
 
         {topNavs && topNavs.length > 0 && (
           <nav className="ml-2 hidden h-16 items-stretch md:flex">
-            {topNavs.map((nav) => (
-              <Link
-                key={nav.id}
-                to={nav.to}
-                onClick={() => onTopNavChange?.(nav.id)}
-                className={cn(
-                  'relative flex h-16 items-center px-3 text-sm transition-colors',
-                  activeTopId === nav.id
-                    ? isDark
-                      ? 'bg-white/10 font-medium text-white'
-                      : 'bg-black/20 font-medium text-primary-foreground'
-                    : isDark
-                      ? 'text-white/65 hover:bg-white/5 hover:text-white'
-                      : 'text-primary-foreground/75 hover:bg-primary-foreground/15 hover:text-primary-foreground',
-                )}
-              >
-                {nav.text}
-                <span
-                  className={cn(
-                    'absolute bottom-0 left-1/2 h-[3px] w-3.5 -translate-x-1/2 rounded-full transition-opacity',
-                    isDark ? 'bg-primary/90' : 'bg-primary-foreground/90',
-                    activeTopId === nav.id ? 'opacity-100' : 'opacity-0',
-                  )}
+            {onTopNavsReorder ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTopDragEnd}>
+                <SortableContext items={topNavs.map((nav) => nav.id)} strategy={horizontalListSortingStrategy}>
+                  {topNavs.map((nav) => (
+                    <SortableTopNavLink
+                      key={nav.id}
+                      nav={nav}
+                      activeTopId={activeTopId}
+                      isDark={isDark}
+                      onTopNavChange={onTopNavChange}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            ) : (
+              topNavs.map((nav) => (
+                <TopNavLink
+                  key={nav.id}
+                  nav={nav}
+                  activeTopId={activeTopId}
+                  isDark={isDark}
+                  onTopNavChange={onTopNavChange}
                 />
-              </Link>
-            ))}
+              ))
+            )}
           </nav>
         )}
 

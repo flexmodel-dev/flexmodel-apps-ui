@@ -127,6 +127,17 @@ export async function updateApp(appId: string, input: AppInput): Promise<App> {
   return normalizedApp
 }
 
+/** 按给定顺序保存应用排序，并同步列表缓存。 */
+export async function reorderApps(ids: string[]): Promise<App[]> {
+  const payload = await requestJson<AppPayload[]>(`${API_BASE}/order`, {
+    method: 'PATCH',
+    body: JSON.stringify({ids}),
+  })
+  const reordered = payload.map(normalizeApp)
+  appsCache.set('', Promise.resolve(reordered))
+  return reordered
+}
+
 export async function deleteApp(appId: string): Promise<void> {
   await requestJson<null>(`${API_BASE}/${appId}`, {method: 'DELETE'})
   appCache.delete(appId)

@@ -5,7 +5,8 @@ import {Plus, RefreshCw} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Empty} from '@/components/ui/empty'
 import {AppLoading} from '@/components/biz/AppLoading'
-import {findFirstEntryRoute, findFirstEntryRouteInNav, getAppNavigation} from '@/services/appNavigation'
+import {findFirstEntryRoute, findFirstEntryRouteInNav, findNavById, getAppNavigation} from '@/services/appNavigation'
+import {recallAppLocation} from '@/lib/appLocationMemory'
 import {toErrorMessage} from '@/lib/utils'
 
 export default function AppHome() {
@@ -31,7 +32,11 @@ export default function AppHome() {
         const firstEntryRoute = selectedTopId
           ? (selectedTop ? findFirstEntryRouteInNav(selectedTop) : undefined)
           : findFirstEntryRoute(navs)
-        if (firstEntryRoute) navigate(firstEntryRoute, {replace: true})
+        const rememberedPath = selectedTopId ? null : recallAppLocation(appId)
+        const rememberedNavId = rememberedPath?.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1]
+        const rememberedNav = rememberedNavId ? findNavById(navs, rememberedNavId) : undefined
+        const entryRoute = rememberedNav?.type === 'ENTRY' && rememberedPath ? rememberedPath : firstEntryRoute
+        if (entryRoute) navigate(entryRoute, {replace: true})
         else setIsLoading(false)
       })
       .catch((caught: unknown) => {
