@@ -68,8 +68,12 @@ DrawerOverlay.displayName = 'DrawerOverlay'
 
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean; stacked?: boolean }
->(({ className, children, hideClose, stacked = true, style, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+  hideClose?: boolean;
+  stacked?: boolean;
+  side?: 'left' | 'right'
+}
+>(({className, children, hideClose, stacked = true, side = 'right', style, ...props}, ref) => {
   const [content, setContent] = React.useState<HTMLDivElement | null>(null)
   const maxWidth = useDrawerMaxWidth(content, stacked)
   const configuredMaxWidth = typeof style?.maxWidth === 'number' ? `${style.maxWidth}px` : style?.maxWidth
@@ -89,7 +93,8 @@ const DrawerContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={contentRef}
         className={cn(
-          'fixed inset-y-0 right-0 z-[1040] flex w-[min(92vw,420px)] flex-col border-l bg-background shadow-2xl outline-none animate-in slide-in-from-right duration-300 [--drawer-stack-gap:1rem] md:[--drawer-stack-gap:3rem]',
+          'fixed inset-y-0 z-[1040] flex w-[min(92vw,420px)] flex-col bg-background shadow-2xl outline-none animate-in duration-300 [--drawer-stack-gap:1rem] md:[--drawer-stack-gap:3rem]',
+          side === 'left' ? 'left-0 border-r slide-in-from-left' : 'right-0 border-l slide-in-from-right',
           className,
         )}
         {...props}

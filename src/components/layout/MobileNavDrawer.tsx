@@ -56,7 +56,7 @@ export function MobileNavDrawer({
       <DrawerContent
         hideClose
         stacked={false}
-        className="right-auto border-r animate-in slide-in-from-left"
+        side="left"
         aria-describedby={undefined}
       >
         <DrawerTitle className="border-b px-4 py-4 text-lg font-semibold">
