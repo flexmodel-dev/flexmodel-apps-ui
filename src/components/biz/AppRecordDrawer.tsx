@@ -380,7 +380,8 @@ export function AppRecordDrawer({
   const title = (() => {
     if (!form) return '记录'
     if (mode === 'view') {
-      return recordTitle(record?.[form.displayField ?? 'id'], activeRecordId ?? '')
+      if (!form.displayField) return `查看${form.label}`
+      return recordTitle(record?.[form.displayField], activeRecordId ?? '')
     }
     return isCreate ? `新建${form.label}` : `编辑${form.label}`
   })()
