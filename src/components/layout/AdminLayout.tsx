@@ -67,11 +67,6 @@ export function AdminLayout({
             text: '表单设计',
             to: `/admin/apps/${currentAppId}/forms/${currentFormName}/form-design`
           },
-          {
-            id: 'mobile-form-fields',
-            text: '字段管理',
-            to: `/admin/apps/${currentAppId}/forms/${currentFormName}/fields`
-          },
         ],
       },
     ]

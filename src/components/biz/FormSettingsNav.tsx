@@ -1,11 +1,10 @@
-import {Info, LayoutTemplate, List, Shield, Workflow} from 'lucide-react'
+import {Info, LayoutTemplate, Shield, Workflow} from 'lucide-react'
 import {Link, useLocation} from 'react-router-dom'
 import {cn} from '@/lib/utils'
 
 const sections = [
   {key: 'base', label: '基本信息', icon: Info},
   {key: 'form-design', label: '表单设计', icon: LayoutTemplate},
-  {key: 'fields', label: '字段管理', icon: List},
   {key: 'flows', label: '工作流', icon: Workflow},
   {key: 'data-permissions', label: '数据权限', icon: Shield},
 ]

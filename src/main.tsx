@@ -95,8 +95,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           {/* 管理中心 */}
           <Route path="/admin/apps/:appId/forms/:formName/base"
                  element={<FormSettings section="base"/>}/>
-          <Route path="/admin/apps/:appId/forms/:formName/fields"
-                 element={<FormSettings section="fields"/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/flows" element={<FormSettings section="flows"/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/data-permissions" element={<FormDataPermissions/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/form-design"

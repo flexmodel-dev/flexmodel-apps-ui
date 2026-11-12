@@ -16,7 +16,7 @@ function Setting({label, children}: {label: string; children: React.ReactNode}) 
   return <label className="grid gap-1.5 text-sm text-foreground"><span>{label}</span>{children}</label>
 }
 
-/** 字段管理与设计器共用的类型属性编辑器。 */
+/** 表单设计器的字段类型属性编辑器。 */
 export function FieldConfigEditor({type, config = {}, options, onChange, onOptionsChange}: {
   type: string
   config?: AppFieldConfig

@@ -1,13 +1,20 @@
 import {test, expect, type Page} from '@playwright/test'
+import type {AppForm, AppFormField} from '../src/services/appForms'
 
 const root = '/api/apps/field-config'
 const recordsPath = `${root}/forms/orders/records`
 const app = {id: 'field-config', name: '字段属性验证', enabled: true, primaryColor: 'blue'}
 
-async function setup(page: Page, {failFirstFieldUpdate = false, builtin = false} = {}) {
+async function setup(page: Page, {
+  failFirstFieldUpdate = false,
+  failFirstFieldDelete = false,
+  builtin = false,
+  unlaidFields = false,
+  pendingFieldDelete = undefined as Promise<void> | undefined
+} = {}) {
   const pageErrors: string[] = []
   page.on('pageerror', error => pageErrors.push(error.message))
-  const fields = [
+  const fields: AppFormField[] = [
     {name: 'title', label: '名称', type: 'TEXT', required: true, builtin: false, config: {defaultValue: '默认订单', maxLength: 10, updatable: false}},
     {name: 'amount', label: '金额', type: 'DECIMAL', required: true, builtin: false,
       config: {defaultValue: 0, allowNegative: false, decimalPlaces: 2, prefix: '¥', suffix: '元'}},
@@ -16,13 +23,22 @@ async function setup(page: Page, {failFirstFieldUpdate = false, builtin = false}
     {name: 'day', label: '日期', type: 'DATE', builtin: false, config: {defaultValue: '2026-10-24', dateFormat: 'yyyy/MM/dd'}},
     {name: 'approved', label: '已确认', type: 'BOOL', builtin: false, config: {defaultValue: false}},
   ]
-  const form = {name: 'orders', label: '订单', displayField: 'title', builtin: false, managed: true,
-    fields, layout: {items: fields.map(field => ({type: 'FIELD', name: field.name, width: 'HALF'}))},
+  const form: AppForm = {
+    name: 'orders',
+    label: '订单',
+    description: '',
+    displayField: 'title',
+    searchField: 'amount',
+    builtin: false,
+    managed: true,
+    fields,
+    layout: {items: unlaidFields ? [] : fields.map(field => ({type: 'FIELD', name: field.name, width: 'HALF'}))},
     viewTabs: [{id: 'all', label: '全部', type: 'TABLE', filter: null, sort: null, displayFields: [], config: {}}]
   }
   if (builtin) fields[1].builtin = true
   const writes: Record<string, unknown>[] = []
   const fieldWrites: Record<string, unknown>[] = []
+  const fieldDeletes: string[] = []
   const layoutWrites: Record<string, unknown>[] = []
   let record: Record<string, unknown> = {id: 'order1', title: '已有订单', amount: 1234.5, tags: ['a'], day: '2026-10-24', approved: false}
   await page.addInitScript(() => {
@@ -33,6 +49,20 @@ async function setup(page: Page, {failFirstFieldUpdate = false, builtin = false}
     const {pathname} = new URL(route.request().url())
     const method = route.request().method()
     if (pathname.endsWith('/approvals')) return route.fulfill({json: []})
+    if (pathname.startsWith(`${root}/forms/orders/fields/`) && method === 'DELETE') {
+      const name = decodeURIComponent(pathname.split('/').pop()!)
+      fieldDeletes.push(name)
+      await pendingFieldDelete
+      if (failFirstFieldDelete) {
+        failFirstFieldDelete = false
+        return route.fulfill({status: 400, json: {message: '字段已被视图引用，请先调整视图配置'}})
+      }
+      fields.splice(fields.findIndex(field => field.name === name), 1)
+      if (form.displayField === name) form.displayField = null
+      if (form.searchField === name) form.searchField = null
+      form.layout.items = form.layout.items.filter(item => item.type !== 'FIELD' || item.name !== name)
+      return route.fulfill({status: 204})
+    }
     if (pathname.startsWith(`${root}/forms/orders/fields/`) && method === 'PUT') {
       const name = pathname.split('/').pop()
       const field = fields.find(field => field.name === name)!
@@ -92,14 +122,13 @@ async function setup(page: Page, {failFirstFieldUpdate = false, builtin = false}
                 : pathname === '/api/notifications' ? {list: [], total: 0} : []
     return route.fulfill({json})
   })
-  return {form, writes, fieldWrites, layoutWrites, pageErrors}
+  return {form, writes, fieldWrites, fieldDeletes, layoutWrites, pageErrors}
 }
 
-test('字段管理保存并重新回填数值属性', async ({page}) => {
+test('表单设计保存并重新回填数值属性', async ({page}) => {
   const {form, pageErrors} = await setup(page)
-  await page.goto('/#/admin/apps/field-config/forms/orders/fields')
-  await page.getByText('amount · 小数').locator('..').locator('..').getByRole('button', {name: '编辑', exact: true}).click()
-  const dialog = page.getByRole('dialog')
+  await page.goto('/#/admin/apps/field-config/forms/orders/form-design')
+  const dialog = await editLayoutField(page, 1)
   await expect(dialog.getByLabel('默认值', {exact: true})).toHaveValue('0')
   await dialog.getByLabel('小数位数（0–6，留空不限制）').fill('4')
   await dialog.getByLabel('显示前缀').fill('$')
@@ -108,7 +137,7 @@ test('字段管理保存并重新回填数值属性', async ({page}) => {
   await dialog.getByRole('button', {name: '保存', exact: true}).click()
   await expect(dialog).not.toBeVisible()
   expect(form.fields[1].config).toMatchObject({decimalPlaces: 4, allowNegative: false, prefix: '$', suffix: 'USD'})
-  await page.getByText('amount · 小数').locator('..').locator('..').getByRole('button', {name: '编辑', exact: true}).click()
+  await editLayoutField(page, 1)
   await expect(dialog.getByLabel('小数位数（0–6，留空不限制）')).toHaveValue('4')
   await expect(dialog.getByLabel('显示后缀')).toHaveValue('USD')
   await page.evaluate(() => document.documentElement.classList.add('dark'))

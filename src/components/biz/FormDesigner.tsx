@@ -14,6 +14,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Trash2,
   X,
   Activity,
   AlignLeft,
@@ -47,7 +48,7 @@ import {Badge} from '@/components/ui/badge'
 import {Checkbox} from '@/components/ui/checkbox'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Input} from '@/components/ui/input'
-import {BizDialog} from '@/components/ui/dialog'
+import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {Empty} from '@/components/ui/empty'
 import {
   Select,
@@ -58,6 +59,7 @@ import {
 } from '@/components/ui/select'
 import {
   createAppFormField,
+  deleteAppFormField,
   getAppForms,
   getAppForm,
   saveAppFormLayout,
@@ -166,6 +168,7 @@ interface DesignForm {
   label: string
   description: string
   displayField?: string | null
+  searchField?: string | null
   managed: boolean
   builtin: boolean
   fields: AppFormField[]
@@ -192,6 +195,7 @@ function toDesignForm(form: AppForm): DesignForm {
     label: form.label,
     description: form.description,
     displayField: form.displayField,
+    searchField: form.searchField,
     managed: form.managed,
     builtin: form.builtin,
     fields: form.fields.map((field) => ({...field})),
@@ -331,6 +335,9 @@ export function FormDesigner({
   const [editError, setEditError] = React.useState<string | null>(null)
   const [creatingField, setCreatingField] = React.useState<FieldCreateDraft | null>(null)
   const [fieldError, setFieldError] = React.useState<string | null>(null)
+  const [deletingField, setDeletingField] = React.useState<AppFormField | null>(null)
+  const [isDeletingField, setIsDeletingField] = React.useState(false)
+  const [deleteFieldError, setDeleteFieldError] = React.useState<string | null>(null)
   const [resizing, setResizing] = React.useState<{
     index: number
     startX: number
@@ -526,6 +533,33 @@ export function FormDesigner({
   }
   const addDivider = () => {
     setItems((previous) => [...previous, {type: 'SECTION', label: '分栏', width: 'FULL'}])
+  }
+  const deleteField = async () => {
+    if (!deletingField || deletingField.builtin || deletingField.locked || isDeletingField) return
+    setIsDeletingField(true)
+    setDeleteFieldError(null)
+    try {
+      await deleteAppFormField(appId, form.name, deletingField.name)
+      const nextItems = items.filter(item => item.type !== 'FIELD' || item.name !== deletingField.name)
+      const nextControls = Object.fromEntries(Object.entries(controls).filter(([name]) => name !== deletingField.name))
+      const nextForm = {
+        ...form,
+        fields: form.fields.filter(field => field.name !== deletingField.name),
+        displayField: form.displayField === deletingField.name ? null : form.displayField,
+        searchField: form.searchField === deletingField.name ? null : form.searchField,
+        layout: {items: nextItems, controls: nextControls},
+      }
+      setItems(nextItems)
+      setControls(nextControls)
+      setForm(nextForm)
+      onFormChange(nextForm)
+      setSaved(false)
+      setDeletingField(null)
+    } catch (caught) {
+      setDeleteFieldError(toErrorMessage(caught, '删除字段失败'))
+    } finally {
+      setIsDeletingField(false)
+    }
   }
   const openSubformCreate = () => {
     setSubformError(null)
@@ -1110,13 +1144,11 @@ export function FormDesigner({
               </div>
               <TabsContent value="field-list" className="mt-0 min-h-0 flex-1 overflow-y-auto p-2">
                 {availableFields.map((field) => (
-                  <button
+                  <div
                     key={field.name}
-                    type="button"
-                    className="group flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent"
-                    onClick={() => addField(field.name)}
+                    className="group flex w-full items-center gap-1 rounded-lg px-3 py-2 transition-colors hover:bg-accent"
                   >
-                      <span className="min-w-0">
+                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => addField(field.name)}>
                         <span className="block truncate text-sm">{field.label}</span>
                         <span className="block truncate text-xs text-muted-foreground">
                           {field.extension
@@ -1127,11 +1159,26 @@ export function FormDesigner({
                                 ? '核心字段'
                                 : typeLabels[field.type] ?? field.type}
                         </span>
-                      </span>
-                    <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive dark:hover:text-destructive-foreground"
+                      aria-label={`删除字段「${field.label}」`}
+                      title={field.builtin || field.locked ? '系统字段不可删除' : `删除字段「${field.label}」`}
+                      disabled={field.builtin || field.locked || isSavingLayout || isDeletingField}
+                      onClick={() => {
+                        setDeleteFieldError(null);
+                        setDeletingField(field)
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5"/>
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground"
+                            aria-label={`添加字段「${field.label}」到布局`} onClick={() => addField(field.name)}>
                       <Plus className="h-3.5 w-3.5"/>
-                    </span>
-                  </button>
+                    </Button>
+                  </div>
                 ))}
                 {availableFields.length === 0 && (
                   <div className="px-3 py-8 text-center text-sm text-muted-foreground">
@@ -1167,6 +1214,20 @@ export function FormDesigner({
           )}
         </div>
       </Tabs>
+
+      <ConfirmDialog
+        open={Boolean(deletingField)}
+        onOpenChange={open => !open && !isDeletingField && setDeletingField(null)}
+        title="删除字段"
+        message={<>
+          <p>确认删除字段「{deletingField?.label}」吗？删除后，该字段及其数据将无法恢复。</p>
+          {deleteFieldError &&
+            <p role="alert" className="mt-2 text-destructive dark:text-destructive-foreground">{deleteFieldError}</p>}
+        </>}
+        busy={isDeletingField}
+        confirmText="删除"
+        onConfirm={deleteField}
+      />
 
       <BizDialog
         open={Boolean(editingItem)}
