@@ -32,7 +32,7 @@ export default function AppHome() {
           ? (selectedTop ? findFirstEntryRouteInNav(selectedTop) : undefined)
           : findFirstEntryRoute(navs)
         const rememberedPath = selectedTopId ? null : recallAppLocation(appId)
-        const rememberedNavId = rememberedPath?.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1]
+        const rememberedNavId = rememberedPath?.match(/^\/apps\/[^/]+\/([^/?]+)/)?.[1]
         const rememberedNav = rememberedNavId ? findNavById(navs, rememberedNavId) : undefined
         const entryRoute = rememberedNav?.type === 'ENTRY' && rememberedPath ? rememberedPath : firstEntryRoute
         if (entryRoute) navigate(entryRoute, {replace: true})

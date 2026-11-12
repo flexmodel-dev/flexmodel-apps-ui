@@ -1,0 +1,71 @@
+.record-print {
+  display: none;
+}
+
+@media print {
+  html:has(.record-print),
+  body:has(> .record-print) {
+    height: auto !important;
+    overflow: visible !important;
+    background: white;
+  }
+
+  body:has(> .record-print) > :not(.record-print) {
+    position: fixed !important;
+  }
+
+  /* 保留 display，避免退出打印时重新播放抽屉入场动画。 */
+  body:has(> .record-print) > :not(.record-print),
+  body:has(> .record-print) > :not(.record-print) * {
+    visibility: hidden !important;
+  }
+
+  .record-print {
+    display: block;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 30%;
+    --border: 0 0% 80%;
+    --primary: 0 0% 0%;
+    color: black;
+    font-size: 12pt;
+  }
+
+  .record-print h1 {
+    margin-bottom: 1rem;
+    font-size: 18pt;
+    font-weight: 600;
+  }
+
+  .record-print * {
+    box-shadow: none !important;
+  }
+
+  .record-print [data-print-hidden] {
+    display: none !important;
+  }
+
+  .record-print .truncate {
+    overflow: visible;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .record-print .overflow-x-auto {
+    overflow: visible;
+  }
+
+  .record-print table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .record-print th,
+  .record-print td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

@@ -7,6 +7,7 @@ import {AppLoading} from '@/components/biz/AppLoading'
 import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
+import {FormMoreMenu} from '@/components/biz/FormMoreMenu'
 import {ApprovalDecisionDialog, useApprovalDecision} from '@/components/biz/approvalDecision'
 import {useRecordApproval} from '@/components/biz/useRecordApproval'
 import {FieldControl} from '@/components/biz/form/FormFieldControl'
@@ -19,7 +20,8 @@ import {buildRecordPayload, toEditValues} from '@/components/biz/form/recordPayl
 import {useReferenceOptions} from '@/components/biz/form/useReferenceOptions'
 import {renderFormValue} from '@/components/biz/form/FormReadonlyValue'
 import {useAttachmentUploads} from '@/components/biz/form/useAttachmentUploads'
-import {displayRecordText} from '@/lib/recordValue'
+import {displayRecordText, recordTitle} from '@/lib/recordValue'
+import {printRecord} from '@/lib/printRecord'
 import {isFieldWritable} from '@/lib/fieldConfig'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {formItemWidthTypeClasses} from '@/lib/form-items'
@@ -53,6 +55,7 @@ export function AppRecordPanel({
   compact?: boolean
 }) {
   const [mode, setMode] = React.useState<'view' | 'edit'>('view')
+  const contentRef = React.useRef<HTMLDivElement>(null)
   const [record, setRecord] = React.useState<AppRecord | null>(null)
   const [values, setValues] = React.useState<AppRecord>({})
   const [dirty, setDirty] = React.useState(false)
@@ -197,6 +200,11 @@ export function AppRecordPanel({
     if (mode === 'view') {
       return (
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {!isLoading && record && !error && (
+            <FormMoreMenu onPrint={() => printRecord(contentRef.current, form.displayField
+              ? recordTitle(record[form.displayField], recordId)
+              : `查看${form.label}`)}/>
+          )}
           {approvalLocked && (
             <span className="mr-auto inline-flex items-center gap-1 text-xs font-medium text-destructive">
               <LockKeyhole className="h-3.5 w-3.5"/>审批中，记录已锁定
@@ -244,7 +252,7 @@ export function AppRecordPanel({
       <div className="min-h-0 flex-1 overflow-y-auto">
         {isLoading && <AppLoading center className="min-h-[240px]"/>}
         {!isLoading && (
-          <div className={cn('space-y-4', !compact && 'pb-4')}>
+          <div ref={contentRef} className={cn('space-y-4', !compact && 'pb-4')}>
             {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
             {mainEntries.length > 0 && (
               <div className="space-y-5 rounded-xl border bg-card p-4 shadow-sm">

@@ -2,7 +2,7 @@ import {Popover, PopoverTrigger} from '@/components/ui/popover'
 import {type RecordQuery, RecordQueryPopover} from '@/components/biz/RecordQueryPopover'
 import * as React from 'react'
 import {Edit, FileInput, FileSpreadsheet, Filter, Plus, RefreshCw, Settings, Trash2, X,} from 'lucide-react'
-import {useParams} from 'react-router-dom'
+import {useParams, useSearchParams} from 'react-router-dom'
 import {AppLayout} from '@/components/layout/AppLayout'
 import {AppLoading} from '@/components/biz/AppLoading'
 import {Button} from '@/components/ui/button'
@@ -92,6 +92,8 @@ function FilterChip({children, onOpen, onRemove, removeLabel}: {
  */
 export default function RecordList({formName}: { formName?: string }) {
   const {appId = ''} = useParams<{ appId: string; menuId: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedViewId = searchParams.get('viewId')
   const resolvedFormName = formName ?? ''
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
@@ -102,7 +104,6 @@ export default function RecordList({formName}: { formName?: string }) {
   const [q, setQ] = React.useState('')
   const [debouncedQ, setDebouncedQ] = React.useState('')
   const [selected, setSelected] = React.useState<string[]>([])
-  const [activeViewId, setActiveViewId] = React.useState('')
   const [settingsTarget, setSettingsTarget] = React.useState<ViewSettingsTarget | null>(null)
   const [deleteViewTarget, setDeleteViewTarget] = React.useState<AppFormViewTab | null>(null)
   const [detailId, setDetailId] = React.useState<string | null>(null)
@@ -137,8 +138,6 @@ export default function RecordList({formName}: { formName?: string }) {
       .then((loadedForm) => {
         if (cancelled) return
         setForm(loadedForm)
-        setActiveViewId((current) =>
-          loadedForm.viewTabs.some((view) => view.id === current) ? current : (loadedForm.viewTabs[0]?.id ?? ''))
       })
       .catch((caught: unknown) => {
         if (cancelled) return
@@ -151,7 +150,7 @@ export default function RecordList({formName}: { formName?: string }) {
     }
   }, [appId, resolvedFormName, formReloadTick])
 
-  // 切换表单时清空全部共享状态；首次进入打开第一个视图
+  // 切换表单时清空全部共享状态，视图由 URL 决定。
   React.useEffect(() => {
     setSelected([])
     setDetailId(null)
@@ -161,7 +160,6 @@ export default function RecordList({formName}: { formName?: string }) {
     setQ('')
     setAdvancedQuery(null)
     setQueryOpen(false)
-    setActiveViewId('')
     setDebouncedQ('')
     setRefreshTick((tick) => tick + 1)
   }, [appId, resolvedFormName])
@@ -172,7 +170,25 @@ export default function RecordList({formName}: { formName?: string }) {
     setDetailId(null)
   }, [debouncedQ, advancedQuery])
 
-  const activeView = form?.viewTabs.find((view) => view.id === activeViewId) ?? form?.viewTabs[0] ?? null
+  const activeView = form?.viewTabs.find((view) => view.id === requestedViewId) ?? form?.viewTabs[0] ?? null
+  const activeViewId = activeView?.id ?? ''
+  const setActiveViewId = (viewId: string, replace = false) => {
+    if (viewId === requestedViewId) return
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      if (viewId) next.set('viewId', viewId)
+      else next.delete('viewId')
+      return next
+    }, {replace})
+  }
+
+  React.useEffect(() => {
+    setSelected([])
+    setDetailId(null)
+    setDetailMode('view')
+    setQueryOpen(false)
+  }, [activeViewId])
+
   const availableFilterFields = form?.fields.filter((field) => !field.builtin) ?? []
   const advancedFilter = React.useMemo<AppFormViewFilter | null>(() => {
     if (!advancedQuery?.filter) return null
@@ -206,10 +222,6 @@ export default function RecordList({formName}: { formName?: string }) {
   const selectView = (viewId: string) => {
     if (viewId === activeViewId) return
     setActiveViewId(viewId)
-    setSelected([])
-    setDetailId(null)
-    setDetailMode('view')
-    setQueryOpen(false)
   }
 
   const saveViews = async (viewTabs: AppFormViewTab[]): Promise<AppForm | null> => {
@@ -285,7 +297,7 @@ export default function RecordList({formName}: { formName?: string }) {
       message.success('视图已删除')
       if (activeViewId === view.id) {
         const fallback = updated.viewTabs[Math.max(0, index - 1)] ?? updated.viewTabs[0]
-        setActiveViewId(fallback?.id ?? '')
+        setActiveViewId(fallback?.id ?? '', true)
       }
     }
   }

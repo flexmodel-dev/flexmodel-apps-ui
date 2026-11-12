@@ -8,12 +8,14 @@ import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {AppFormSectionTitle} from '@/components/biz/AppFormSectionTitle'
 import {AppSubformRecords} from '@/components/biz/AppSubformRecords'
 import {AppReferenceValue} from '@/components/biz/AppReferenceValue'
+import {FormMoreMenu} from '@/components/biz/FormMoreMenu'
 import {parseFormLayout} from '@/components/biz/form/parseFormLayout'
 import {renderFormValue} from '@/components/biz/form/FormReadonlyValue'
 import {Empty} from '@/components/ui/empty'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {formItemWidthTypeClasses} from '@/lib/form-items'
 import {recordTitle} from '@/lib/recordValue'
+import {printRecord} from '@/lib/printRecord'
 import {getAppForm, type AppForm} from '@/services/appForms'
 import {deleteAppRecord, getAppRecord, type AppRecord} from '@/services/appRecords'
 
@@ -31,6 +33,7 @@ export function AppRecordDetail({
   onOpenRecord?: (formName: string, recordId: string) => void
 }) {
   const [approvalLocked, setApprovalLocked] = React.useState(false)
+  const contentRef = React.useRef<HTMLDivElement>(null)
   const [form, setForm] = React.useState<AppForm | null>(null)
   const [record, setRecord] = React.useState<AppRecord | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
@@ -81,57 +84,62 @@ export function AppRecordDetail({
   if (!form || !record) return <Empty description="记录不存在"/>
 
   const {sections, subformItems} = parseFormLayout(form)
+  const title = form.displayField
+    ? recordTitle(record[form.displayField], String(record.id))
+    : `查看${form.label}`
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
         <div className="min-w-0">
           <div className="truncate text-lg font-semibold">
-            {form.displayField
-              ? recordTitle(record[form.displayField], String(record.id))
-              : `查看${form.label}`}
+            {title}
           </div>
         </div>
-        {!approvalLocked && (
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-4 w-4"/> 编辑
-            </Button>
-            <Button size="sm" variant="danger" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="h-4 w-4"/> 删除
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <FormMoreMenu onPrint={() => printRecord(contentRef.current, title)}/>
+          {!approvalLocked && (
+            <>
+              <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-4 w-4"/> 编辑
+              </Button>
+              <Button size="sm" variant="danger" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4"/> 删除
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {!form.builtin &&
         <RecordApprovalPanel appId={appId} formName={formName} recordId={recordId} onLocked={setApprovalLocked}/>}
-      <div className="space-y-5 rounded-xl border bg-card p-4 shadow-sm">
-        {sections.filter((section) => section.fields.length).map((section) => {
-          const collapsed = section.key !== 'default' && collapsedSections.includes(section.key)
-          return (
-            <section key={section.key} className="space-y-3">
-              {sections.length > 1 && section.key !== 'default' && (
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 text-left text-sm text-foreground"
-                  onClick={() => setCollapsedSections((previous) => previous.includes(section.key)
-                    ? previous.filter((item) => item !== section.key)
-                    : [...previous, section.key])}
-                >
-                  <AppFormSectionTitle label={section.label}/>
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-                      collapsed && '-rotate-90',
-                    )}
-                  />
-                </button>
-              )}
-              {!collapsed && (
+      <div ref={contentRef} className="space-y-4">
+        <div className="space-y-5 rounded-xl border bg-card p-4 shadow-sm">
+          {sections.filter((section) => section.fields.length).map((section) => {
+            const collapsed = section.key !== 'default' && collapsedSections.includes(section.key)
+            return (
+              <section key={section.key} className="space-y-3">
+                {sections.length > 1 && section.key !== 'default' && (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 text-left text-sm text-foreground"
+                    onClick={() => setCollapsedSections((previous) => previous.includes(section.key)
+                      ? previous.filter((item) => item !== section.key)
+                      : [...previous, section.key])}
+                  >
+                    <AppFormSectionTitle label={section.label}/>
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                        collapsed && '-rotate-90',
+                      )}
+                    />
+                  </button>
+                )}
                 <div className={cn(
                   'grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-12',
                   section.key !== 'default' && 'pl-4',
+                  collapsed && 'hidden print:grid',
                 )}>
                   {section.fields.map(({field, item}) => {
                     const width = item.width ?? 'HALF'
@@ -153,24 +161,24 @@ export function AppRecordDetail({
                     )
                   })}
                 </div>
-              )}
-            </section>
-          )
-        })}
-      </div>
+              </section>
+            )
+          })}
+        </div>
 
-      {subformItems.map((item) => (
-        <AppSubformRecords
-          key={item.key}
-          appId={appId}
-          mainFormName={form.name}
-          mainRecordId={recordId}
-          subform={{
-            formName: item.item.formName!,
-            referenceField: item.item.referenceField!,
-          }}
-        />
-      ))}
+        {subformItems.map((item) => (
+          <AppSubformRecords
+            key={item.key}
+            appId={appId}
+            mainFormName={form.name}
+            mainRecordId={recordId}
+            subform={{
+              formName: item.item.formName!,
+              referenceField: item.item.referenceField!,
+            }}
+          />
+        ))}
+      </div>
 
       <AppRecordFormModal
         open={editOpen}

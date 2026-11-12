@@ -112,8 +112,10 @@ export function AppLayout({
   React.useEffect(() => {
     if (!appId) return
     const match = location.pathname.match(/^\/apps\/[^/]+\/([^/]+)(?:\/view\/[^/]+)?\/?$/)
-    if (match) rememberAppLocation(appId, `/apps/${appId}/${match[1]}`)
-  }, [appId, location.pathname])
+    const viewId = new URLSearchParams(location.search).get('viewId')
+    const search = viewId ? `?${new URLSearchParams({viewId})}` : ''
+    if (match) rememberAppLocation(appId, `/apps/${appId}/${match[1]}${search}`)
+  }, [appId, location.pathname, location.search])
 
   React.useEffect(() => {
     if (!appId) {

@@ -33,6 +33,7 @@ import {useReferenceOptions} from '@/components/biz/form/useReferenceOptions'
 import {renderFormValue} from '@/components/biz/form/FormReadonlyValue'
 import {useAttachmentUploads} from '@/components/biz/form/useAttachmentUploads'
 import {displayRecordText, recordTitle} from '@/lib/recordValue'
+import {printRecord} from '@/lib/printRecord'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {formItemWidthTypeClasses} from '@/lib/form-items'
 import {getAppForm, type AppForm, type AppFormField, type AppFormItem} from '@/services/appForms'
@@ -104,6 +105,7 @@ export function AppRecordDrawer({
   const [isStarting, setIsStarting] = React.useState(false)
   const {uploading, startUpload} = useAttachmentUploads()
   const requestKey = React.useRef(crypto.randomUUID())
+  const contentRef = React.useRef<HTMLDivElement>(null)
   const initialModeRef = React.useRef(initialMode)
   initialModeRef.current = initialMode
   // 保存、子表操作、提交审批和签核成功后递增，使历史面板静默刷新
@@ -495,6 +497,9 @@ export function AppRecordDrawer({
         title={title}
         moreMenu={form ? (
           <FormMoreMenu
+            onPrint={mode === 'view' && record && !isFormLoading && !error
+              ? () => printRecord(contentRef.current, title)
+              : undefined}
             onOpenDesign={() => {
               onOpenChange(false)
               navigate(`/admin/apps/${appId}/forms/${encodeURIComponent(formName)}/form-design`)
@@ -526,7 +531,7 @@ export function AppRecordDrawer({
           <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">{formError}</div>
         )}
         {form && !isFormLoading && (
-          <div className="space-y-4">
+          <div ref={contentRef} className="space-y-4">
             {error && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
             )}

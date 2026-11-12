@@ -1,4 +1,4 @@
-import {MoreHorizontal, Settings} from 'lucide-react'
+import {MoreHorizontal, Printer, Settings} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,8 +6,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-/** 抽屉右上角更多操作：集中放置表单级入口 */
-export function FormMoreMenu({onOpenDesign}: { onOpenDesign: () => void }) {
+/** 表单与记录的更多操作。 */
+export function FormMoreMenu({onOpenDesign, onPrint}: {
+  onOpenDesign?: () => void
+  onPrint?: () => void
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -21,10 +24,18 @@ export function FormMoreMenu({onOpenDesign}: { onOpenDesign: () => void }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="z-[1100]">
-        <DropdownMenuItem onClick={onOpenDesign}>
-          <Settings className="h-4 w-4"/>
-          表单设计
-        </DropdownMenuItem>
+        {onPrint && (
+          <DropdownMenuItem onSelect={onPrint}>
+            <Printer className="h-4 w-4"/>
+            打印
+          </DropdownMenuItem>
+        )}
+        {onOpenDesign && (
+          <DropdownMenuItem onClick={onOpenDesign}>
+            <Settings className="h-4 w-4"/>
+            表单设计
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

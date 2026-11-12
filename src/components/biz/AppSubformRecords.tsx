@@ -164,7 +164,7 @@ export function AppSubformRecords({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div data-print-hidden className="flex items-center gap-2">
           {mainRecordId && (
             <>
               <div className="relative hidden md:block">
@@ -229,7 +229,7 @@ export function AppSubformRecords({
                     {form?.fields.find((field) => field.name === name)?.label ?? name}
                   </th>
                 ))}
-                {!readOnly && <th className="w-[120px]">操作</th>}
+                {!readOnly && <th data-print-hidden className="w-[120px]">操作</th>}
               </tr>
               </thead>
               <tbody>
@@ -242,7 +242,7 @@ export function AppSubformRecords({
                       : displayRecordText(record[name])}</td>
                   })}
                   {!readOnly && (
-                    <td>
+                    <td data-print-hidden>
                       <div className="flex items-center gap-1">
                         <Button
                           size="icon"
@@ -282,7 +282,7 @@ export function AppSubformRecords({
             />
           )}
 
-          <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+          <div data-print-hidden className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
             <span>共 {records.total} 条</span>
             <div className="flex items-center gap-2">
               <Button
