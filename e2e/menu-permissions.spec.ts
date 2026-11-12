@@ -5,9 +5,11 @@ test('菜单行独立授权使用弹窗局部更新并支持多选、取消、�
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const root = '/api/apps/menu-test'
-  const child = {id: 'child', name: '文件', type: 'ITEM', target: {type: 'LINK', id: 'https://example.com'},
-    parentId: 'top', pageRoute: '/apps/menu-test/child', children: [], members: [] as DirectorySelection[]}
-  const menus = [{id: 'top', name: '团队', type: 'GROUP', children: [child], members: []}]
+  const child = {
+    id: 'child', name: '文件', type: 'ENTRY', destination: {type: 'LINK', id: 'https://example.com'},
+    parentId: 'top', pageRoute: '/apps/menu-test/child', children: [], visibility: [] as DirectorySelection[]
+  }
+  const menus = [{id: 'top', name: '团队', type: 'GROUP', children: [child], visibility: []}]
   const writes: DirectorySelection[][] = []
   let fail = false
   await page.addInitScript(() => {
@@ -17,14 +19,14 @@ test('菜单行独立授权使用弹窗局部更新并支持多选、取消、�
   await page.route('**/api/**', async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
-    if (path === `${root}/menus/child` && request.method() === 'PATCH') {
+    if (path === `${root}/navigation/child` && request.method() === 'PATCH') {
       if (fail) return route.fulfill({status: 500, json: {message: '授权保存失败'}})
-      child.members = (request.postDataJSON() as { members: DirectorySelection[] }).members
-      writes.push(child.members)
+      child.visibility = (request.postDataJSON() as { visibility: DirectorySelection[] }).visibility
+      writes.push(child.visibility)
       return route.fulfill({json: child})
     }
-    if (path === `${root}/menus`) return route.fulfill({json: menus})
-    if (path === `${root}/menus/targets`) return route.fulfill({json: {builtIn: [], forms: []}})
+    if (path === `${root}/navigation`) return route.fulfill({json: menus})
+    if (path === `${root}/navigation/destinations`) return route.fulfill({json: {builtIn: [], forms: []}})
     if (path === `${root}/directory`) return route.fulfill({json: {
       members: [{id: 'u1', name: '张三'}, {id: 'u2', name: '李四'}],
       roles: [{id: 'r1', name: '经理'}], organizations: [{id: 'o1', name: '销售部'}],
@@ -45,9 +47,12 @@ test('菜单行独立授权使用弹窗局部更新并支持多选、取消、�
   await page.route('https://example.com/**', route => route.fulfill({contentType: 'text/html', body: '<p>菜单页面</p>'}))
   await page.goto('/#/apps/menu-test/child', {waitUntil: 'domcontentloaded'})
   await expect(page.getByText('测试应用', {exact: true}).first()).toBeVisible()
-  await page.locator('button').filter({has: page.locator('svg.lucide-settings')}).last().click()
-  const editor = page.getByRole('dialog', {name: '菜单编辑', exact: true})
-  await editor.getByRole('button', {name: '授权：文件', exact: true}).click()
+
+  const authorize = async () => {
+    await page.getByRole('button', {name: '更多操作：文件', exact: true}).click()
+    await page.getByRole('menuitem', {name: '授权', exact: true}).click()
+  }
+  await authorize()
   const popover = page.getByRole('dialog', {name: '菜单授权 · 文件', exact: true})
   await popover.getByRole('button', {name: '选择用户、角色或组织'}).click()
   await page.getByRole('checkbox', {name: '张三'}).click()
@@ -57,7 +62,7 @@ test('菜单行独立授权使用弹窗局部更新并支持多选、取消、�
   await page.keyboard.press('Escape')
   await popover.getByRole('button', {name: '取消', exact: true}).click()
   expect(writes).toHaveLength(0)
-  await editor.getByRole('button', {name: '授权：文件', exact: true}).click()
+  await authorize()
   await popover.getByRole('button', {name: '选择用户、角色或组织'}).click()
   await page.getByRole('checkbox', {name: '张三'}).click()
   await page.getByRole('checkbox', {name: '李四'}).click()
@@ -69,11 +74,7 @@ test('菜单行独立授权使用弹窗局部更新并支持多选、取消、�
   await popover.getByRole('button', {name: '保存', exact: true}).click()
   await expect(popover).not.toBeVisible()
   expect(writes[0]).toEqual([{type: 'USER', id: 'u1'}, {type: 'USER', id: 'u2'}])
-  await expect(editor.getByRole('button', {
-    name: '授权：文件',
-    exact: true
-  })).toHaveAttribute('title', '授权（已设置 2 项）')
-  await editor.getByRole('button', {name: '授权：文件', exact: true}).click()
+  await authorize()
   await expect(popover.getByRole('button', {name: '移除张三'})).toBeVisible()
   await page.screenshot({path: 'artifacts/menu-authorization-light.png', animations: 'disabled'})
   await page.evaluate(() => document.documentElement.classList.add('dark'))
@@ -91,10 +92,10 @@ test('设置页菜单管理支持弹窗授权', async ({page}) => {
   page.on('pageerror', error => errors.push(error.message))
   const root = '/api/apps/menu-test'
   const child = {
-    id: 'child', name: '文件', type: 'ITEM', target: {type: 'LINK', id: 'https://example.com'},
-    parentId: 'top', pageRoute: '/apps/menu-test/child', children: [], members: [] as DirectorySelection[]
+    id: 'child', name: '文件', type: 'ENTRY', destination: {type: 'LINK', id: 'https://example.com'},
+    parentId: 'top', pageRoute: '/apps/menu-test/child', children: [], visibility: [] as DirectorySelection[]
   }
-  const menus = [{id: 'top', name: '团队', type: 'GROUP', children: [child], members: []}]
+  const menus = [{id: 'top', name: '团队', type: 'GROUP', children: [child], visibility: []}]
   const writes: DirectorySelection[][] = []
   await page.addInitScript(() => {
     localStorage.setItem('flexmodel-apps.auth.token', 'menu-test')
@@ -103,13 +104,13 @@ test('设置页菜单管理支持弹窗授权', async ({page}) => {
   await page.route('**/api/**', async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
-    if (path === `${root}/menus/child` && request.method() === 'PATCH') {
-      child.members = (request.postDataJSON() as { members: DirectorySelection[] }).members
-      writes.push(child.members)
+    if (path === `${root}/navigation/child` && request.method() === 'PATCH') {
+      child.visibility = (request.postDataJSON() as { visibility: DirectorySelection[] }).visibility
+      writes.push(child.visibility)
       return route.fulfill({json: child})
     }
-    if (path === `${root}/menus`) return route.fulfill({json: menus})
-    if (path === `${root}/menus/targets`) return route.fulfill({json: {builtIn: [], forms: []}})
+    if (path === `${root}/navigation`) return route.fulfill({json: menus})
+    if (path === `${root}/navigation/destinations`) return route.fulfill({json: {builtIn: [], forms: []}})
     if (path === `${root}/directory`) return route.fulfill({
       json: {
         members: [{id: 'u1', name: '张三'}, {id: 'u2', name: '李四'}],

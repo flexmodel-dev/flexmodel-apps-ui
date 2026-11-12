@@ -1,10 +1,11 @@
 import * as React from 'react'
-import {useLocation} from 'react-router-dom'
-import {cn} from '@/lib/utils'
+import {useLocation, useNavigate} from 'react-router-dom'
+import {cn, toErrorMessage} from '@/lib/utils'
 import {getTopNavIdByPath, topNavs} from '@/data/mock'
 import {type App, getAppById} from '@/services/apps'
 import {
   type AppNav,
+  deleteAppNav,
   findFormNavDestinations,
   findNavById,
   findTopNavIdForNav,
@@ -16,10 +17,14 @@ import {
 } from '@/services/appNavigation'
 import {AppRecordCreateDialog} from '@/components/biz/AppRecordCreateDialog'
 import {message} from '@/components/ui/message'
+import {BizDialog} from '@/components/ui/dialog'
+import {Button} from '@/components/ui/button'
+import {MenuAuthorizationDialog} from '@/components/biz/MenuAuthorizationDialog'
 import {rememberAppLocation} from '@/lib/appLocationMemory'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
-import {MenuEditorDialog, type MenuEditorDraft} from './MenuEditorDialog'
+import {NavEditorDialog, type NavEditorDraft} from './NavEditorDialog'
+import type {OnNavMenuAction} from './NavMenuActions'
 import {useAiAssistant} from '@/components/ai/AiProvider'
 
 export function AppLayout({
@@ -30,8 +35,6 @@ export function AppLayout({
   hideHeader,
                             hideNavigation,
                             showBack,
-                            menuEditorOpen: menuEditorOpenProp,
-                            onMenuEditorOpenChange,
 }: {
   children: React.ReactNode
   noPadding?: boolean
@@ -40,31 +43,26 @@ export function AppLayout({
   hideHeader?: boolean
   hideNavigation?: boolean
   showBack?: boolean
-  menuEditorOpen?: boolean
-  onMenuEditorOpenChange?: (open: boolean) => void
 }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const ai = useAiAssistant()
   const appId = location.pathname.match(/^\/apps\/([^/]+)/)?.[1]
   const routeTopId = appId ? new URLSearchParams(location.search).get('top') : null
   const routeNavId = appId ? location.pathname.match(/^\/apps\/[^/]+\/([^/]+)/)?.[1] : null
   const [collapsed, setCollapsed] = React.useState(false)
   const [activeTopId, setActiveTopId] = React.useState(() => appId ? routeTopId ?? '' : hideNavigation ? '' : getTopNavIdByPath(location.pathname))
-  const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
-  const [menuEditorDraft, setMenuEditorDraft] = React.useState<MenuEditorDraft | null>(null)
-  const [navVersion, setNavVersion] = React.useState(0)
+  const [navDraft, setNavDraft] = React.useState<NavEditorDraft | null>(null)
   const [app, setApp] = React.useState<App | null>(null)
   const [navs, setNavs] = React.useState<AppNav[]>([])
   const [isAppLoading, setIsAppLoading] = React.useState(Boolean(appId))
   const [isNavsLoading, setIsNavsLoading] = React.useState(Boolean(appId))
   const [recordFormName, setRecordFormName] = React.useState<string | null>(null)
   const [recordFormOpen, setRecordFormOpen] = React.useState(false)
-  const effectiveMenuEditorOpen = menuEditorOpenProp ?? menuEditorOpen
-  const setEffectiveMenuEditorOpen = onMenuEditorOpenChange ?? setMenuEditorOpen
-  const handleMenuEditorOpenChange = (open: boolean) => {
-    setEffectiveMenuEditorOpen(open)
-    if (!open) setMenuEditorDraft(null)
-  }
+  const [authorization, setAuthorization] = React.useState<AppNav | null>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<AppNav | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const handleRecordFormOpenChange = (open: boolean) => {
     setRecordFormOpen(open)
     if (!open) {
@@ -89,7 +87,7 @@ export function AppLayout({
     if (hideNavigation) return
     const nextTopId = getTopNavIdByPath(location.pathname, activeTopId)
     if (nextTopId !== activeTopId) setActiveTopId(nextTopId)
-  }, [appId, routeTopId, navs, location.pathname, activeTopId, navVersion, hideNavigation])
+  }, [appId, routeTopId, navs, location.pathname, activeTopId, hideNavigation])
 
   React.useEffect(() => {
     if (appId && (isAppLoading || !app || (Boolean(routeNavId) && isNavsLoading))) {
@@ -144,7 +142,9 @@ export function AppLayout({
   }, [appId])
 
   React.useEffect(() => {
-    setMenuEditorDraft(null)
+    setNavDraft(null)
+    setAuthorization(null)
+    setDeleteTarget(null)
   }, [appId])
 
   React.useEffect(() => {
@@ -170,7 +170,7 @@ export function AppLayout({
     return () => {
       cancelled = true
     }
-  }, [appId, navVersion])
+  }, [appId])
 
   const topNavItems = appId
     ? navs.map((nav) => toTopNavigationItem(nav, appId))
@@ -208,9 +208,47 @@ export function AppLayout({
     if (!parentId) return
     persistNavOrder(reorderNavChildren(navs, parentId, orderedChildIds))
   }, [navs, persistNavOrder])
-  const editMenus = (draft?: MenuEditorDraft) => {
-    setMenuEditorDraft(draft ?? null)
-    setEffectiveMenuEditorOpen(true)
+  const createNav = (draft: NavEditorDraft) => {
+    setNavDraft({...draft, parentId: draft.topLevel ? undefined : draft.parentId ?? activeTop?.id})
+  }
+  const handleNavAction: OnNavMenuAction = (id, action) => {
+    const nav = findNavById(navs, id)
+    if (!nav) return
+    if (action === 'authorize') setAuthorization(nav)
+    else if (action === 'delete') {
+      setDeleteError(null)
+      setDeleteTarget(nav)
+    } else if (action === 'create') {
+      createNav({parentId: id})
+    } else if (action === 'createAfter') {
+      createNav({type: 'GROUP', topLevel: true, insertAfterId: id})
+    } else {
+      setNavDraft({nav})
+    }
+  }
+  const refreshNavs = async () => {
+    if (appId) setNavs(await getAppNavigation(appId))
+  }
+  const confirmDeleteNav = async () => {
+    if (!appId || !deleteTarget || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteAppNav(appId, deleteTarget.id)
+      const nextNavs = await getAppNavigation(appId)
+      setNavs(nextNavs)
+      setDeleteTarget(null)
+      const currentTopId = activeTop?.id
+      if ((routeNavId && !findNavById(nextNavs, routeNavId))
+        || (currentTopId && !nextNavs.some((nav) => nav.id === currentTopId))) {
+        setActiveTopId(nextNavs[0]?.id ?? '')
+        navigate(`/apps/${appId}`, {replace: true})
+      }
+    } catch (caught) {
+      setDeleteError(toErrorMessage(caught, '删除菜单失败，请稍后重试。'))
+    } finally {
+      setDeleting(false)
+    }
   }
   const openRecordForm = (formName: string) => {
     setRecordFormName(formName)
@@ -235,6 +273,7 @@ export function AppLayout({
           createRecordItems={createRecordItems}
           onCreateRecord={openRecordForm}
           onTopNavsReorder={appId ? handleTopNavsReorder : undefined}
+          onNavAction={appId ? handleNavAction : undefined}
         />
       )}
 
@@ -244,23 +283,33 @@ export function AppLayout({
           navs={activeTop?.navs ?? []}
           sectionKey={activeTop?.id ?? ''}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
-          onEditMenus={editMenus}
           onMenusReorder={appId ? handleMenusReorder : undefined}
+          onNavAction={appId ? handleNavAction : undefined}
+          onCreateNav={appId ? createNav : undefined}
         />
       )}
 
-      <MenuEditorDialog
-        open={effectiveMenuEditorOpen}
-        onOpenChange={handleMenuEditorOpenChange}
-        activeTopId={activeTop?.id ?? ''}
-        onActiveTopIdChange={setActiveTopId}
-        onNavsChange={(nextNavs) => {
-          if (nextNavs) setNavs(nextNavs)
-          setNavVersion((version) => version + 1)
-        }}
-        appId={appId}
-        draft={menuEditorDraft}
-      />
+      {appId && navDraft && <NavEditorDialog appId={appId} draft={navDraft} onClose={() => setNavDraft(null)}
+                                             onSaved={async (saved) => {
+                                               await refreshNavs()
+                                               if (!saved.parentId && !navDraft.nav) {
+                                                 setActiveTopId(saved.id)
+                                                 navigate(`/apps/${appId}?top=${encodeURIComponent(saved.id)}`)
+                                               }
+                                             }}/>}
+
+      {appId && <MenuAuthorizationDialog appId={appId} nav={authorization} open={authorization !== null}
+                                         onOpenChange={(open) => !open && setAuthorization(null)}
+                                         onSaved={refreshNavs}/>}
+      <BizDialog open={deleteTarget !== null} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
+                 title="删除菜单" footer={<>
+        <Button variant="secondary" disabled={deleting} onClick={() => setDeleteTarget(null)}>取消</Button>
+        <Button variant="danger" disabled={deleting}
+                onClick={() => void confirmDeleteNav()}>{deleting ? '删除中…' : '删除'}</Button>
+      </>}>
+        {deleteError && <p role="alert" className="mb-3 text-destructive">{deleteError}</p>}
+        确认删除「{deleteTarget?.name}」吗？{deleteTarget?.type === 'GROUP' && '分组内的菜单也会一并删除。'}
+      </BizDialog>
 
       <AppRecordCreateDialog
         open={recordFormOpen}

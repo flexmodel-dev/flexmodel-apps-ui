@@ -28,6 +28,7 @@ import type {NavItem, TopNavItem} from '@/data/mock'
 import {clearAuthSession, getAuthSession} from '@/services/auth'
 import {useDarkMode} from '@/lib/useDarkMode'
 import {MobileNavDrawer} from './MobileNavDrawer'
+import {NavMenuActions, type OnNavMenuAction} from './NavMenuActions'
 
 export const headerActionClass =
   'text-white/80 hover:bg-white/15 hover:text-white data-[state=open]:bg-white/20 data-[state=open]:text-white dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white dark:data-[state=open]:bg-white/10 dark:data-[state=open]:text-white'
@@ -47,25 +48,22 @@ function TopNavLink({
                       isDark,
                       onTopNavChange,
                       sortable,
+                      onNavAction,
                     }: {
   nav: TopNavItem
   activeTopId?: string
   isDark: boolean
   onTopNavChange?: (id: string) => void
   sortable?: SortableLinkProps
+  onNavAction?: OnNavMenuAction
 }) {
   const active = activeTopId === nav.id
   return (
-    <Link
+    <div
       ref={sortable?.ref}
-      to={nav.to}
-      draggable={false}
       style={sortable?.style}
-      onClick={() => onTopNavChange?.(nav.id)}
-      {...(sortable?.dragAttributes ?? {})}
-      {...(sortable?.listeners ?? {})}
       className={cn(
-        'relative flex h-16 items-center px-3 text-sm transition-colors',
+        'relative flex h-16 shrink-0 items-center text-sm transition-colors',
         active
           ? isDark
             ? 'bg-white/10 font-medium text-white'
@@ -76,7 +74,18 @@ function TopNavLink({
         sortable?.isDragging && 'z-10 opacity-60',
       )}
     >
-      {nav.text}
+      <Link to={nav.to} draggable={false} onClick={() => onTopNavChange?.(nav.id)}
+            {...(sortable?.dragAttributes ?? {})} {...(sortable?.listeners ?? {})}
+            className={cn('flex h-full items-center justify-center whitespace-nowrap', onNavAction ? 'px-6' : 'px-3')}>
+        <span>{nav.text}</span>
+      </Link>
+      {active && onNavAction && <NavMenuActions id={nav.id} name={nav.text} group topLevel onAction={onNavAction}>
+        <span role="button" tabIndex={0} aria-label={`更多操作：${nav.text}`}
+              className="absolute right-0 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center">
+          <span aria-hidden="true"
+                className="h-0 w-0 border-x-[4px] border-t-[5px] border-x-transparent border-t-current"/>
+        </span>
+      </NavMenuActions>}
       <span
         className={cn(
           'absolute bottom-0 left-1/2 h-[3px] w-3.5 -translate-x-1/2 rounded-full transition-opacity',
@@ -84,7 +93,7 @@ function TopNavLink({
           active ? 'opacity-100' : 'opacity-0',
         )}
       />
-    </Link>
+    </div>
   )
 }
 
@@ -115,6 +124,7 @@ function TopHeaderShell({
                           activeTopId,
                           onTopNavChange,
                           onTopNavsReorder,
+                          onNavAction,
                           leading,
                           extraActions,
                         }: {
@@ -126,6 +136,7 @@ function TopHeaderShell({
   activeTopId?: string
   onTopNavChange?: (id: string) => void
   onTopNavsReorder?: (orderedIds: string[]) => void
+  onNavAction?: OnNavMenuAction
   leading?: React.ReactNode
   extraActions?: React.ReactNode
   logoIcon?: LucideIcon
@@ -221,6 +232,7 @@ function TopHeaderShell({
                       activeTopId={activeTopId}
                       isDark={isDark}
                       onTopNavChange={onTopNavChange}
+                      onNavAction={onNavAction}
                     />
                   ))}
                 </SortableContext>
@@ -233,6 +245,7 @@ function TopHeaderShell({
                   activeTopId={activeTopId}
                   isDark={isDark}
                   onTopNavChange={onTopNavChange}
+                  onNavAction={onNavAction}
                 />
               ))
             )}

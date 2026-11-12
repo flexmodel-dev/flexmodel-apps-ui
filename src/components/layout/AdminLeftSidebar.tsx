@@ -17,11 +17,9 @@ export const adminNavs: NavItem[] = [
 export function AdminLeftSidebar({
                                    collapsed,
                                    onToggleCollapsed,
-                                   onEditMenus,
                                  }: {
   collapsed?: boolean
   onToggleCollapsed?: () => void
-  onEditMenus?: () => void
 }) {
   const location = useLocation()
 
@@ -80,6 +78,7 @@ export function AdminLeftSidebar({
             })}
           </ul>
           <div
+            role="toolbar" aria-label="duck栏"
             className={cn('mt-2 flex shrink-0 items-center border-t pt-2', collapsed ? 'flex-col gap-1' : 'justify-between')}>
             <AppLauncher collapsed={collapsed}/>
             <Tooltip>

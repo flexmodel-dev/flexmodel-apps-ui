@@ -1,10 +1,8 @@
 import * as React from 'react'
 import {useLocation, useParams} from 'react-router-dom'
 import {cn} from '@/lib/utils'
-import {topNavs} from '@/data/mock'
 import {AdminTopHeader} from './AdminTopHeader'
 import {AdminLeftSidebar, adminNavs} from './AdminLeftSidebar'
-import {MenuEditorDialog} from './MenuEditorDialog'
 import {getAppForm} from '@/services/appForms'
 import {FormSettingsNav} from '@/components/biz/FormSettingsNav'
 import {useAiAssistant} from '@/components/ai/AiProvider'
@@ -26,8 +24,6 @@ export function AdminLayout({
   const ai = useAiAssistant()
   const params = useParams<{appId: string; formName: string}>()
   const [collapsed, setCollapsed] = React.useState(false)
-  const [activeTopId, setActiveTopId] = React.useState(topNavs[0].id)
-  const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
 
   const showFormSidebar = /^\/admin\/apps\/[^/]+\/forms\//.test(location.pathname)
   const currentFormMatch = location.pathname.match(/^\/admin\/apps\/([^/]+)\/forms\/([^/]+)/)
@@ -89,17 +85,8 @@ export function AdminLayout({
         <AdminLeftSidebar
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
-          onEditMenus={() => setMenuEditorOpen(true)}
         />
       )}
-
-      <MenuEditorDialog
-        open={menuEditorOpen}
-        onOpenChange={setMenuEditorOpen}
-        activeTopId={activeTopId}
-        onActiveTopIdChange={setActiveTopId}
-        onNavsChange={() => undefined}
-      />
 
       {showFormSidebar && (
         <aside

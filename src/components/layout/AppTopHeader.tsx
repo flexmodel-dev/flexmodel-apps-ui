@@ -17,6 +17,7 @@ import {appIcons} from '@/data/appIcons'
 import {type App} from '@/services/apps'
 import {type AppNav} from '@/services/appNavigation'
 import {headerActionClass, TopHeaderShell} from './TopHeaderShell'
+import type {OnNavMenuAction} from './NavMenuActions'
 
 interface SearchSuggestion {
   label: string
@@ -55,6 +56,7 @@ export function AppTopHeader({
                                createRecordItems,
                                onCreateRecord,
                                onTopNavsReorder,
+                               onNavAction,
                              }: {
   activeTopId: string
   onTopNavChange: (id: string) => void
@@ -70,6 +72,7 @@ export function AppTopHeader({
   createRecordItems: Array<{ id: string; label: string }>
   onCreateRecord: (formName: string) => void
   onTopNavsReorder?: (orderedIds: string[]) => void
+  onNavAction?: OnNavMenuAction
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -155,6 +158,7 @@ export function AppTopHeader({
       activeTopId={activeTopId}
       onTopNavChange={onTopNavChange}
       onTopNavsReorder={onTopNavsReorder}
+      onNavAction={onNavAction}
       leading={showBack ? (
         <Button
           variant="ghost"

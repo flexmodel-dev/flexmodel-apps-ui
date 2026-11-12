@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {useLocation, useNavigate, useParams} from 'react-router-dom'
 import {AppLayout} from '@/components/layout/AppLayout'
-import {Plus, RefreshCw} from 'lucide-react'
+import {RefreshCw} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Empty} from '@/components/ui/empty'
 import {AppLoading} from '@/components/biz/AppLoading'
@@ -13,7 +13,6 @@ export default function AppHome() {
   const {appId = ''} = useParams<{ appId: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const [menuEditorOpen, setMenuEditorOpen] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [reloadKey, setReloadKey] = React.useState(0)
@@ -56,10 +55,7 @@ export default function AppHome() {
   }
 
   return (
-    <AppLayout
-      menuEditorOpen={menuEditorOpen}
-      onMenuEditorOpenChange={setMenuEditorOpen}
-    >
+    <AppLayout>
       {isLoading ? (
         <AppLoading center className="min-h-[60vh]"/>
       ) : error ? (
@@ -83,13 +79,7 @@ export default function AppHome() {
             className="w-full max-w-md rounded-2xl border-border/70"
             description={<span className="text-base">当前分组没有关联菜单</span>}
           >
-            <Button
-              type="button"
-              className="h-10 w-full justify-center rounded-xl"
-              onClick={() => setMenuEditorOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4"/> 新增菜单
-            </Button>
+            <p className="text-sm text-muted-foreground">点击左下角 duck栏的加号添加菜单或分组。</p>
           </Empty>
         </div>
       )}

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Link, useLocation} from 'react-router-dom'
-import {ChevronDown, ChevronsLeft, ChevronsRight, Settings} from 'lucide-react'
+import {ChevronDown, ChevronsLeft, ChevronsRight} from 'lucide-react'
 import {
   closestCenter,
   DndContext,
@@ -17,6 +17,9 @@ import {Popover, PopoverAnchor, PopoverContent} from '@/components/ui/popover'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
 import type {NavItem} from '@/data/mock'
 import {AppLauncher} from './AppLauncher'
+import {NavMenuActions, type OnNavMenuAction} from './NavMenuActions'
+import {NewNavMenu} from './NewNavMenu'
+import type {NavEditorDraft} from './NavEditorDialog'
 
 function getActiveMenuIds(navs: NavItem[], pathname: string) {
   return navs
@@ -34,11 +37,13 @@ function SidebarChildItem({
                             child,
                             active,
                             sortable,
+                            onNavAction,
                           }: {
   parentId: string
   child: NavItem
   active: boolean
   sortable: boolean
+  onNavAction?: OnNavMenuAction
 }) {
   const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
     id: `child-${parentId}__${child.id}`,
@@ -47,24 +52,28 @@ function SidebarChildItem({
   const {role: _attributeRole, tabIndex: _attributeTabIndex, ...dragAttributes} = attributes
   const dragProps: DragProps = sortable ? {dragAttributes, listeners} : {}
   return (
-    <Link
+    <div
       ref={setNodeRef}
+      style={{transform: CSS.Translate.toString(transform), transition}}
+      className={cn('group/nav flex items-center rounded-md hover:bg-primary/10', active && 'bg-primary/10', isDragging && 'z-10 opacity-60')}
+    >
+    <Link
       to={child.to!}
       draggable={false}
-      style={{transform: CSS.Translate.toString(transform), transition}}
       {...dragProps.dragAttributes}
       {...dragProps.listeners}
       className={cn(
-        'flex items-center gap-3 rounded-md px-3 py-2 text-sm',
+        'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm',
         active
-          ? 'bg-primary/10 font-medium text-primary'
-          : 'text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary',
-        isDragging && 'z-10 opacity-60',
+          ? 'font-medium text-primary'
+          : 'text-muted-foreground transition-colors hover:text-primary',
       )}
     >
       {child.icon ? <child.icon className="h-4 w-4 shrink-0"/> : null}
       <span className="truncate">{child.text}</span>
     </Link>
+      {onNavAction && <NavMenuActions id={child.id} name={child.text} onAction={onNavAction}/>}
+    </div>
   )
 }
 
@@ -75,6 +84,7 @@ function SidebarTopItem({
                           sortable,
                           isActive,
                           onToggleOpen,
+                          onNavAction,
                         }: {
   nav: NavItem
   isOpen: boolean
@@ -82,6 +92,7 @@ function SidebarTopItem({
   sortable: boolean
   isActive: (nav: NavItem) => boolean
   onToggleOpen: (id: string) => void
+  onNavAction?: OnNavMenuAction
 }) {
   const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
     id: `left-${nav.id}`,
@@ -93,32 +104,34 @@ function SidebarTopItem({
   const groupTrigger = (
     <button
       type="button"
+      aria-label={nav.text}
+      aria-expanded={collapsed ? undefined : isOpen}
       onClick={() => onToggleOpen(nav.id)}
       draggable={false}
       {...dragProps.dragAttributes}
       {...dragProps.listeners}
-      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+      className={cn('flex min-w-0 flex-1 items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary', collapsed && 'hover:bg-primary/10')}
     >
       <span className="flex min-w-0 items-center gap-3">
         {nav.icon ? <nav.icon className="h-4 w-4"/> : null}
         {!collapsed && <span className="truncate">{nav.text}</span>}
       </span>
-      {!collapsed &&
-        <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')}/>}
     </button>
   )
 
   const link = (
     <Link
       to={nav.to!}
+      aria-label={nav.text}
       draggable={false}
       {...dragProps.dragAttributes}
       {...dragProps.listeners}
-      className={
+      className={cn(
         isActive(nav)
-          ? 'flex items-center gap-3 rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary shadow-sm'
-          : 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
-      }
+          ? 'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-primary'
+          : 'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary',
+        collapsed && (isActive(nav) ? 'bg-primary/10' : 'hover:bg-primary/10'),
+      )}
     >
       {nav.icon ? <nav.icon className="h-4 w-4"/> : null}
       {!collapsed && <span className="truncate">{nav.text}</span>}
@@ -134,8 +147,17 @@ function SidebarTopItem({
       {nav.sub ? (
         <>
           {collapsed ? (
-            <CollapsedGroupMenu nav={nav} trigger={groupTrigger} isActive={isActive}/>
-          ) : groupTrigger}
+            <CollapsedGroupMenu nav={nav} trigger={groupTrigger} isActive={isActive} onNavAction={onNavAction}/>
+          ) : <div className="group/nav flex items-center rounded-md hover:bg-primary/10">
+            {groupTrigger}
+            {onNavAction && <NavMenuActions id={nav.id} name={nav.text} group onAction={onNavAction}/>}
+            <Button type="button" variant="ghost" size="icon"
+                    aria-label={`${isOpen ? '折叠' : '展开'}分组：${nav.text}`} aria-expanded={isOpen}
+                    className="mr-1 h-7 w-7 shrink-0 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                    onClick={() => onToggleOpen(nav.id)}>
+              <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')}/>
+            </Button>
+          </div>}
           {isOpen && !collapsed && (
             <div className="mt-1 space-y-1 pl-9">
               <SortableContext
@@ -149,6 +171,7 @@ function SidebarTopItem({
                     child={child}
                     active={isActive(child)}
                     sortable={sortable}
+                    onNavAction={onNavAction}
                   />
                 ))}
               </SortableContext>
@@ -161,7 +184,11 @@ function SidebarTopItem({
             <TooltipTrigger asChild>{link}</TooltipTrigger>
             <TooltipContent side="right">{nav.text}</TooltipContent>
           </Tooltip>
-        ) : link
+        ) : <div
+          className={cn('group/nav flex items-center rounded-md hover:bg-primary/10', isActive(nav) && 'bg-primary/10')}>
+          {link}
+          {onNavAction && <NavMenuActions id={nav.id} name={nav.text} onAction={onNavAction}/>}
+        </div>
       )}
     </li>
   )
@@ -171,13 +198,16 @@ function CollapsedGroupMenu({
                               nav,
                               trigger,
                               isActive,
+                              onNavAction,
                             }: {
   nav: NavItem
   trigger: React.ReactNode
   isActive: (nav: NavItem) => boolean
+  onNavAction?: OnNavMenuAction
 }) {
   const [open, setOpen] = React.useState(false)
   const closeTimeoutRef = React.useRef<number>()
+  const actionsOpenRef = React.useRef(false)
 
   const clearCloseTimeout = () => {
     if (closeTimeoutRef.current) {
@@ -191,7 +221,13 @@ function CollapsedGroupMenu({
   }
   const closeMenu = () => {
     clearCloseTimeout()
+    if (actionsOpenRef.current) return
     closeTimeoutRef.current = window.setTimeout(() => setOpen(false), 100)
+  }
+  const handleActionsOpenChange = (next: boolean) => {
+    actionsOpenRef.current = next
+    clearCloseTimeout()
+    if (!next) setOpen(false)
   }
 
   React.useEffect(() => clearCloseTimeout, [])
@@ -202,7 +238,7 @@ function CollapsedGroupMenu({
     <Popover
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
+        if (!nextOpen && !actionsOpenRef.current) {
           clearCloseTimeout()
           setOpen(false)
         }
@@ -210,7 +246,7 @@ function CollapsedGroupMenu({
     >
       <PopoverAnchor asChild>
         <span
-          className="block"
+          className="flex"
           onMouseEnter={openMenu}
           onMouseLeave={closeMenu}
         >
@@ -225,22 +261,29 @@ function CollapsedGroupMenu({
         onMouseEnter={openMenu}
         onMouseLeave={closeMenu}
       >
-        <p className="px-3 pb-2 text-xs font-medium text-muted-foreground">{nav.text}</p>
+        <div className="group/nav mb-1 flex items-center justify-between">
+          <p className="px-3 text-xs font-medium text-muted-foreground">{nav.text}</p>
+          {onNavAction && <NavMenuActions id={nav.id} name={nav.text} group onAction={onNavAction}
+                                          onOpenChange={handleActionsOpenChange}/>}
+        </div>
         <div className="space-y-1">
           {nav.sub.map((child) => (
+            <div key={child.id} className="group/nav flex items-center rounded-md hover:bg-primary/10">
             <Link
-              key={child.id}
               to={child.to!}
               onClick={() => setOpen(false)}
               className={
                 isActive(child)
-                  ? 'flex items-center gap-3 rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
-                  : 'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
+                  ? 'flex min-w-0 flex-1 items-center gap-3 rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
+                  : 'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
               }
             >
               {child.icon ? <child.icon className="h-4 w-4 shrink-0"/> : null}
               <span className="truncate">{child.text}</span>
             </Link>
+              {onNavAction && <NavMenuActions id={child.id} name={child.text} onAction={onNavAction}
+                                              onOpenChange={handleActionsOpenChange}/>}
+            </div>
           ))}
         </div>
       </PopoverContent>
@@ -254,16 +297,18 @@ export function AppLeftSidebar({
                                  collapsed,
                                  headerHidden,
                                  onToggleCollapsed,
-                                 onEditMenus,
                                  onMenusReorder,
+                                 onNavAction,
+                                 onCreateNav,
                                }: {
   navs: NavItem[]
   sectionKey?: string
   collapsed?: boolean
   headerHidden?: boolean
   onToggleCollapsed?: () => void
-  onEditMenus?: () => void
   onMenusReorder?: (parentId: string, orderedChildIds: string[]) => void
+  onNavAction?: OnNavMenuAction
+  onCreateNav?: (draft: NavEditorDraft) => void
 }) {
   const location = useLocation()
   const currentAppId = location.pathname.match(/^\/apps\/([^/]+)/)?.[1]
@@ -354,6 +399,7 @@ export function AppLeftSidebar({
                     collapsed={collapsed}
                     sortable={sortable}
                     isActive={isActive}
+                    onNavAction={onNavAction}
                     onToggleOpen={(id) => setOpenMenus((open) =>
                       open.includes(id) ? open.filter((openId) => openId !== id) : [...open, id])}
                   />
@@ -362,22 +408,11 @@ export function AppLeftSidebar({
             </DndContext>
           </ul>
           <div
+            role="toolbar" aria-label="duck栏"
             className={cn('mt-2 flex shrink-0 items-center border-t pt-2', collapsed ? 'flex-col gap-1' : 'justify-between')}>
             <AppLauncher collapsed={collapsed} currentAppId={currentAppId}/>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary"
-                  onClick={onEditMenus}
-                >
-                  <Settings className="h-4 w-4"/>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side={collapsed ? 'right' : 'top'}>编辑菜单</TooltipContent>
-            </Tooltip>
+            {currentAppId && onCreateNav && <NewNavMenu appId={currentAppId}
+                                                        hasParent={Boolean(sectionKey)} onCreate={onCreateNav}/>}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
