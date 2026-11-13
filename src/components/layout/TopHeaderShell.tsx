@@ -81,7 +81,12 @@ function TopNavLink({
       </Link>
       {active && onNavAction && <NavMenuActions id={nav.id} name={nav.text} group topLevel onAction={onNavAction}>
         <span role="button" tabIndex={0} aria-label={`更多操作：${nav.text}`}
-              className="absolute right-0 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center">
+              className={cn(
+                'absolute right-0 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors',
+                isDark
+                  ? 'text-white/65 hover:text-white'
+                  : 'text-primary-foreground/75 hover:text-primary-foreground',
+              )}>
           <span aria-hidden="true"
                 className="h-0 w-0 border-x-[4px] border-t-[5px] border-x-transparent border-t-current"/>
         </span>
