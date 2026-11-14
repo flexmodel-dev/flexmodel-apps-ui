@@ -788,8 +788,8 @@ export default function FilesDocs() {
   }
 
   return (
-    <AppLayout noPadding noOuterScroll contentClassName="h-full min-h-0">
-      <div className="flex h-full min-h-0">
+    <AppLayout noPadding noOuterScroll contentClassName="flex h-full min-h-0 flex-col px-4 pb-4 md:px-6 md:pb-6">
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border bg-card">
         <aside
           className={cn(
             'hidden shrink-0 flex-col border-r bg-card transition-[width] md:flex',

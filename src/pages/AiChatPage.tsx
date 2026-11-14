@@ -25,7 +25,8 @@ export default function AiChatPage({robotId}: { robotId?: string | null }) {
     ?? robots.find(item => item.enabled)
     ?? robots[0]
 
-  if (loading) return <AppLayout noPadding noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
+  if (loading) return <AppLayout noPadding noOuterScroll
+                                 contentClassName="flex h-full min-h-0 flex-col px-4 pb-4 md:px-6 md:pb-6">
     <AppLoading center className="min-h-[320px]" label="正在加载机器人"/>
   </AppLayout>
   if (error) return <AppLayout>
@@ -34,7 +35,8 @@ export default function AiChatPage({robotId}: { robotId?: string | null }) {
       <Button variant="outline" size="sm" className="mt-3" onClick={refresh}>重试</Button>
     </div>
   </AppLayout>
-  if (!robot) return <AppLayout noPadding noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
+  if (!robot) return <AppLayout noPadding noOuterScroll
+                                contentClassName="flex h-full min-h-0 flex-col px-4 pb-4 md:px-6 md:pb-6">
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border bg-card">
       <Empty description="当前应用还没有对话机器人，创建后即可开始 AI 对话">
         <Button size="sm" onClick={() => setRobotDialogOpen(true)}><Settings2 className="h-4 w-4"/>创建机器人</Button>
@@ -43,7 +45,7 @@ export default function AiChatPage({robotId}: { robotId?: string | null }) {
     <AiRobotDialog appId={appId} open={robotDialogOpen} onOpenChange={setRobotDialogOpen} startInCreate/>
   </AppLayout>
 
-  return <AppLayout noPadding noOuterScroll contentClassName="flex h-full min-h-0 flex-col">
+  return <AppLayout noPadding noOuterScroll contentClassName="flex h-full min-h-0 flex-col px-4 pb-4 md:px-6 md:pb-6">
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b px-4 py-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

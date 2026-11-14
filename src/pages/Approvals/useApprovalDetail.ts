@@ -1,6 +1,7 @@
 import * as React from 'react'
-import {getApprovalDetail, getApprovalMembers, type ApprovalDetail} from '@/services/approvals'
-import type {ApprovalMember} from '@/types/approval'
+import {getApprovalDetail, type ApprovalDetail} from '@/services/approvals'
+import {getApprovalMembers} from '@/services/workflows'
+import type {ApprovalMember} from '@/types/workflow'
 import {toErrorMessage} from '@/lib/utils'
 
 /**

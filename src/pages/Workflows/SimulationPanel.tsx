@@ -22,9 +22,9 @@ import {
   approvalSampleRecords,
   approvalSampleVariables,
 } from '@/data/mock'
-import {ApprovalSimulation} from '@/lib/approvalSimulation'
-import {formKey} from '@/lib/approval'
-import type {ApprovalFlow, ApprovalForm, RecordStore} from '@/types/approval'
+import {ApprovalSimulation} from '@/lib/workflowSimulation'
+import {formKey} from '@/lib/workflow'
+import type {ApprovalFlow, ApprovalForm, RecordStore} from '@/types/workflow'
 import {Choice, Field, MultiChoice} from './controls'
 import {cn} from '@/lib/utils'
 

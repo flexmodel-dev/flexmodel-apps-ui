@@ -6,16 +6,16 @@ import {message} from '@/components/ui/message'
 import {
   FINISHED_STATUS,
   getApprovalDetail,
-  getApprovalFlows,
   recordApprovals,
   submitApproval,
   approvalStatus,
   type ApprovalItem
 } from '@/services/approvals'
+import {getApprovalFlows} from '@/services/workflows'
 import {getAuthSession} from '@/services/auth'
-import type {ApprovalFlow} from '@/types/approval'
+import type {ApprovalFlow} from '@/types/workflow'
 import {InstanceDrawer} from './InstanceDrawer'
-import {Choice} from './controls'
+import {Choice} from '../Workflows/controls'
 import {ApprovalDecisionDialog, useApprovalDecision} from '@/components/biz/approvalDecision'
 import {toErrorMessage} from '@/lib/utils'
 
@@ -106,7 +106,7 @@ export function RecordApprovalPanel({appId, formName, recordId, onLocked}: {
           </div>
         </div>
       ) : !history.length ? <p
-          className="text-xs text-muted-foreground">{flows.length ? '选择流程后提交，审批期间禁止人工编辑和删除。' : '当前表单暂无已启用的审批流程。'}</p> :
+          className="text-xs text-muted-foreground">{flows.length ? '选择流程后提交，审批期间禁止人工编辑和删除。' : '当前表单暂无已启用的工作流。'}</p> :
         <div className="space-y-2">{history.map(item => <button key={item.id}
                                                                 className="flex w-full justify-between gap-3 text-left text-xs"
                                                                 onClick={() => setDetail(item)}>
@@ -117,7 +117,7 @@ export function RecordApprovalPanel({appId, formName, recordId, onLocked}: {
                footer={<><Button variant="outline" onClick={() => setOpen(false)}>取消</Button><Button
                  disabled={busy || !selected}
                  onClick={() => void submit()}>{busy ? '提交中…' : '确认提交'}</Button></>}>
-      <div className="space-y-4"><Choice label="选择审批流程" value={selected} onChange={setSelected}
+      <div className="space-y-4"><Choice label="选择工作流" value={selected} onChange={setSelected}
                                          options={flows.map(flow => ({value: flow.id, label: flow.name}))}/><p
         className="text-sm text-muted-foreground">提交时会保存记录快照。审批结束前，人工编辑和删除将被锁定，流程配置的数据操作继续执行。</p>
       </div>

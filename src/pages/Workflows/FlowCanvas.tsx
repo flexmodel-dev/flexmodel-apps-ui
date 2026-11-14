@@ -49,16 +49,16 @@ import type {
   FormRef,
   NodeKind,
   ValidationIssue,
-} from '@/types/approval'
+} from '@/types/workflow'
 import {
   createApprovalNode,
   nodeLabels,
   signLabels,
   sourceLabels,
-} from '@/lib/approval'
+} from '@/lib/workflow'
 import {cn} from '@/lib/utils'
 import '@flowgram.ai/fixed-layout-editor/index.css'
-import './approval.css'
+import './workflow.css'
 
 export const nodeIcons = {
   start: Circle,
@@ -91,7 +91,7 @@ const descriptions: Partial<Record<NodeKind, string>> = {
   update: '更新符合条件的记录',
   query: '查询数据，传递给后续节点',
   delete: '删除符合条件的记录',
-  subflow: '复用另一个审批流程',
+  subflow: '复用另一个工作流',
 }
 
 interface CanvasState {

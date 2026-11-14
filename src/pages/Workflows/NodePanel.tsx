@@ -28,7 +28,7 @@ import type {
   MemberSource,
   MemberScope,
   SignMode,
-} from '@/types/approval'
+} from '@/types/workflow'
 import {
   flattenNodes,
   formKey,
@@ -39,7 +39,7 @@ import {
   signLabels,
   sourceLabels,
   upstreamNodes,
-} from '@/lib/approval'
+} from '@/lib/workflow'
 import {
   AssignmentsEditor,
   Choice,

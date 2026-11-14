@@ -10,7 +10,7 @@ import type {
   ResolveContext,
   ValidationIssue,
   ValueBinding,
-} from '../types/approval'
+} from '../types/workflow'
 
 export const nodeLabels: Record<NodeKind, string> = {
   start: '流程发起',

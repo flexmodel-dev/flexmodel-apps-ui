@@ -1,8 +1,8 @@
 import * as React from 'react'
-import type {ApprovalForm, FlowTrigger} from '@/types/approval'
+import type {ApprovalForm, FlowTrigger} from '@/types/workflow'
 import {Input} from '@/components/ui/input'
 import {Button} from '@/components/ui/button'
-import {previewFlowSchedule} from '@/services/approvals'
+import {previewFlowSchedule} from '@/services/workflows'
 import {Choice, ConditionsEditor, Field, MultiChoice} from './controls'
 import {cn, toErrorMessage} from '@/lib/utils'
 

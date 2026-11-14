@@ -22,14 +22,14 @@ const settingsNavs = [
   { key: 'basic', label: '基本设置' },
   {key: 'menus', label: '菜单管理'},
   {key: 'forms', label: '表单管理'},
-  {key: 'approvals', label: '工作流'},
+  {key: 'workflows', label: '工作流'},
 ]
 
 const sectionDescriptions: Record<string, string> = {
   basic: '管理应用信息、图标与主题。',
   menus: '配置应用导航与页面入口。',
   forms: '管理业务表单、字段及布局。',
-  approvals: '管理手动、数据事件和定时工作流。',
+  workflows: '管理手动、数据事件和定时工作流。',
 }
 
 export default function AppSettings({ section }: { section: string }) {
@@ -188,7 +188,7 @@ export default function AppSettings({ section }: { section: string }) {
             )}/>
 
           <div
-            className={activeSection === 'approvals' ? 'min-h-0 flex-1 overflow-hidden p-4' : 'min-h-0 flex-1 overflow-y-auto p-4'}
+            className={activeSection === 'workflows' ? 'min-h-0 flex-1 overflow-hidden p-4' : 'min-h-0 flex-1 overflow-y-auto p-4'}
             key={app.updatedAt}>
             {activeSection === 'basic' && (
               <div className="grid gap-4 md:grid-cols-2">
@@ -223,7 +223,7 @@ export default function AppSettings({ section }: { section: string }) {
 
             {activeSection === 'menus' && <AppMenuManager appId={app.id}/>}
 
-            {activeSection === 'approvals' && <AdminApprovals embedded appId={app.id}/>}
+            {activeSection === 'workflows' && <AdminApprovals embedded appId={app.id}/>}
 
           </div>
         </div>

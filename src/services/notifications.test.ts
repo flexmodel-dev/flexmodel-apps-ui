@@ -1,6 +1,6 @@
 import {describe, it, expect} from 'vitest'
 import {SseDecoder} from './notificationSse'
-import {cloneNode, createApprovalNode, notificationTemplatePaths, renderNotificationTemplate} from '../lib/approval'
+import {cloneNode, createApprovalNode, notificationTemplatePaths, renderNotificationTemplate} from '../lib/workflow'
 
 describe('notification stream and templates', () => {
   it('decodes UTF-8 chunks, CRLF frames, comments and string cursors', () => {

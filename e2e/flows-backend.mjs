@@ -161,7 +161,7 @@ try {
       rules: [{id: 'admin', source: 'users', values: ['admin'], scope: 'self', includeChildren: false}]
     },
   ])
-  await page.goto(`${base}/#/admin/apps/${app}/approvals/${scheduled.id}/design`, {waitUntil: 'domcontentloaded'})
+  await page.goto(`${base}/#/admin/apps/${app}/workflow/${scheduled.id}/design`, {waitUntil: 'domcontentloaded'})
   await page.getByLabel('触发方式', {exact: true}).selectOption('SCHEDULE')
   if (await page.getByLabel('流程关联表单', {exact: true}).count()) throw new Error('Schedule must not ask for a form')
   await page.getByLabel('Cron 表达式', {exact: true}).fill('0/1 * * * * ?')

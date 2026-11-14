@@ -2,18 +2,21 @@ import * as React from 'react'
 import {AppRecordFormModal} from '@/components/biz/AppRecordFormModal'
 import {getAppForm, type AppForm} from '@/services/appForms'
 import {toErrorMessage} from '@/lib/utils'
+import type {ApprovalFlow} from '@/types/workflow'
 
 export function AppRecordCreateDialog({
                                         open,
                                         onOpenChange,
                                         appId,
                                         formName,
+                                        launchFlow,
                                         onSaved,
                                       }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   appId: string
   formName?: string | null
+  launchFlow?: ApprovalFlow
   onSaved?: (id: string) => void
 }) {
   const [form, setForm] = React.useState<AppForm | null>(null)
@@ -55,6 +58,7 @@ export function AppRecordCreateDialog({
       appId={appId}
       form={form}
       formError={error}
+      launchFlow={launchFlow}
       onSaved={onSaved}
     />
   )

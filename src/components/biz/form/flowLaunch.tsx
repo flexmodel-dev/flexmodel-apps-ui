@@ -8,10 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {getApprovalFlows} from '@/services/approvals'
-import type {ApprovalFlow} from '@/types/approval'
+import {getApprovalFlows} from '@/services/workflows'
+import type {ApprovalFlow} from '@/types/workflow'
 
-/** 加载指定表单已启用、可发起的审批流程列表 */
+/** 加载指定表单已启用、可发起的工作流列表 */
 export function useFormApprovalFlows({appId, formName, enabled}: {
   appId: string
   formName: string

@@ -42,6 +42,7 @@ import {
   type AppRecordContext,
 } from '@/services/appRecords'
 import {submitApproval} from '@/services/approvals'
+import type {ApprovalFlow} from '@/types/workflow'
 
 export type {ReferenceOption}
 
@@ -54,6 +55,7 @@ export function AppRecordFormModal({
                                      appId,
                                      form,
                                      formError,
+                                     launchFlow,
                                      recordId,
                                      recordContext: context,
                                      loadRecord,
@@ -69,6 +71,7 @@ export function AppRecordFormModal({
   /** 表单定义可能尚未加载（例如右上角新增记录先展开抽屉再取表单） */
   form: AppForm | null
   formError?: string | null
+  launchFlow?: ApprovalFlow
   recordId?: string | null
   recordContext?: AppRecordContext
   loadRecord?: (recordId: string) => Promise<AppRecord>
@@ -95,12 +98,13 @@ export function AppRecordFormModal({
   const [isStarting, setIsStarting] = React.useState(false)
   const {uploading, startUpload} = useAttachmentUploads()
   const requestKey = React.useRef(crypto.randomUUID())
+  const flowSave = React.useRef<{ payload: string; recordId: string } | null>(null)
 
   const effectiveRecordId = savedRecordId ?? recordId ?? null
   const flows = useFormApprovalFlows({
     appId,
     formName,
-    enabled: open && !!form && !recordId && !form?.builtin,
+    enabled: open && !!form && !recordId && !form?.builtin && !launchFlow,
   })
   const layout = form ? parseFormLayout(form, {
     excludeField: recordContext?.referenceField,
@@ -126,7 +130,10 @@ export function AppRecordFormModal({
   })
 
   React.useEffect(() => {
-    if (!open) setSavedRecordId(null)
+    if (!open) {
+      setSavedRecordId(null)
+      flowSave.current = null
+    }
   }, [open])
 
   React.useEffect(() => {
@@ -239,16 +246,25 @@ export function AppRecordFormModal({
     setIsStarting(true)
     setError('')
     try {
-      const saved = await persistRecord(payload)
-      await submitApproval(appId, formName, String(saved.id ?? ''), flowId, requestKey.current)
+      const serialized = JSON.stringify(payload)
+      // 发起响应丢失时复用已保存记录，避免重建记录或先更新已被流程锁定的记录。
+      if (flowSave.current?.payload !== serialized) {
+        const saved = await persistRecord(payload)
+        const id = String(saved.id ?? '')
+        setSavedRecordId(id)
+        flowSave.current = {payload: serialized, recordId: id}
+      }
+      const id = flowSave.current.recordId
+      await submitApproval(appId, formName, id, launchFlow?.id ?? flowId, requestKey.current)
       requestKey.current = crypto.randomUUID()
       setFlowOpen(false)
       onOpenChange(false)
-      onSaved?.(String(saved.id ?? ''))
+      onSaved?.(id)
       message.success('已提交，流程正在启动')
     } catch (caught: unknown) {
       setFlowOpen(false)
-      setError(toErrorMessage(caught, '发起流程失败'))
+      const reason = toErrorMessage(caught, '发起流程失败')
+      setError(flowSave.current ? `记录已保存，${reason}` : reason)
     } finally {
       setIsStarting(false)
     }
@@ -258,8 +274,10 @@ export function AppRecordFormModal({
     <>
       <BizDrawer
       open={open}
-      onOpenChange={onOpenChange}
-      title={form ? (effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`) : '新建记录'}
+      onOpenChange={value => {
+        if (!isSubmitting && !isStarting) onOpenChange(value)
+      }}
+      title={launchFlow ? `发起流程：${launchFlow.name}` : form ? (effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`) : '新建记录'}
       moreMenu={form ? (
         <FormMoreMenu
           onOpenDesign={() => {
@@ -273,8 +291,12 @@ export function AppRecordFormModal({
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting || isStarting}>
             取消
           </Button>
-          <Button onClick={submit} disabled={isSubmitting || isStarting || uploading}>保存</Button>
-          {!effectiveRecordId && flows.length > 0 && (
+          {launchFlow ? (
+            <Button onClick={() => void startFlow()} disabled={isSubmitting || isStarting || uploading}>
+              {isStarting ? '提交中…' : '提交并发起'}
+            </Button>
+          ) : <Button onClick={submit} disabled={isSubmitting || isStarting || uploading}>保存</Button>}
+          {!launchFlow && !recordId && flows.length > 0 && (
             <Button variant="outline" onClick={openFlowDialog} disabled={isSubmitting || isStarting || uploading}>
               发起流程
             </Button>

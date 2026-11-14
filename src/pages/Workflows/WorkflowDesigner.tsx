@@ -41,17 +41,17 @@ import {
   saveApprovalFlow,
   publishFlow,
   validateApprovalFlow
-} from '@/services/approvals'
+} from '@/services/workflows'
 import {ApprovalDirectoryContext} from './directory'
-import type {ApprovalDocument, ApprovalFlow, ApprovalNode, MemberDirectory, ValidationIssue} from '@/types/approval'
-import {cloneNode, createApprovalNode, flattenNodes, validateFlow,} from '@/lib/approval'
+import type {ApprovalDocument, ApprovalFlow, ApprovalNode, MemberDirectory, ValidationIssue} from '@/types/workflow'
+import {cloneNode, createApprovalNode, flattenNodes, validateFlow,} from '@/lib/workflow'
 import {cn, toErrorMessage} from '@/lib/utils'
 import {useDarkMode} from '@/lib/useDarkMode'
 import FlowCanvas, {findNode} from './FlowCanvas'
 import NodePanel from './NodePanel'
 import SimulationPanel from './SimulationPanel'
 import {useApprovalForms} from './controls'
-import {FlowStatus} from './ApprovalList'
+import {FlowStatus} from './WorkflowList'
 
 export default function ApprovalDesigner() {
   const {appId = '', flowId = ''} = useParams()
@@ -246,7 +246,7 @@ export default function ApprovalDesigner() {
     window.addEventListener('keydown', keyboard)
     return () => window.removeEventListener('keydown', keyboard)
   })
-  const backPath = `/admin/apps/${appId}/settings/approvals`
+  const backPath = `/admin/apps/${appId}/settings/workflows`
   if (!flow)
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-background">
@@ -256,7 +256,7 @@ export default function ApprovalDesigner() {
           : <AppLoading className="p-0" label="正在加载流程设计器"/>}
         {loadError && (
           <Button variant="outline" onClick={() => navigate(backPath)}>
-            返回审批流程
+            返回工作流
           </Button>
         )}
       </div>
@@ -285,7 +285,7 @@ export default function ApprovalDesigner() {
       onAddBranch={addBranch}
       onMove={move}
       onOpenSubflow={(id) =>
-        requestLeave(`/admin/apps/${appId}/approvals/${id}/design`)
+        requestLeave(`/admin/apps/${appId}/workflow/${id}/design`)
       }
     /></ApprovalDirectoryContext.Provider>
   )
@@ -297,7 +297,7 @@ export default function ApprovalDesigner() {
             size="icon"
             variant="ghost"
             className="h-8 w-8 shrink-0"
-            title="返回审批流程"
+            title="返回工作流"
             onClick={() => requestLeave(backPath)}
           >
             <ArrowLeft className="h-4 w-4"/>
@@ -317,7 +317,7 @@ export default function ApprovalDesigner() {
               </span>
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-              <span className="truncate">{appName} / 审批流程</span>
+              <span className="truncate">{appName} / 工作流</span>
               <span>·</span>
               <span className="inline-flex shrink-0 items-center gap-1">
                 {dirty ? (

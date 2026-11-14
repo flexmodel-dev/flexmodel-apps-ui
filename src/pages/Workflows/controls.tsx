@@ -16,14 +16,14 @@ import type {
   Assignment,
   Condition,
   ValueBinding,
-} from '@/types/approval'
+} from '@/types/workflow'
 import {
   formKey,
   literal,
   newCondition,
   uid,
   upstreamNodes,
-} from '@/lib/approval'
+} from '@/lib/workflow'
 import {cn, toErrorMessage} from '@/lib/utils'
 
 export const inputClass =

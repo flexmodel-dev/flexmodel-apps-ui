@@ -186,7 +186,7 @@ test.beforeEach(async ({page}) => {
 test('模板可完整模拟，列表与设计器保存恢复并适配主题', async ({page}) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
-  await page.goto('/#/admin/apps/approval-demo/settings/approvals')
+  await page.goto('/#/admin/apps/approval-demo/settings/workflows')
   await expect(page.getByText('管理手动、数据事件和定时工作流。')).toBeVisible()
   await expect(page.getByRole('columnheader', {name: '触发方式', exact: true})).toBeVisible()
   await expect(page.getByRole('columnheader', {name: '节点', exact: true})).toHaveCount(0)
@@ -257,7 +257,7 @@ test('模板可完整模拟，列表与设计器保存恢复并适配主题', as
 })
 
 test('七类节点可插入、撤销与重做，条件分支可以增减', async ({page}) => {
-  await page.goto('/#/admin/apps/approval-demo/approvals/demo-expense/design')
+  await page.goto('/#/admin/apps/approval-demo/workflow/demo-expense/design')
   await expect(
     page.locator('.approval-node[data-node-id="demo-manager"]'),
   ).toBeVisible()
@@ -292,7 +292,7 @@ test('七类节点可插入、撤销与重做，条件分支可以增减', async
 test('真实字段可配置记录节点，多组审批人可保存，校验定位缺失条件', async ({
                                                                           page,
                                                                         }) => {
-  await page.goto('/#/admin/apps/approval-demo/settings/approvals')
+  await page.goto('/#/admin/apps/approval-demo/settings/workflows')
   await page
     .getByRole('button', {name: '新建流程', exact: true})
     .first()
@@ -380,7 +380,7 @@ test('列表支持复制、停用、筛选和删除，真实元数据读取失�
   await page.route('**/api/apps/approval-demo/forms', (route) =>
     route.fulfill({status: 500, json: {message: '元数据暂不可用'}}),
   )
-  await page.goto('/#/admin/apps/approval-demo/settings/approvals')
+  await page.goto('/#/admin/apps/approval-demo/settings/workflows')
   await expect(page.getByRole('alert')).toContainText('元数据暂不可用')
   await page.getByRole('button', {name: '费用报销审批更多操作'}).click()
   await page.getByText('复制流程', {exact: true}).click()
@@ -405,7 +405,7 @@ test('列表支持复制、停用、筛选和删除，真实元数据读取失�
 })
 
 test('拖动节点可更改顺序并保存，未保存修改离开时提醒', async ({page}) => {
-  await page.goto('/#/admin/apps/approval-demo/approvals/demo-expense/design')
+  await page.goto('/#/admin/apps/approval-demo/workflow/demo-expense/design')
   await expect(
     page.locator('.approval-node[data-node-id="demo-manager"]'),
   ).toBeVisible()

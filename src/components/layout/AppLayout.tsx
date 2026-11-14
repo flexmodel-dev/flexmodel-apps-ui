@@ -21,6 +21,7 @@ import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {MenuAuthorizationDialog} from '@/components/biz/MenuAuthorizationDialog'
 import {rememberAppLocation} from '@/lib/appLocationMemory'
+import type {ApprovalFlow} from '@/types/workflow'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
 import {NavEditorDialog, type NavEditorDraft} from './NavEditorDialog'
@@ -59,6 +60,7 @@ export function AppLayout({
   const [isNavsLoading, setIsNavsLoading] = React.useState(Boolean(appId))
   const [recordFormName, setRecordFormName] = React.useState<string | null>(null)
   const [recordFormOpen, setRecordFormOpen] = React.useState(false)
+  const [recordFlow, setRecordFlow] = React.useState<ApprovalFlow | undefined>()
   const [authorization, setAuthorization] = React.useState<AppNav | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<AppNav | null>(null)
   const [deleting, setDeleting] = React.useState(false)
@@ -67,6 +69,7 @@ export function AppLayout({
     setRecordFormOpen(open)
     if (!open) {
       setRecordFormName(null)
+      setRecordFlow(undefined)
     }
   }
 
@@ -184,6 +187,9 @@ export function AppLayout({
   const activeTop = appId
     ? topNavItems.find((nav) => nav.id === resolvedActiveTopId) ?? (isNavsLoading ? undefined : topNavItems[0])
     : topNavItems.find((nav) => nav.id === activeTopId) ?? topNavItems[0]
+  const sidebarNavs = activeTop?.navs ?? []
+  // 加载期间保持侧栏占位，避免有菜单的应用进入时内容闪动
+  const showSidebar = !hideHeader && !hideNavigation && (isNavsLoading || sidebarNavs.length > 0)
   const createRecordItems = React.useMemo(() => findFormNavDestinations(navs), [navs])
 
   const persistNavOrder = React.useCallback((nextNavs: AppNav[]) => {
@@ -252,8 +258,9 @@ export function AppLayout({
       setDeleting(false)
     }
   }
-  const openRecordForm = (formName: string) => {
+  const openRecordForm = (formName: string, launchFlow?: ApprovalFlow) => {
     setRecordFormName(formName)
+    setRecordFlow(launchFlow)
     setRecordFormOpen(true)
   }
 
@@ -279,10 +286,10 @@ export function AppLayout({
         />
       )}
 
-      {!hideHeader && !hideNavigation && (
+      {showSidebar && (
         <AppLeftSidebar
           collapsed={collapsed}
-          navs={activeTop?.navs ?? []}
+          navs={sidebarNavs}
           sectionKey={activeTop?.id ?? ''}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
           onMenusReorder={appId ? handleMenusReorder : undefined}
@@ -318,6 +325,7 @@ export function AppLayout({
         onOpenChange={handleRecordFormOpenChange}
         appId={appId ?? ''}
         formName={recordFormName}
+        launchFlow={recordFlow}
       />
 
       <main
@@ -325,7 +333,7 @@ export function AppLayout({
           hideHeader ? 'mt-0 h-screen md:ml-0' : 'mt-16 h-[calc(100vh-4rem)]',
           noOuterScroll ? 'overflow-hidden' : 'overflow-y-auto',
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
-          hideHeader ? '' : hideNavigation ? 'md:ml-0' : collapsed ? 'md:ml-16' : 'md:ml-64',
+          hideHeader ? '' : showSidebar ? (collapsed ? 'md:ml-16' : 'md:ml-64') : 'md:ml-0',
           !hideHeader && ai.panelOpen && 'lg:pr-[calc(var(--ai-panel-width)_+_1.5rem)]',
         )}
       >

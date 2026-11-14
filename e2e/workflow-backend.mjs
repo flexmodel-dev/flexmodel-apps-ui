@@ -61,7 +61,7 @@ try {
       ]
     })
   })
-  await page.goto(frontend + '/#/admin/apps/dev_test/approvals/' + flow.flow_module_id + '/design')
+  await page.goto(frontend + '/#/admin/apps/dev_test/workflow/' + flow.flow_module_id + '/design')
   await page.locator('.approval-node[data-node-id="review"]').click()
   await page.getByRole('textbox', {name: '节点名称', exact: true}).fill('真实签核节点')
   await page.getByRole('button', {name: '保存草稿', exact: true}).click()

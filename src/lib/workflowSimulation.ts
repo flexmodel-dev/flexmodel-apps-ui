@@ -8,7 +8,7 @@ import type {
   SimulationEvent,
   SignMode,
   ValueBinding,
-} from '../types/approval'
+} from '../types/workflow'
 import {
   renderNotificationTemplate,
   bindingValue,
@@ -18,7 +18,7 @@ import {
   resolveMembers,
   uid,
   validateFlow,
-} from './approval'
+} from './workflow'
 import {toErrorMessage} from '@/lib/utils'
 
 export class ApprovalSimulation {

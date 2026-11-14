@@ -18,9 +18,9 @@ import {
   sourceLabels,
   upstreamNodes,
   validateFlow,
-} from './approval'
-import {ApprovalSimulation} from './approvalSimulation'
-import type {ApprovalFlow, ResolveContext} from '../types/approval'
+} from './workflow'
+import {ApprovalSimulation} from './workflowSimulation'
+import type {ApprovalFlow, ResolveContext} from '../types/workflow'
 
 const context = (): ResolveContext => ({
   initiatorId: users[3].id,

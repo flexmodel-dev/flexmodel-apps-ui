@@ -1,23 +1,18 @@
 import * as React from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
-import {ArrowLeft, Plus, Search, Settings} from 'lucide-react'
+import {ArrowLeft, Search, Settings} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {cn} from '@/lib/utils'
 import {AppLoading} from '@/components/biz/AppLoading'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {type NavItem, type TopNavItem} from '@/data/mock'
 import {appIcons} from '@/data/appIcons'
 import {type App} from '@/services/apps'
 import {type AppNav} from '@/services/appNavigation'
 import {headerActionClass, TopHeaderShell} from './TopHeaderShell'
 import type {OnNavMenuAction} from './NavMenuActions'
+import type {ApprovalFlow} from '@/types/workflow'
+import {AppQuickCreate} from './AppQuickCreate'
 
 interface SearchSuggestion {
   label: string
@@ -70,7 +65,7 @@ export function AppTopHeader({
   isAppLoading?: boolean
   isNavsLoading?: boolean
   createRecordItems: Array<{ id: string; label: string }>
-  onCreateRecord: (formName: string) => void
+  onCreateRecord: (formName: string, launchFlow?: ApprovalFlow) => void
   onTopNavsReorder?: (orderedIds: string[]) => void
   onNavAction?: OnNavMenuAction
 }) {
@@ -79,7 +74,6 @@ export function AppTopHeader({
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState('')
   const [activeSuggestion, setActiveSuggestion] = React.useState(-1)
-  const [createOpen, setCreateOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const searchWrapperRef = React.useRef<HTMLDivElement>(null)
 
@@ -228,27 +222,13 @@ export function AppTopHeader({
             </div>
           )}
 
-          <DropdownMenu open={createOpen} onOpenChange={setCreateOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" title="新增记录" className={headerActionClass}>
-                <Plus className="h-5 w-5"/>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>选择表单</DropdownMenuLabel>
-              {isAppLoading || isNavsLoading ? (
-                <DropdownMenuItem disabled><AppLoading size="sm" className="p-0"/></DropdownMenuItem>
-              ) : createRecordItems.length === 0 ? (
-                <DropdownMenuItem disabled>当前应用菜单暂未绑定表单</DropdownMenuItem>
-              ) : (
-                createRecordItems.map((item) => (
-                  <DropdownMenuItem key={item.id} onClick={() => onCreateRecord(item.id)}>
-                    {item.label}
-                  </DropdownMenuItem>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <AppQuickCreate
+            key={appId}
+            appId={appId}
+            forms={createRecordItems}
+            loading={isAppLoading || isNavsLoading}
+            onCreateRecord={onCreateRecord}
+          />
 
           {showSearch && !searchOpen && (
             <Button

@@ -5,10 +5,10 @@ import {
   getApprovalFlows,
   saveApprovalFlow,
   setApprovalFlowStatus
-} from './approvals'
-import {createApprovalNode, emptyDocument, newRule} from '../lib/approval'
-import type {ApprovalFlow} from '../types/approval'
-import {encodeApprovalFlow} from './approval-model'
+} from './workflows'
+import {createApprovalNode, emptyDocument, newRule} from '../lib/workflow'
+import type {ApprovalFlow} from '../types/workflow'
+import {encodeApprovalFlow} from './workflow-model'
 
 const transport = vi.hoisted(() => vi.fn())
 vi.mock('./http', () => ({requestJson: transport}))

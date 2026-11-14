@@ -1,9 +1,10 @@
 import * as React from 'react'
 import {Drawer, DrawerContent, DrawerTitle} from '@/components/ui/drawer'
 import {Button} from '@/components/ui/button'
-import {approvalStatus, getFlowTriggerLogs, listFlowInstances, type ApprovalItem} from '@/services/approvals'
-import type {ApprovalFlow} from '@/types/approval'
-import {InstanceDrawer} from './InstanceDrawer'
+import {approvalStatus, type ApprovalItem} from '@/services/approvals'
+import {getFlowTriggerLogs, listFlowInstances} from '@/services/workflows'
+import type {ApprovalFlow} from '@/types/workflow'
+import {InstanceDrawer} from '../Approvals/InstanceDrawer'
 import {toErrorMessage} from '@/lib/utils'
 
 export function FlowRunsDrawer({flow, onClose}: { flow: ApprovalFlow; onClose: () => void }) {

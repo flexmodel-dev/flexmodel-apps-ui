@@ -12,8 +12,8 @@ import {
   User,
   type LucideIcon,
 } from 'lucide-react'
-import type {ApprovalFlow, ApprovalForm, MemberDirectory, RecordStore} from '../types/approval'
-import {createApprovalNode, literal, newRule} from '../lib/approval'
+import type {ApprovalFlow, ApprovalForm, MemberDirectory, RecordStore} from '../types/workflow'
+import {createApprovalNode, literal, newRule} from '../lib/workflow'
 import type {AppPrimaryColor} from '@/theme/appPrimaryColors'
 import type {AppIconName} from '@/data/appIcons'
 

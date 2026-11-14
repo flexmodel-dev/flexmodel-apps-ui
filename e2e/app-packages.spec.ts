@@ -27,7 +27,7 @@ const totalFields = forms.reduce((total, form) => total + form.fieldCount, 0)
 const resources = [
   {key: 'navigation', label: '导航', count: 12, detail: '父节点优先重建，节点 ID 重新分配', included: true},
   {key: 'workbenches', label: '工作台', count: 2, detail: '工作台 ID 重新生成，快捷入口重写', included: true},
-  {key: 'approvals', label: '审批流程', count: 1, detail: '仅导入托管流程，部署后恢复启用', included: true},
+  {key: 'approvals', label: '工作流', count: 1, detail: '仅导入托管流程，部署后恢复启用', included: true},
   {key: 'authorizations', label: '数据权限', count: 3, detail: '规则 ID 重新生成', included: true},
   {key: 'records', label: '记录数据', count: totalRecords, detail: '保留业务主键与业务引用', included: true},
 ]

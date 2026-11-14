@@ -3,11 +3,11 @@ import {getAuthSession} from '@/services/auth'
 import {
   FINISHED_STATUS,
   getApprovalDetail,
-  getApprovalFlows,
   recordApprovals,
   type ApprovalItem,
 } from '@/services/approvals'
-import type {ApprovalFlow} from '@/types/approval'
+import {getApprovalFlows} from '@/services/workflows'
+import type {ApprovalFlow} from '@/types/workflow'
 
 /**
  * 记录审批状态 hook：轮询审批实例与启用流程，解析当前用户在流程中的待办任务。

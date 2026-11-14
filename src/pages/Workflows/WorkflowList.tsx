@@ -33,9 +33,9 @@ import {
   duplicateApprovalFlow,
   getApprovalFlows,
   setApprovalFlowStatus,
-} from '@/services/approvals'
-import {flattenNodes, formKey, validateFlow} from '@/lib/approval'
-import type {ApprovalFlow, FlowTrigger} from '@/types/approval'
+} from '@/services/workflows'
+import {flattenNodes, formKey, validateFlow} from '@/lib/workflow'
+import type {ApprovalFlow, FlowTrigger} from '@/types/workflow'
 import {Field, useApprovalForms} from './controls'
 import {cn, toErrorMessage} from '@/lib/utils'
 
@@ -292,7 +292,7 @@ export default function ApprovalList({appId, boundFormName}: { appId?: string; b
                     className="flex items-center gap-3 text-left"
                     onClick={() =>
                       navigate(
-                        `/admin/apps/${appId}/approvals/${flow.id}/design`,
+                        `/admin/apps/${appId}/workflow/${flow.id}/design`,
                       )
                     }
                   >
@@ -343,7 +343,7 @@ export default function ApprovalList({appId, boundFormName}: { appId?: string; b
                       title={`编辑${flow.name}`}
                       onClick={() =>
                         navigate(
-                          `/admin/apps/${appId}/approvals/${flow.id}/design`,
+                          `/admin/apps/${appId}/workflow/${flow.id}/design`,
                         )
                       }
                     >
@@ -452,7 +452,7 @@ export default function ApprovalList({appId, boundFormName}: { appId?: string; b
                 perform(async () => {
                   const flow = await createApprovalFlow(appId, name.trim(), trigger)
                   setCreateOpen(false)
-                  navigate(`/admin/apps/${appId}/approvals/${flow.id}/design`)
+                  navigate(`/admin/apps/${appId}/workflow/${flow.id}/design`)
                 })
               }
             >

@@ -25,7 +25,7 @@ import {toErrorMessage} from '@/lib/utils'
 import {SettingsPageHeader} from '@/components/biz/SettingsPageHeader'
 import {FormSettingsNav, formSettingsBackPath} from '@/components/biz/FormSettingsNav'
 
-import ApprovalList from './Approvals/ApprovalList'
+import ApprovalList from './Workflows/WorkflowList'
 
 const sections = {
   base: '基本信息',

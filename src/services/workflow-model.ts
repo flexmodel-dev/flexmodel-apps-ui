@@ -1,4 +1,4 @@
-import type {ApprovalFlow, ApprovalNode, FormRef} from '../types/approval'
+import type {ApprovalFlow, ApprovalNode, FormRef} from '../types/workflow'
 
 export interface FlowElement {
   key: string

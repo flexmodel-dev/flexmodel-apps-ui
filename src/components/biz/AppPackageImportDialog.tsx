@@ -41,7 +41,7 @@ interface Props {
   initialName?: string | null
 }
 
-const importSteps = ['创建应用与业务库', '重建表单与字段', '重建导航与工作台', '重建审批与数据权限', '写入业务记录', '激活应用']
+const importSteps = ['创建应用与业务库', '重建表单与字段', '重建导航与工作台', '重建工作流与数据权限', '写入业务记录', '激活应用']
 
 /** 后端执行阶段到步骤索引的映射，用于轮询进度高亮。 */
 const phaseSteps: Record<string, number> = {

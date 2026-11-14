@@ -31,7 +31,7 @@ import {NotificationProvider} from '@/components/notifications/NotificationProvi
 import {AiProvider, useAiAssistant} from '@/components/ai/AiProvider'
 import {AiAssistantPanel} from '@/components/ai/AiAssistantPanel'
 
-const ApprovalDesigner = React.lazy(() => import('@/pages/Approvals/ApprovalDesigner'))
+const ApprovalDesigner = React.lazy(() => import('@/pages/Workflows/WorkflowDesigner'))
 
 function ApprovalDesignerRoute() {
   const current = useLocation()
@@ -82,8 +82,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/admin/apps/:appId/settings/menus" element={<AppSettings section="menus"/>}/>
           <Route path="/admin/apps/:appId/settings/forms"
                  element={<AppSettings section="forms"/>}/>
-          <Route path="/admin/apps/:appId/settings/approvals" element={<AppSettings section="approvals"/>}/>
-          <Route path="/admin/apps/:appId/approvals/:flowId/design" element={<ApprovalDesignerRoute/>}/>
+          <Route path="/admin/apps/:appId/settings/workflows" element={<AppSettings section="workflows"/>}/>
+          <Route path="/admin/apps/:appId/workflow/:flowId/design" element={<ApprovalDesignerRoute/>}/>
           {/* 内置模块 */}
           <Route path="/approval/home" element={<ApprovalHome/>}/>
           <Route path="/feeds/home" element={<FeedsHome/>}/>
