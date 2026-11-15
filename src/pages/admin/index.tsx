@@ -1,6 +1,6 @@
-﻿import {AdminLayout} from '@/components/layout/AdminLayout'
+import {AdminLayout} from '@/components/layout/AdminLayout'
 import {FormManagementContent} from './AdminContent'
-import ApprovalList from '@/pages/Workflows/WorkflowList'
+import ApprovalList from '@/pages/workflows/WorkflowList'
 
 export {AdminUsers} from './AdminUsers'
 export {AdminRoles} from './AdminRoles'

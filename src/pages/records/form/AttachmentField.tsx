@@ -1,0 +1,222 @@
+import * as React from 'react'
+import {Download, FileIcon, Loader2, Paperclip, X} from 'lucide-react'
+import {Button} from '@/components/ui/button'
+import {BizDialog} from '@/components/ui/dialog'
+import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
+import {attachmentName, attachmentPreviewType, attachmentUrls, isAttachmentUrl} from '@/lib/attachments'
+import {AppLoading} from '@/components/shared/AppLoading'
+import {toErrorMessage} from '@/lib/utils'
+import {loadAttachment, uploadAttachment} from '@/services/attachments'
+
+function useFilePreview(url: string, enabled: boolean) {
+  const [source, setSource] = React.useState('')
+  const [error, setError] = React.useState('')
+  React.useEffect(() => {
+    setSource('')
+    setError('')
+    if (!enabled) return
+    const controller = new AbortController()
+    let objectUrl = ''
+    void loadAttachment(url, controller.signal).then(blob => {
+      if (controller.signal.aborted) return
+      objectUrl = URL.createObjectURL(blob)
+      setSource(objectUrl)
+    }).catch(error => {
+      if (!controller.signal.aborted) setError(toErrorMessage(error, '预览加载失败'))
+    })
+    return () => {
+      controller.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [url, enabled])
+  return {source, error}
+}
+
+/** 通过鉴权请求把附件加载为 blob URL；画廊封面等需要自定义尺寸的图片复用该逻辑。 */
+export function useAttachmentImageSource(url: string, enabled = true) {
+  return useFilePreview(url, enabled)
+}
+
+function AttachmentThumbnail({url, compact = false}: { url: string; compact?: boolean }) {
+  const image = attachmentPreviewType(url)?.startsWith('image/') && isAttachmentUrl(url)
+  const {source} = useFilePreview(url, !!image)
+  return source ?
+    <img src={source} alt="" className={`${compact ? 'h-6 w-6' : 'h-10 w-10'} shrink-0 rounded border object-cover`}/>
+    : <FileIcon className="h-5 w-5 shrink-0 text-muted-foreground"/>
+}
+
+function AttachmentPreview({url, onClose}: { url: string; onClose: () => void }) {
+  const {source, error} = useFilePreview(url, true)
+  const type = attachmentPreviewType(url) ?? ''
+  const name = attachmentName(url)
+  return <BizDialog open onOpenChange={open => {
+    if (!open) onClose()
+  }} title={name} width={880}>
+    {error ? <p role="alert" className="text-destructive">{error}</p>
+      : !source ? <AppLoading size="sm" label="正在加载预览"/>
+        : type.startsWith('image/') ?
+          <img src={source} alt={name} className="mx-auto max-h-[60vh] max-w-full object-contain"/>
+          : type === 'application/pdf' ? <iframe src={source} title={name} className="h-[60vh] w-full rounded border"/>
+            : type.startsWith('video/') ? <video src={source} controls className="max-h-[60vh] w-full"/>
+              : <audio src={source} controls className="w-full"/>}
+  </BizDialog>
+}
+
+export function AttachmentList({value, onRemove, onPreview}: {
+  value: unknown;
+  onRemove?: (url: string) => void;
+  onPreview?: (url: string) => void
+}) {
+  const urls = attachmentUrls(value)
+  const [preview, setPreview] = React.useState<string | null>(null)
+  const [downloading, setDownloading] = React.useState<string | null>(null)
+  const [error, setError] = React.useState('')
+  const download = async (url: string) => {
+    setError('')
+    setDownloading(url)
+    try {
+      const blob = await loadAttachment(url)
+      const source = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = source
+      anchor.download = attachmentName(url)
+      anchor.click()
+      setTimeout(() => URL.revokeObjectURL(source), 1000)
+    } catch (error) {
+      setError(toErrorMessage(error, '下载失败'))
+    } finally {
+      setDownloading(null)
+    }
+  }
+  return <div className="space-y-2 whitespace-normal text-sm font-normal">
+    {urls.map(url => <div key={url} className="flex min-w-0 items-center gap-2 rounded-md border bg-background p-2">
+      <AttachmentThumbnail url={url}/>
+      <span className="min-w-0 flex-1 truncate" title={attachmentName(url)}>{attachmentName(url)}</span>
+      {isAttachmentUrl(url) && <>
+        {attachmentPreviewType(url) && <Button type="button" size="sm" variant="ghost" onClick={() => {
+          setError('');
+          if (onPreview) onPreview(url); else setPreview(url)
+        }} aria-label={`预览 ${attachmentName(url)}`}>预览</Button>}
+        <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0" disabled={!!downloading}
+                aria-label={`下载 ${attachmentName(url)}`} onClick={() => void download(url)}>
+          {downloading === url ? <Loader2 className="h-4 w-4 animate-spin"/> : <Download className="h-4 w-4"/>}
+        </Button>
+      </>}
+      {onRemove && <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0"
+                           aria-label={`移除 ${attachmentName(url)}`} onClick={() => onRemove(url)}><X
+        className="h-4 w-4"/></Button>}
+    </div>)}
+    {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+    {preview && <AttachmentPreview url={preview} onClose={() => setPreview(null)}/>}
+  </div>
+}
+
+/** 列表仅展示首个文件和剩余数量，完整附件列表按需打开。 */
+export function AttachmentCell({value}: { value: unknown }) {
+  const urls = attachmentUrls(value)
+  const [open, setOpen] = React.useState(false)
+  const [preview, setPreview] = React.useState<string | null>(null)
+  const trigger = React.useRef<HTMLButtonElement>(null)
+  if (!urls.length) return <span className="text-muted-foreground">-</span>
+  const name = attachmentName(urls[0])
+  return <div onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button ref={trigger} type="button"
+                className="flex h-7 w-full min-w-0 max-w-60 items-center gap-2 rounded-sm text-left text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`查看附件：${name}${urls.length > 1 ? `等${urls.length}个文件` : ''}`}
+                title={urls.map(attachmentName).join('\n')}>
+          <AttachmentThumbnail url={urls[0]} compact/>
+          <span className="min-w-0 flex-1 truncate">{name}</span>
+          {urls.length > 1 &&
+            <span className="shrink-0 rounded bg-muted px-1.5 text-xs text-muted-foreground">+{urls.length - 1}</span>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" sideOffset={6} collisionPadding={16} aria-label={`附件（${urls.length}）`}
+                      className="z-[1100] w-[360px] max-w-[calc(100vw-2rem)] max-h-[min(24rem,var(--radix-popover-content-available-height))] overflow-y-auto p-3"
+                      onCloseAutoFocus={event => {
+                        if (preview) event.preventDefault()
+                      }}>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-sm font-medium">附件（{urls.length}）</span>
+          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" aria-label="关闭附件列表"
+                  onClick={() => setOpen(false)}><X className="h-4 w-4"/></Button>
+        </div>
+        <AttachmentList value={value} onPreview={url => {
+          setOpen(false);
+          setPreview(url)
+        }}/>
+      </PopoverContent>
+    </Popover>
+    {preview && <AttachmentPreview url={preview} onClose={() => {
+      setPreview(null)
+      requestAnimationFrame(() => trigger.current?.focus())
+    }}/>}
+  </div>
+}
+
+export function AttachmentField({appId, formId, label, value, imageOnly, disabled, onChange, onUploadStart}: {
+  appId: string; formId: string; label: string; value: unknown; imageOnly?: boolean; disabled?: boolean
+  onChange: (value: string) => void; onUploadStart?: () => () => void
+}) {
+  const input = React.useRef<HTMLInputElement>(null)
+  const controller = React.useRef<AbortController | null>(null)
+  const finish = React.useRef<(() => void) | undefined>(undefined)
+  const [uploading, setUploading] = React.useState(false)
+  const [error, setError] = React.useState('')
+  React.useEffect(() => () => {
+    controller.current?.abort();
+    finish.current?.()
+  }, [])
+  const upload = async (files: File[]) => {
+    if (!files.length || disabled || uploading) return
+    const abort = new AbortController()
+    controller.current = abort
+    setUploading(true)
+    setError('')
+    const complete = onUploadStart?.()
+    finish.current = complete
+    const urls = attachmentUrls(value)
+    const failures: string[] = []
+    try {
+      for (const file of files) {
+        try {
+          if (imageOnly && !file.type.startsWith('image/')) throw new Error('请选择图片文件')
+          const url = await uploadAttachment(appId, formId, file, abort.signal)
+          if (abort.signal.aborted) return
+          urls.push(url)
+          onChange(urls.join(','))
+        } catch (error) {
+          if (abort.signal.aborted) return
+          failures.push(`${file.name}：${toErrorMessage(error, '上传失败')}`)
+        }
+      }
+      if (!abort.signal.aborted) setError(failures.join('；'))
+    } finally {
+      complete?.()
+      finish.current = undefined
+      if (!abort.signal.aborted) setUploading(false)
+    }
+  }
+  return <div className="space-y-2">
+    <AttachmentList value={value}
+                    onRemove={!disabled && !uploading ? url => onChange(attachmentUrls(value).filter(item => item !== url).join(',')) : undefined}/>
+    {!disabled && <>
+      <input ref={input} type="file" multiple accept={imageOnly ? 'image/*' : undefined} className="hidden"
+             aria-label={`上传${label}`}
+             disabled={uploading} onChange={event => {
+        const files = Array.from(event.target.files ?? []);
+        event.target.value = '';
+        void upload(files)
+      }}/>
+      <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => input.current?.click()}>
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin"/> :
+          <Paperclip className="h-4 w-4"/>}{uploading ? '上传中…' : '上传文件'}
+      </Button>
+      <p
+        className="text-xs text-muted-foreground">支持选择一个或多个{imageOnly ? '图片' : '文件'}，上传后可预览或移除。</p>
+    </>}
+    {disabled && !attachmentUrls(value).length && <span className="text-sm text-muted-foreground">暂无附件</span>}
+    {error && <p role="alert" className="break-words text-xs text-destructive">{error}</p>}
+  </div>
+}

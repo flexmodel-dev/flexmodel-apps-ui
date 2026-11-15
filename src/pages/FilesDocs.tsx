@@ -13,8 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {AppLoading} from '@/components/biz/AppLoading'
-import {DirectoryMemberPicker} from '@/components/biz/DirectoryMemberPicker'
+import {AppLoading} from '@/components/shared/AppLoading'
+import {DirectoryMemberPicker} from '@/components/shared/DirectoryMemberPicker'
 import type {DirectorySelection} from '@/types/directory'
 import {attachmentName} from '@/lib/attachments'
 import {cn, toErrorMessage} from '@/lib/utils'

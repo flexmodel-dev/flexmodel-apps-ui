@@ -4,8 +4,8 @@ import {cn} from '@/lib/utils'
 import {AdminTopHeader} from './AdminTopHeader'
 import {AdminLeftSidebar, adminNavs} from './AdminLeftSidebar'
 import {getAppForm} from '@/services/appForms'
-import {FormSettingsNav} from '@/components/biz/FormSettingsNav'
-import {useAiAssistant} from '@/components/ai/AiProvider'
+import {FormSettingsNav} from '@/pages/forms/FormSettingsNav'
+import {useAiAssistant} from '@/pages/ai/AiProvider'
 
 export function AdminLayout({
                               children,

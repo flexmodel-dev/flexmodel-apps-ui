@@ -14,8 +14,8 @@ import {CSS} from '@dnd-kit/utilities'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {UserAvatar} from '@/components/ui/avatar'
-import {NotificationBell} from '@/components/notifications/NotificationBell'
-import {AiHeaderButton} from '@/components/ai/AiHeaderButton'
+import {NotificationBell} from '@/pages/notifications/NotificationBell'
+import {AiHeaderButton} from '@/pages/ai/AiHeaderButton'
 import {
   DropdownMenu,
   DropdownMenuContent,

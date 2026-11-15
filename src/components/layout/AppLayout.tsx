@@ -15,18 +15,18 @@ import {
   reorderNavChildren,
   toTopNavigationItem
 } from '@/services/appNavigation'
-import {AppRecordCreateDialog} from '@/components/biz/AppRecordCreateDialog'
+import {AppRecordCreateDialog} from '@/pages/records/AppRecordCreateDialog'
 import {message} from '@/components/ui/message'
 import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
-import {MenuAuthorizationDialog} from '@/components/biz/MenuAuthorizationDialog'
+import {MenuAuthorizationDialog} from '@/pages/apps/MenuAuthorizationDialog'
 import {rememberAppLocation} from '@/lib/appLocationMemory'
 import type {ApprovalFlow} from '@/types/workflow'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
 import {NavEditorDialog, type NavEditorDraft} from './NavEditorDialog'
 import type {OnNavMenuAction} from './NavMenuActions'
-import {useAiAssistant} from '@/components/ai/AiProvider'
+import {useAiAssistant} from '@/pages/ai/AiProvider'
 
 export function AppLayout({
   children,

@@ -19,16 +19,21 @@
 npm run dev
 npm run build
 npm run preview
+npm run test          # 单元测试（vitest）
+npm run test:records  # 特性 E2E（playwright test --project <特性>，项目清单见 playwright.config.ts）
 ```
 
 修改代码后优先执行 `npm run build` 验证。
 
 ## 目录约定
 
+- `src/pages/<特性>/`：特性垂直分包，页面与其业务组件、hooks 同住，特性目录一律小写
+  （`apps/` 应用管理、`forms/` 表单设计、`records/` 记录、`workbench/` 工作台、
+  `approvals/` 审批、`workflows/` 流程、`ai/` AI 助手、`notifications/` 通知、`login/` 登录、`admin/` 后台管理）。
+  单文件、无专属组件的页面（AppHome、FilesDocs、UserSettings 等演示页）直接平铺在 `src/pages/` 根目录。
 - `src/components/ui/`：shadcn/ui 基础组件，保持默认样式。
 - `src/components/layout/`：全局布局，包括 header、左侧菜单和内容区。
-- `src/components/rb/`：业务复用组件，例如表单弹窗、分页器。
-- `src/pages/`：页面级组件。
+- `src/components/shared/`：跨特性复用组件，例如 AppLoading、Pagination、SearchInput。
 - `src/services/`：真实后端接口层与会话内缓存。
 - `src/data/mock.ts`：实体元数据、记录、用户、导航等 mock 数据。
 - `src/lib/utils.ts`：通用工具函数和 `cn()`。

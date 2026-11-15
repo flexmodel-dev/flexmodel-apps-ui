@@ -1,7 +1,7 @@
 import {test, expect} from '@playwright/test'
 import {createApprovalTemplates, approvalDirectory, approvalDemoForms, users} from '../src/data/mock'
-import {validateFlow} from '../src/lib/approval'
-import {decodeApprovalFlow, encodeApprovalFlow} from '../src/services/approval-model'
+import {validateFlow} from '../src/lib/workflow'
+import {decodeApprovalFlow, encodeApprovalFlow} from '../src/services/workflow-model'
 
 const app = {
   id: 'approval-demo',
@@ -455,7 +455,7 @@ test('拖动节点可更改顺序并保存，未保存修改离开时提醒', as
   await page
     .getByRole('textbox', {name: '节点名称', exact: true})
     .fill('未保存的修改')
-  await page.getByTitle('返回审批流程').click()
+  await page.getByTitle('返回工作流').click()
   await expect(
     page.getByText('还有未保存的修改', {exact: true}),
   ).toBeVisible()

@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import type {AppForm, AppFormField} from '@/services/appForms'
 import {fieldDefaultValue, fieldValueError, formatFieldValue, isFieldWritable} from './fieldConfig'
-import {buildRecordPayload, initialCreateValues, toEditValues} from '@/components/biz/form/recordPayload'
+import {buildRecordPayload, initialCreateValues, toEditValues} from '@/pages/records/form/recordPayload'
 
 function field(type: AppFormField['type'], config: AppFormField['config'] = {}): AppFormField {
   return {name: 'value', label: '值', type, required: false, builtin: false, config}

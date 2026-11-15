@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {useLocation} from 'react-router-dom'
-import {AppLoading} from '@/components/biz/AppLoading'
+import {AppLoading} from '@/components/shared/AppLoading'
 import {type App, getAppById} from '@/services/apps'
 import {getAuthSession} from '@/services/auth'
 import {useAppFavicon} from '@/lib/appFavicon'

@@ -3,8 +3,8 @@ import {AdminLayout} from '@/components/layout/AdminLayout'
 import {Button} from '@/components/ui/button'
 import {Empty} from '@/components/ui/empty'
 import {BizDialog} from '@/components/ui/dialog'
-import {SystemRecordFormModal} from '@/components/biz/SystemRecordFormModal'
-import {AppLoading} from '@/components/biz/AppLoading'
+import {SystemRecordFormModal} from '@/pages/records/SystemRecordFormModal'
+import {AppLoading} from '@/components/shared/AppLoading'
 import {CirclePlus, Pencil, Trash2} from 'lucide-react'
 import {
   deleteSystemRecord,

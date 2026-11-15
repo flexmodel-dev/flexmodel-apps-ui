@@ -4,7 +4,7 @@ import {AppLayout} from '@/components/layout/AppLayout'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {AppLoading} from '@/components/biz/AppLoading'
+import {AppLoading} from '@/components/shared/AppLoading'
 import {UserAvatar} from '@/components/ui/avatar'
 import {getAuthSession, updateAuthUser} from '@/services/auth'
 import {
