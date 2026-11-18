@@ -25,11 +25,8 @@ import {toErrorMessage} from '@/lib/utils'
 import {SettingsPageHeader} from '@/components/shared/SettingsPageHeader'
 import {FormSettingsNav, formSettingsBackPath} from '@/pages/forms/FormSettingsNav'
 
-import ApprovalList from '../workflows/WorkflowList'
-
 const sections = {
   base: '基本信息',
-  flows: '工作流',
 } as const
 
 export type FormSettingsSection = keyof typeof sections
@@ -133,7 +130,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
       <div
         className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
         <SettingsPageHeader title={`${sections[section]}`}
-                            description={section === 'base' ? '管理表单信息与主显字段。' : '管理绑定本表单的手动和数据事件工作流。定时流程在应用设置中管理。'}
+                            description={'管理表单信息与主显字段。'}
                             onBack={() => navigate(backPath)} backLabel={backLabel}
                             badge={form.builtin && <Badge className="bg-muted text-muted-foreground">内置</Badge>}
                             actions={<>
@@ -149,8 +146,7 @@ export default function FormSettings({section}: { section: FormSettingsSection }
           <FormSettingsNav appId={appId} formName={formName} mobile/>
         </SettingsPageHeader>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {section === 'base' ? (
-            <div className="space-y-8 p-4 sm:p-6">
+          <div className="space-y-8 p-4 sm:p-6">
               <section>
                 <h2 className="mb-5 text-sm font-semibold">表单信息</h2>
                 <dl className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
@@ -185,9 +181,6 @@ export default function FormSettings({section}: { section: FormSettingsSection }
                         onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4"/>删除表单</Button>
               </section>
             </div>
-          ) : (
-            <div className="h-full p-4 sm:p-6"><ApprovalList appId={appId} boundFormName={formName}/></div>
-          )}
         </div>
       </div>
 

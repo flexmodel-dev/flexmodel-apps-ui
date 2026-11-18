@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Link, useLocation} from 'react-router-dom'
-import {ChevronsLeft, ChevronsRight, LayoutGrid, ShieldCheck, Users} from 'lucide-react'
+import {ChevronsLeft, ChevronsRight, House, LayoutGrid, ShieldCheck, Users} from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
@@ -8,6 +8,7 @@ import type {NavItem} from '@/data/mock'
 import {AppLauncher} from './AppLauncher'
 
 export const adminNavs: NavItem[] = [
+  {id: 'workbench', text: '工作台', to: '/admin/workbench', icon: House},
   {id: 'apps', text: '应用管理', to: '/admin/apps', icon: LayoutGrid},
   {id: 'divider-users', text: '用户', to: ''},
   {id: 'users', text: '部门用户', to: '/admin/users', icon: Users},

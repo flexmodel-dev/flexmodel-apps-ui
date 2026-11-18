@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Link, useNavigate, useParams} from 'react-router-dom'
-import {Download, Pencil, Trash2} from 'lucide-react'
+import {Download, FileText, ListTree, Pencil, Settings, Trash2, Workflow} from 'lucide-react'
 import {AdminLayout} from '@/components/layout/AdminLayout'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -19,10 +19,10 @@ import {toErrorMessage} from '@/lib/utils'
 import {SettingsPageHeader} from '@/components/shared/SettingsPageHeader'
 
 const settingsNavs = [
-  {key: 'basic', label: '基本设置'},
-  {key: 'menus', label: '菜单管理'},
-  {key: 'forms', label: '表单管理'},
-  {key: 'workflows', label: '工作流'},
+  {key: 'basic', label: '基本设置', icon: Settings},
+  {key: 'menus', label: '菜单管理', icon: ListTree},
+  {key: 'forms', label: '表单管理', icon: FileText},
+  {key: 'workflows', label: '工作流', icon: Workflow},
 ]
 
 const sectionDescriptions: Record<string, string> = {
@@ -157,18 +157,19 @@ export default function AppSettings({section}: { section: string }) {
             <p className="mb-0 mt-1 text-xs text-muted-foreground">应用设置</p>
           </div>
           <nav className="flex flex-wrap gap-1 p-2 lg:flex-col">
-            {settingsNavs.map((item) => (
+            {settingsNavs.map(({key, label, icon: ItemIcon}) => (
               <Link
-                key={item.key}
-                to={`/admin/apps/${app.id}/settings/${item.key}`}
-                aria-current={activeSection === item.key ? 'page' : undefined}
+                key={key}
+                to={`/admin/apps/${app.id}/settings/${key}`}
+                aria-current={activeSection === key ? 'page' : undefined}
                 className={
-                  activeSection === item.key
-                    ? 'block whitespace-nowrap rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
-                    : 'block whitespace-nowrap rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
+                  activeSection === key
+                    ? 'flex items-center gap-2 whitespace-nowrap rounded-md bg-primary/10 px-3 py-2 text-sm font-medium text-primary'
+                    : 'flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary'
                 }
               >
-                {item.label}
+                <ItemIcon className="h-4 w-4 shrink-0"/>
+                {label}
               </Link>
             ))}
           </nav>

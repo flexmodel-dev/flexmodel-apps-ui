@@ -21,6 +21,7 @@ import {BizDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {MenuAuthorizationDialog} from '@/pages/apps/MenuAuthorizationDialog'
 import {rememberAppLocation} from '@/lib/appLocationMemory'
+import {rememberRecentUse} from '@/lib/recentUsage'
 import type {ApprovalFlow} from '@/types/workflow'
 import {AppTopHeader} from './AppTopHeader'
 import {AppLeftSidebar} from './AppLeftSidebar'
@@ -119,6 +120,17 @@ export function AppLayout({
     const search = viewId ? `?${new URLSearchParams({viewId})}` : ''
     if (match) rememberAppLocation(appId, `/apps/${appId}/${match[1]}${search}`)
   }, [appId, location.pathname, location.search])
+
+  React.useEffect(() => {
+    if (!appId) return
+    const match = location.pathname.match(/^\/apps\/[^/]+\/([^/]+)/)
+    if (match) {
+      const nav = findNavById(navs, match[1])
+      if (nav) rememberRecentUse({appId, navId: match[1], name: nav.name, kind: 'form'})
+    } else if (app) {
+      rememberRecentUse({appId, name: app.name, kind: 'app'})
+    }
+  }, [appId, location.pathname, app, navs])
 
   React.useEffect(() => {
     if (!appId) {

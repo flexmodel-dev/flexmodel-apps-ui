@@ -18,6 +18,7 @@ export default defineConfig({
     timeout: 60000,
   },
   projects: [
+    {name: 'workbench', testMatch: 'admin-workbench.spec.ts'},
     {name: 'workflows', testMatch: 'workflows.spec.ts'},
     {name: 'records', testMatch: ['records.spec.ts', 'record-print.spec.ts', 'view-url.spec.ts']},
     {name: 'menus', testMatch: ['menu-permissions.spec.ts', 'nav-actions.spec.ts', 'quick-create.spec.ts']},

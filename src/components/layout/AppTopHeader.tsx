@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
-import {ArrowLeft, Search, Settings} from 'lucide-react'
+import {ArrowLeft, LayoutDashboard, Search} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {cn} from '@/lib/utils'
@@ -101,7 +101,7 @@ export function AppTopHeader({
 
   const goBack = () => {
     if (location.key === 'default') {
-      navigate('/admin/apps')
+      navigate('/admin/workbench')
       return
     }
     navigate(-1)
@@ -246,10 +246,10 @@ export function AppTopHeader({
             variant="ghost"
             size="icon"
             title="后台设置"
-            onClick={() => navigate('/admin/apps')}
+            onClick={() => navigate('/admin/workbench')}
             className={headerActionClass}
           >
-            <Settings className="h-5 w-5"/>
+            <LayoutDashboard className="h-5 w-5"/>
           </Button>
         </>
       }

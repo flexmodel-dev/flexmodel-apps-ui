@@ -7,6 +7,7 @@ import {initializeDarkMode} from '@/lib/useDarkMode'
 
 import Login from '@/pages/login/Login'
 import AppManagement from '@/pages/apps/AppManagement'
+import AdminWorkbench from '@/pages/admin/AdminWorkbench'
 import AppSettings from '@/pages/apps/AppSettings'
 import AppHome from '@/pages/AppHome'
 import AppMenuPage from '@/pages/apps/AppMenuPage'
@@ -67,7 +68,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <HashRouter>
       <AppTheme>
       <Routes>
-        <Route path="/" element={<Navigate to="/admin/apps" replace/>}/>
+        <Route path="/" element={<Navigate to="/admin/workbench" replace/>}/>
         <Route path="/login" element={<Login />} />
         <Route element={<RequireAuth/>}>
           <Route path="/settings/user" element={<UserSettings/>}/>
@@ -78,6 +79,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/apps/:appId/:navId/view/:recordId" element={<AppRecordView/>}/>
           <Route path="/menu/:menuId" element={<MenuPlaceholder/>}/>
           <Route path="/admin/apps" element={<AppManagement/>}/>
+          <Route path="/admin/workbench" element={<AdminWorkbench/>}/>
           <Route path="/admin/apps/:appId/settings/basic" element={<AppSettings section="basic"/>}/>
           <Route path="/admin/apps/:appId/settings/menus" element={<AppSettings section="menus"/>}/>
           <Route path="/admin/apps/:appId/settings/forms"
@@ -95,7 +97,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           {/* 管理中心 */}
           <Route path="/admin/apps/:appId/forms/:formName/base"
                  element={<FormSettings section="base"/>}/>
-          <Route path="/admin/apps/:appId/forms/:formName/flows" element={<FormSettings section="flows"/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/data-permissions" element={<FormDataPermissions/>}/>
           <Route path="/admin/apps/:appId/forms/:formName/form-design"
                  element={<FormDesign/>}/>
@@ -104,7 +105,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/admin/robot/approvals" element={<AdminApprovals/>}/>
         </Route>
         {/* 兜底 */}
-        <Route path="*" element={<Navigate to="/admin/apps" replace/>}/>
+        <Route path="*" element={<Navigate to="/admin/workbench" replace/>}/>
       </Routes>
       </AppTheme>
     </HashRouter>

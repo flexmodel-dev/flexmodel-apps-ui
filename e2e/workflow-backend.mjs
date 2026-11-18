@@ -99,7 +99,7 @@ try {
     if (count) await page.getByRole('button', {name: 'Close', exact: true}).click()
   })
   await page.keyboard.press('Escape')
-  await page.getByRole('button', {name: '我提交的', exact: true}).click()
+  await page.getByRole('tab', {name: '已发起', exact: true}).click()
   await expect(page.getByRole('button').filter({hasText: flow.flow_name})).toContainText('已通过')
   await page.setViewportSize({width: 1280, height: 800})
   await page.evaluate(() => {

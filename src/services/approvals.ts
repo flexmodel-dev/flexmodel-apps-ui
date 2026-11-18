@@ -76,6 +76,17 @@ export const approvalStatus: Record<string, string> = {
 /** 审批已结束的状态集合 */
 export const FINISHED_STATUS = ['SUCCEEDED', 'REJECTED', 'TERMINATED']
 
+export interface ApprovalCounts {
+  pending: number;
+  handled: number;
+  initiated: number
+}
+
+export function getApprovalCounts(appId?: string) {
+  const query = appId ? `?appId=${encodeURIComponent(appId)}` : ''
+  return requestJson<ApprovalCounts>(`/api/flows/mine/counts${query}`)
+}
+
 export function listPersonalApprovals(view: 'pending' | 'handled' | 'initiated', appId?: string, search = '', page = 1) {
   const params = new URLSearchParams({view, search, page: String(page), size: '30'})
   if (appId) params.set('appId', appId)

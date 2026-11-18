@@ -47,7 +47,7 @@ export default function Login() {
     try {
       await login(user.trim(), passwd, remember)
       const requestedFrom = (location.state as { from?: string } | null)?.from
-      const from = requestedFrom && requestedFrom !== '/workbench/home' ? requestedFrom : '/admin/apps'
+      const from = requestedFrom && requestedFrom !== '/workbench/home' ? requestedFrom : '/admin/workbench'
       navigate(from, {replace: true})
     } catch (err) {
       setError(toErrorMessage(err, '登录失败，请稍后重试'))

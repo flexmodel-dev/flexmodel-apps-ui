@@ -1,11 +1,10 @@
-import {Info, LayoutTemplate, Shield, Workflow} from 'lucide-react'
+import {Info, LayoutTemplate, Shield} from 'lucide-react'
 import {Link, useLocation} from 'react-router-dom'
 import {cn} from '@/lib/utils'
 
 const sections = [
   {key: 'base', label: '基本信息', icon: Info},
   {key: 'form-design', label: '表单设计', icon: LayoutTemplate},
-  {key: 'flows', label: '工作流', icon: Workflow},
   {key: 'data-permissions', label: '数据权限', icon: Shield},
 ]
 
@@ -23,7 +22,7 @@ export function FormSettingsNav({appId, formName, mobile = false}: {
   const {pathname} = useLocation()
   return <nav aria-label="表单设置"
               className={mobile ? 'flex gap-1 overflow-x-auto border-t p-2 lg:hidden' : 'space-y-1 p-2'}>
-    {sections.filter(item => appId !== 'system' || !['data-permissions', 'flows'].includes(item.key)).map(({
+    {sections.filter(item => appId !== 'system' || item.key !== 'data-permissions').map(({
                                                                                                              key,
                                                                                                              label,
                                                                                                              icon: Icon
