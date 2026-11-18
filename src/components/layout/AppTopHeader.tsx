@@ -222,13 +222,15 @@ export function AppTopHeader({
             </div>
           )}
 
-          <AppQuickCreate
-            key={appId}
-            appId={appId}
-            forms={createRecordItems}
-            loading={isAppLoading || isNavsLoading}
-            onCreateRecord={onCreateRecord}
-          />
+          {appId && (
+            <AppQuickCreate
+              key={appId}
+              appId={appId}
+              forms={createRecordItems}
+              loading={isAppLoading || isNavsLoading}
+              onCreateRecord={onCreateRecord}
+            />
+          )}
 
           {showSearch && !searchOpen && (
             <Button

@@ -1,4 +1,12 @@
-import {expect, test} from '@playwright/test'
+import {expect, type Page, test} from '@playwright/test'
+
+const ALL_APP_IDS = ['crm', 'oa', 'erp', 'expense', 'project', 'hr', 'asset', 'purchase']
+
+/** 需要完整收藏列表的用例显式预置收藏；默认收藏行为由专门用例覆盖。 */
+async function seedAllFavorites(page: Page) {
+  await page.evaluate(ids => localStorage.setItem('flexmodel-apps.workbench-favorites', JSON.stringify(ids)), ALL_APP_IDS)
+  await page.reload()
+}
 
 test.beforeEach(async ({page}) => {
   await page.addInitScript(() => {
@@ -78,7 +86,7 @@ test.beforeEach(async ({page}) => {
     return route.fulfill({json: []})
   })
   await page.goto('/#/admin/workbench')
-  await expect(page.getByRole('heading', {level: 1})).toHaveText(/^(上午好|下午好|晚上好)，Admin$/)
+  await expect(page.getByRole('heading', {level: 1})).toHaveText(/^(上午好|下午好|晚上好)，Admin！$/)
 })
 
 test('指标来自真实接口并深链待办中心，知会打开已有通知详情', async ({page}) => {
@@ -91,7 +99,7 @@ test('指标来自真实接口并深链待办中心，知会打开已有通知�
     await expect(page.getByRole('button', {name: new RegExp(`${label}测试流程`)})).toBeVisible()
     await page.getByRole('link', {name: '返回工作台'}).click()
   }
-  await page.getByRole('link', {name: '已知会 8'}).click()
+  await page.getByRole('link', {name: '已知会 1'}).click()
   await expect(page).toHaveURL(/#\/approval\/home\?view=copied$/)
   await expect(page.getByRole('tab', {name: /已知会/})).toBeVisible()
   await page.getByRole('link', {name: '返回工作台'}).click()
@@ -109,6 +117,7 @@ test('指标来自真实接口并深链待办中心，知会打开已有通知�
 })
 
 test('应用点击直达应用内部，收藏可增减并支持键盘与拖动排序', async ({page}) => {
+  await seedAllFavorites(page)
   const apps = page.getByRole('region', {name: '我的应用', exact: true})
   const order = () => apps.locator('[data-app-id]').evaluateAll(elements => elements.map(element => element.getAttribute('data-app-id')))
   await expect.poll(order).toEqual(['crm', 'oa', 'erp', 'expense', 'project', 'hr', 'asset', 'purchase'])
@@ -146,6 +155,7 @@ test('应用点击直达应用内部，收藏可增减并支持键盘与拖动�
 })
 
 test('我的应用默认收藏视图，可切换所有视图', async ({page}) => {
+  await seedAllFavorites(page)
   const apps = page.getByRole('region', {name: '我的应用', exact: true})
   const favoriteTab = apps.getByRole('button', {name: '收藏', exact: true})
   const allTab = apps.getByRole('button', {name: '所有', exact: true})
@@ -166,6 +176,9 @@ test('最近使用来自本地记录并直达应用或菜单，明暗主题和�
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const recent = page.getByRole('region', {name: '最近使用', exact: true})
+  await expect(recent.getByRole('link', {name: /协同办公/})).toBeVisible()
+  await expect(recent.getByRole('link', {name: /客户档案/})).toHaveCount(0)
+  await recent.getByRole('button', {name: '应用项', exact: true}).click()
   await expect(recent.getByRole('link', {name: /客户档案/})).toBeVisible()
   await expect(recent.getByRole('link', {name: /协同办公/})).toHaveCount(0)
   await recent.getByRole('button', {name: '应用', exact: true}).click()
@@ -251,7 +264,7 @@ test('问候语按上海时段显示，卡片标题统一带左侧图标', async
   ]) {
     await page.clock.setFixedTime(new Date(time))
     await page.reload()
-    await expect(page.getByRole('heading', {level: 1})).toHaveText(`${greeting}，Admin`)
+    await expect(page.getByRole('heading', {level: 1})).toHaveText(`${greeting}，Admin！`)
   }
   for (const title of ['流程待办', '我的应用', '最近使用']) {
     await expect(page.getByRole('heading', {name: title, exact: true}).locator('svg')).toBeVisible()
@@ -259,6 +272,7 @@ test('问候语按上海时段显示，卡片标题统一带左侧图标', async
 })
 
 test('更多菜单仅取消收藏，点击菜单不会误进应用', async ({page}) => {
+  await seedAllFavorites(page)
   const app = page.locator('[data-app-id="crm"]')
   const more = page.getByRole('button', {name: '更多操作：客户关系管理', exact: true})
   await app.hover()
@@ -275,6 +289,7 @@ test('更多菜单仅取消收藏，点击菜单不会误进应用', async ({pag
 })
 
 test('卡片左上角星标图标可直接切换收藏且不误进应用', async ({page}) => {
+  await seedAllFavorites(page)
   const apps = page.getByRole('region', {name: '我的应用', exact: true})
   const star = apps.getByRole('button', {name: '收藏星标：人事管理', exact: true})
   await expect(star).toHaveCSS('opacity', '0')
@@ -294,4 +309,33 @@ test('卡片左上角星标图标可直接切换收藏且不误进应用', async
   await expect(star).toHaveCSS('opacity', '0')
   await page.reload()
   await expect(apps.locator('[data-app-id="hr"]')).toBeVisible()
+})
+
+test('首次进入默认收藏最近使用的应用，收藏视图与所有视图不再相同', async ({page}) => {
+  const apps = page.getByRole('region', {name: '我的应用', exact: true})
+  const order = () => apps.locator('[data-app-id]').evaluateAll(elements => elements.map(element => element.getAttribute('data-app-id')))
+  await expect.poll(order).toEqual(['crm', 'oa'])
+  await apps.getByRole('button', {name: '所有', exact: true}).click()
+  await expect.poll(order).toEqual(ALL_APP_IDS)
+})
+
+test('待办预览直接打开审批抽屉，同意后刷新待办数字', async ({page}) => {
+  const pending = page.getByRole('region', {name: '流程待办', exact: true})
+  await expect(pending.getByRole('heading', {name: '待我审批', exact: true})).toBeVisible()
+  await page.route('**/api/apps/crm/flow-instances/instance-pending', route => route.fulfill({
+    json: {
+      id: 'instance-pending', appId: 'crm', appName: '客户关系管理', title: '待处理测试流程',
+      formName: 'orders', recordId: '', initiator: 'admin', status: 'WAITING',
+      createdAt: '2026-11-17T09:00:00', canManage: false, snapshot: {}, variables: {amount: 100}, error: '',
+      tasks: [{id: 'task-1', userId: 'admin', status: 'PENDING', position: 0, waitId: 'wait-1'}],
+      waits: [], upcoming: [], logs: [], children: [], notificationDelivery: [], delivery: []
+    }
+  }))
+  const decided = page.waitForRequest(request => request.method() === 'POST' && request.url().endsWith('/api/apps/crm/flow-tasks/task-1/decisions'))
+  const refreshed = page.waitForRequest(request => request.url().includes('/api/flows/mine/counts'))
+  await pending.getByRole('button', {name: /待处理测试流程/}).click()
+  await expect(page.getByRole('dialog', {name: /待处理测试流程/})).toBeVisible()
+  await page.getByRole('button', {name: '同意', exact: true}).click()
+  await decided
+  await refreshed
 })
