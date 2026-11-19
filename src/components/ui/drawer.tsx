@@ -10,6 +10,8 @@ const DrawerTitle = DialogPrimitive.Title
 const DrawerDescription = DialogPrimitive.Description
 const DrawerClose = DialogPrimitive.Close
 
+export type DrawerPresentation = 'drawer' | 'dialog' | 'fullscreen'
+
 // 抽屉既可能嵌套渲染，也可能是兄弟节点，按打开后的 Portal 顺序统一管理。
 let drawerStack: HTMLElement[] = []
 const drawerStackListeners = new Set<() => void>()
@@ -42,7 +44,7 @@ function useDrawerMaxWidth(content: HTMLElement | null, stacked: boolean) {
       setParentWidth(null)
       return
     }
-    const measure = () => setParentWidth(previous.getBoundingClientRect().width)
+    const measure = () => setParentWidth(previous.offsetWidth)
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(previous)
@@ -72,12 +74,13 @@ const DrawerContent = React.forwardRef<
   hideClose?: boolean;
   stacked?: boolean;
   side?: 'left' | 'right'
+  presentation?: DrawerPresentation
 }
->(({className, children, hideClose, stacked = true, side = 'right', style, ...props}, ref) => {
+>(({className, children, hideClose, stacked = true, side = 'right', presentation = 'drawer', style, ...props}, ref) => {
   const [content, setContent] = React.useState<HTMLDivElement | null>(null)
   const maxWidth = useDrawerMaxWidth(content, stacked)
   const configuredMaxWidth = typeof style?.maxWidth === 'number' ? `${style.maxWidth}px` : style?.maxWidth
-  const contentStyle = maxWidth
+  const contentStyle = maxWidth && presentation === 'drawer'
     ? {...style, maxWidth: configuredMaxWidth && configuredMaxWidth !== 'none'
       ? `min(${configuredMaxWidth}, ${maxWidth})` : maxWidth}
     : style
@@ -93,8 +96,13 @@ const DrawerContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={contentRef}
         className={cn(
-          'fixed inset-y-0 z-[1040] flex w-[min(92vw,420px)] flex-col bg-background shadow-2xl outline-none animate-in duration-300 [--drawer-stack-gap:1rem] md:[--drawer-stack-gap:3rem]',
-          side === 'left' ? 'left-0 border-r slide-in-from-left' : 'right-0 border-l slide-in-from-right',
+          'fixed z-[1040] flex flex-col bg-background shadow-2xl outline-none [--drawer-stack-gap:1rem] md:[--drawer-stack-gap:3rem]',
+          presentation === 'drawer' && 'inset-y-0 w-[min(92vw,420px)] data-[state=open]:animate-in data-[state=open]:duration-300',
+          presentation === 'drawer' && (side === 'left'
+            ? 'left-0 border-r data-[state=open]:slide-in-from-left'
+            : 'right-0 border-l data-[state=open]:slide-in-from-right'),
+          presentation === 'dialog' && 'inset-0 m-auto h-[min(88dvh,800px)] w-[calc(100%-1rem)] max-w-[1120px] overflow-hidden rounded-xl border motion-safe:data-[state=open]:animate-dialog-in sm:w-[calc(100%-3rem)]',
+          presentation === 'fullscreen' && 'inset-0 h-dvh w-full data-[state=open]:animate-fullscreen-in',
           className,
         )}
         {...props}
@@ -117,7 +125,7 @@ const DrawerContent = React.forwardRef<
 })
 DrawerContent.displayName = 'DrawerContent'
 
-/** 带标题和底部的右侧抽屉，与详情页抽屉宽度保持一致；aside 提供时右侧内嵌面板，右上角按钮展开/折叠 */
+/** 带标题、底部操作及可折叠侧栏的弹层，默认从右侧打开。 */
 export function BizDrawer({
                             open,
                             onOpenChange,
@@ -131,6 +139,7 @@ export function BizDrawer({
                             asideCollapsedLabel,
                             asideDefaultOpen = true,
                             stacked = true,
+                            presentation = 'drawer',
                           }: {
   open: boolean
   onOpenChange: (o: boolean) => void
@@ -144,6 +153,7 @@ export function BizDrawer({
   asideCollapsedLabel?: React.ReactNode
   asideDefaultOpen?: boolean
   stacked?: boolean
+  presentation?: DrawerPresentation
 }) {
   const [asideOpen, setAsideOpen] = React.useState(asideDefaultOpen)
   const asideTouched = React.useRef(false)
@@ -166,7 +176,8 @@ export function BizDrawer({
         aria-describedby={undefined}
         hideClose
         stacked={stacked}
-        className={cn('w-full md:w-[calc(100vw-16rem)]', width)}
+        presentation={presentation}
+        className={presentation === 'drawer' ? cn('w-full md:w-[calc(100vw-16rem)]', width) : undefined}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <DrawerTitle className="text-lg font-semibold">{title}</DrawerTitle>

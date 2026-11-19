@@ -63,7 +63,7 @@ function TopNavLink({
       ref={sortable?.ref}
       style={sortable?.style}
       className={cn(
-        'relative flex h-16 shrink-0 items-center text-sm transition-colors',
+        'relative flex shrink-0 items-center text-sm transition-colors',
         active
           ? isDark
             ? 'bg-white/10 font-medium text-white'
@@ -180,13 +180,13 @@ function TopHeaderShell({
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-40 border-b shadow-sm',
+        'fixed inset-x-0 top-0 z-40 h-[var(--app-header-height)] border-b shadow-sm',
         isDark
           ? 'border-white/10 bg-[#0f172a] text-white'
           : 'border-black/10 bg-primary text-primary-foreground',
       )}
     >
-      <div className="flex h-16 min-w-0 items-center gap-2 px-4">
+      <div className="flex h-full min-w-0 items-center gap-2 px-4">
         {hasNavigation && (
           <Button
             variant="ghost"
@@ -226,7 +226,7 @@ function TopHeaderShell({
         )}
 
         {topNavs && topNavs.length > 0 && (
-          <nav className="ml-2 hidden h-16 items-stretch md:flex">
+          <nav className="ml-2 hidden h-full items-stretch md:flex">
             {onTopNavsReorder ? (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTopDragEnd}>
                 <SortableContext items={topNavs.map((nav) => nav.id)} strategy={horizontalListSortingStrategy}>

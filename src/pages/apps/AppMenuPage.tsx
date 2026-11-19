@@ -106,7 +106,7 @@ export default function AppMenuPage() {
   }
   if (nav.destination?.type === 'LINK') {
     return (
-      <AppLayout noPadding noOuterScroll contentClassName="-mt-4 h-[calc(100vh-4rem)] w-full md:-mt-6">
+      <AppLayout noPadding noOuterScroll contentClassName="h-full w-full pt-0 md:pt-0">
         <iframe
           src={nav.destination.id}
           title={nav.name}

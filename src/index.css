@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --app-header-height: 3.5rem;
     --background: 220 36% 98%;
     --foreground: 224 36% 12%;
     --card: 0 0% 100%;
@@ -116,11 +117,18 @@
   }
 
   .record-list-table {
+    @apply leading-5;
     border-collapse: separate;
     border-spacing: 0;
   }
 
+  .record-list-table thead th,
+  .record-list-table tbody td {
+    @apply h-9 border-b border-r border-border px-2.5 py-0.5;
+  }
+
   .record-list-table th {
+    @apply border-t;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -143,28 +151,27 @@
     background: var(--record-row-background);
   }
 
+  .record-list-table tbody tr td[data-editing='true'] {
+    background: color-mix(in srgb, hsl(var(--primary)) 8%, hsl(var(--background)));
+  }
+
   .record-list-table .record-list-selection,
-  .record-list-table .record-list-primary,
-  .record-list-table .record-list-actions {
+  .record-list-table .record-list-primary {
     position: sticky;
     z-index: 1;
   }
 
   .record-list-table .record-list-selection {
+    @apply border-l px-0 text-center;
     left: 0;
   }
 
   .record-list-table .record-list-primary {
-    left: 48px;
-  }
-
-  .record-list-table .record-list-actions {
-    right: 0;
+    left: 40px;
   }
 
   .record-list-scroll .record-list-table thead .record-list-selection,
-  .record-list-scroll .record-list-table thead .record-list-primary,
-  .record-list-scroll .record-list-table thead .record-list-actions {
+  .record-list-scroll .record-list-table thead .record-list-primary {
     z-index: 20;
   }
 

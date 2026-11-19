@@ -42,12 +42,12 @@ npm run test:records  # 特性 E2E（playwright test --project <特性>，项目
 
 - 已接入真实后端的配置能力必须通过 `src/services/` 请求，不要在组件中直接拼接后端 URL。
 - 尚未接入真实接口的展示数据集中在 `src/data/mock.ts`，并在状态文档中标明遗留范围。
-- 创建和修改记录使用弹窗表单，详情查看使用右侧 Drawer。
+- 记录新建、编辑和详情共用弹层展示逻辑。打开时沿用浏览器中保存的展示方式，首次默认使用居中对话框。右上角「更多」菜单中横向排列对话框、全屏、抽屉三个图标。
 - 表格默认每页 30 条，支持行内选择和表内滚动。
 
 ## 布局与样式
 
-- Header 固定在顶部，高度为 64px；左侧菜单使用固定定位，内容区必须扣除对应高度。
+- Header 固定在顶部，侧栏和内容区使用 `--app-header-height` 对齐，当前高度为 56px。
 - 内容区避免出现多余的外层滚动条；滚动应放在表格、列表、Drawer 或仪表盘网格等明确的内容区域内。
 - 样式优先使用 Tailwind 的语义 token，例如 `bg-background`、`bg-card`、`text-foreground`、`text-muted-foreground`、`border-border`。
 - 主色统一通过 `--primary`、`--primary-foreground`、`--ring` 等变量控制，不要在组件中硬编码主题色。

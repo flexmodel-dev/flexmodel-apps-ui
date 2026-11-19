@@ -17,11 +17,15 @@ async function setup(page: Page, {failName, pending, subform = false, initialFil
     {name: 'title', label: '名称', type: 'TEXT', required: true},
     {name: 'files', label: '附件', type: 'FILE'},
     {name: 'photos', label: '图片', type: 'IMAGE'},
-    {name: 'readonly', label: '只读附件', type: 'FILE'},
+    {name: 'readonly', label: '只读附件', type: 'FILE', config: {updatable: false, creatable: false}},
   ]
   const form = {name: 'orders', label: '订单', displayField: 'title', builtin: false, fields,
-    layout: {items: [...fields.map(field => ({type: 'FIELD', name: field.name, readonly: field.name === 'readonly', width: 'HALF'})),
-      ...(subform ? [{type: 'SUBFORM', formName: 'lines', referenceField: 'order_id', width: 'FULL'}] : [])]}, viewTabs: []}
+    layout: {
+      items: [...fields.map(field => ({type: 'FIELD', name: field.name, width: 'HALF'})),
+        ...(subform ? [{type: 'SUBFORM', formName: 'lines', referenceField: 'order_id', width: 'FULL'}] : [])]
+    },
+    viewTabs: [{id: 'all', label: '全部', type: 'TABLE', displayFields: [], config: {}}]
+  }
   const child = {name: 'lines', label: '订单明细', builtin: false, fields: [{name: 'files', label: '明细附件', type: 'FILE'}],
     layout: {items: [{type: 'FIELD', name: 'files', width: 'FULL'}]}, viewTabs: []}
   const app = {id: appId, projectId: 'storage-project', name: '附件验证', enabled: true, primaryColor: 'blue'}
@@ -42,7 +46,9 @@ async function setup(page: Page, {failName, pending, subform = false, initialFil
     const request = route.request()
     const {pathname, search} = new URL(request.url())
     const method = request.method()
-    if (pathname.endsWith('/approvals')) return route.fulfill({json: []})
+    if (pathname === `${root}/flow-instances` || pathname.endsWith('/discussions') || pathname.endsWith('/history')) {
+      return route.fulfill({json: {list: [], total: 0}})
+    }
     if (pathname === `${root}/forms/lines`) return route.fulfill({json: child})
     if (pathname === `${root}/forms/lines/records`) {
       if (method === 'POST') {
@@ -75,7 +81,7 @@ async function setup(page: Page, {failName, pending, subform = false, initialFil
       }
       throw new Error(`不应删除存储对象：${method}`)
     }
-    if (pathname.startsWith(recordsPath)) {
+    if (pathname === recordsPath || pathname === `${recordsPath}/first`) {
       if (method === 'POST' || method === 'PUT') {
         const input = request.postDataJSON()
         writes.push(input)
@@ -83,9 +89,16 @@ async function setup(page: Page, {failName, pending, subform = false, initialFil
       }
       return route.fulfill({json: pathname === recordsPath && method === 'GET' ? {list: [record], total: 1} : record})
     }
+    if (pathname === `${root}/forms/orders/views/all/query`) return route.fulfill({json: {list: [record], total: 1}})
     const json = pathname === root ? app : pathname === '/api/apps' ? [app]
       : pathname === `${root}/forms/orders` ? form : pathname === `${root}/forms` ? [form]
-        : pathname === `${root}/menus` ? [{id: 'orders', type: 'ITEM', name: '订单', target: {type: 'FORM', id: 'orders'}, children: []}]
+        : pathname === `${root}/navigation` ? [{
+            id: 'orders',
+            type: 'ENTRY',
+            name: '订单',
+            destination: {type: 'FORM', id: 'orders'},
+            children: []
+          }]
           : pathname === '/api/notifications/summary' ? {version: '0', unread: 0, byCategory: {}, apps: []}
             : pathname === '/api/notifications' ? {list: [], total: 0} : []
     return route.fulfill({json})
@@ -96,7 +109,8 @@ async function setup(page: Page, {failName, pending, subform = false, initialFil
 }
 
 async function edit(page: Page) {
-  await page.getByRole('row').filter({hasText: '附件订单'}).getByTitle('编辑', {exact: true}).click()
+  await page.getByRole('row').filter({hasText: '附件订单'}).getByRole('checkbox').check()
+  await page.getByRole('button', {name: '编辑', exact: true}).click()
   const drawer = page.getByRole('dialog', {name: '编辑订单', exact: true})
   await expect(drawer.getByPlaceholder('请输入名称')).toHaveValue('附件订单')
   return drawer

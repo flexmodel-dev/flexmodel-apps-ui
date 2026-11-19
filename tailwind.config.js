@@ -9,6 +9,20 @@ export default {
       screens: { '2xl': '1400px' },
     },
     extend: {
+      keyframes: {
+        'dialog-in': {
+          from: {opacity: '0', transform: 'scale(0.97)'},
+          to: {opacity: '1', transform: 'scale(1)'},
+        },
+        'fullscreen-in': {
+          from: {opacity: '0'},
+          to: {opacity: '1'},
+        },
+      },
+      animation: {
+        'dialog-in': 'dialog-in 180ms ease-out',
+        'fullscreen-in': 'fullscreen-in 300ms ease',
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

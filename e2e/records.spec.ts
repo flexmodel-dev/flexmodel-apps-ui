@@ -1,5 +1,6 @@
 import {expect, type Page, test} from '@playwright/test'
 import {readFileSync} from 'node:fs'
+import type {AppFormViewSort} from '../src/services/appForms'
 import type {RecordDiscussionItem} from '../src/services/recordDiscussions'
 
 // 验证滚动条实际占位；Chromium 无头模式默认隐藏原生滚动条。
@@ -7,12 +8,13 @@ test.use({launchOptions: {ignoreDefaultArgs: ['--hide-scrollbars']}})
 
 const root = '/api/apps/record-edit'
 const recordsPath = `${root}/forms/purchase/records`
+const viewPath = `${root}/forms/purchase/views/all/query`
 const listUrl = '/#/apps/record-edit/purchases'
 const app = {id: 'record-edit', name: '记录编辑回归', enabled: true, primaryColor: 'blue'}
-const menus = [{
+const navigation = [{
   id: 'records', type: 'GROUP', name: '业务', children: [{
-    id: 'purchases', type: 'ITEM', name: '采购申请',
-    target: {type: 'FORM', id: 'purchase'}, children: [],
+    id: 'purchases', parentId: 'records', type: 'ENTRY', name: '采购申请',
+    destination: {type: 'FORM', id: 'purchase'}, children: [],
   }],
 }]
 const form = {
@@ -26,11 +28,25 @@ const form = {
     {name: 'category', label: '分类', type: 'SELECT', options: [{id: 'office', text: '办公用品'}]},
     {name: 'supplier', label: '供应商', type: 'REFERENCE', referenceForm: 'supplier'},
   ],
-  layout: {items: []}, viewTabs: [],
+  layout: {items: []},
+  viewTabs: [{
+    id: 'all',
+    label: '全部',
+    type: 'TABLE',
+    displayFields: [],
+    config: {},
+    sort: null as AppFormViewSort | null
+  }],
 }
 
-async function setupRecords(page: Page, {pending, failLoad = false, listForm = form}: {
-  pending?: Promise<void>; failLoad?: boolean; listForm?: typeof form
+async function setupRecords(page: Page, {
+  pending,
+  failLoad = false,
+  failSave = false,
+  locked = false,
+  listForm = form
+}: {
+  pending?: Promise<void>; failLoad?: boolean; failSave?: boolean; locked?: boolean; listForm?: typeof form
 } = {}) {
   const records: Record<string, Record<string, unknown>> = {
     first: {
@@ -50,21 +66,37 @@ async function setupRecords(page: Page, {pending, failLoad = false, listForm = f
     if (pathname === '/api/notifications') {
       return route.fulfill({json: {list: [], total: 0}})
     }
+    if (pathname === `${root}/flow-instances`) {
+      const list = locked ? [{id: 'approval', status: 'RUNNING', createdAt: '2026-11-19'}] : []
+      return route.fulfill({json: {list, total: list.length}})
+    }
     if (pathname.endsWith('/approvals')) return route.fulfill({json: []})
     if (pathname.startsWith(`${recordsPath}/`)) {
       const id = pathname.slice(recordsPath.length + 1)
       if (method === 'PUT') {
         const payload = route.request().postDataJSON()
         writes.push(payload)
-        records[id] = {
-          ...records[id], ...payload, title: payload.title.trim(),
-          supplier: payload.supplier ? {id: payload.supplier, displayValue: '供应商甲'} : null,
+        if (failSave && writes.length === 1) {
+          return route.fulfill({status: 500, json: {message: '记录保存失败'}})
+        }
+        records[id] = {...records[id], ...payload}
+        if ('title' in payload) records[id].title = payload.title.trim()
+        if ('supplier' in payload) {
+          records[id].supplier = payload.supplier ? {id: payload.supplier, displayValue: '供应商甲'} : null
         }
       } else {
         await pending
         if (failLoad) return route.fulfill({status: 500, json: {message: '记录读取失败'}})
       }
       return route.fulfill({json: records[id]})
+    }
+    if (pathname === viewPath) {
+      const list = Object.values(records)
+      const sort = listForm.viewTabs[0].sort
+      if (sort?.field === 'amount') {
+        list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (sort.order === 'ASC' ? 1 : -1))
+      }
+      return route.fulfill({json: {list, total: list.length}})
     }
     if (pathname === recordsPath) {
       if (method === 'POST') {
@@ -82,11 +114,11 @@ async function setupRecords(page: Page, {pending, failLoad = false, listForm = f
       return route.fulfill({json: {id: 'supplier-1', title: '供应商甲'}})
     }
     if (pathname === `${root}/forms/supplier`) {
-      return route.fulfill({json: {...form, name: 'supplier', label: '供应商', fields: []}})
+      return route.fulfill({json: {...form, name: 'supplier', label: '供应商', fields: form.fields.slice(0, 1)}})
     }
     const json = pathname === root ? app
       : pathname === '/api/apps' ? [app]
-        : pathname === `${root}/menus` ? menus
+        : pathname === `${root}/navigation` ? navigation
           : pathname === `${root}/forms/purchase` ? listForm
             : pathname === `${root}/forms` ? [listForm]
               : pathname === '/api/notifications/summary'
@@ -97,6 +129,11 @@ async function setupRecords(page: Page, {pending, failLoad = false, listForm = f
   await page.goto(listUrl)
   await expect(page.getByRole('row').filter({hasText: '原始申请'})).toBeVisible()
   return {records, writes}
+}
+
+async function openSelectedRecordForEdit(page: Page, title: string) {
+  await page.getByRole('row').filter({hasText: title}).getByRole('checkbox').first().check()
+  await page.getByRole('button', {name: '编辑', exact: true}).click()
 }
 
 for (const dark of [false, true]) test(`子表新增输入不被父列表迟到响应清空（${dark ? '夜间' : '浅色'}）`, async ({page}) => {
@@ -144,12 +181,12 @@ for (const dark of [false, true]) test(`子表新增输入不被父列表迟到�
     await route.fulfill({json: {list: [{id: 'item-old', name: '原有明细', quantity: 1}], total: 1}})
     listFinished = true
   })
-  await page.getByRole('row').filter({hasText: '原始申请'}).getByTitle('编辑', {exact: true}).click()
-  const parent = page.getByRole('dialog').filter({has: page.getByRole('heading', {name: '编辑采购申请'})})
+  await openSelectedRecordForEdit(page, '原始申请')
+  const parent = page.getByRole('dialog', {name: '编辑采购申请', includeHidden: true})
   await expect(parent.getByPlaceholder('请输入申请事由')).toHaveValue('原始申请')
   await expect.poll(() => listStarted).toBe(true)
   await parent.getByRole('button', {name: '新增', exact: true}).click()
-  const child = page.getByRole('dialog').filter({has: page.getByRole('heading', {name: '新增采购明细'})})
+  const child = page.getByRole('dialog', {name: '新建采购明细'})
   const name = child.getByPlaceholder('请输入明细名称')
   const quantity = child.getByPlaceholder('请输入数量')
   try {
@@ -171,21 +208,23 @@ for (const dark of [false, true]) test(`子表新增输入不被父列表迟到�
   await expect(quantity).toHaveValue('2')
 })
 
-for (const dark of [false, true]) test(`列表横向滚动保持主显字段和操作可见（${dark ? '夜间' : '浅色'}）`, async ({page}) => {
+for (const dark of [false, true]) test(`网格线和主显列在横向滚动与单元格编辑时可见（${dark ? '夜间' : '浅色'}）`, async ({page}) => {
   await setupRecords(page)
   if (dark) await page.evaluate(() => document.documentElement.classList.add('dark'))
   const scroll = page.locator('.record-list-scroll')
-  const row = scroll.getByRole('row').filter({hasText: '原始申请'})
+  const row = scroll.locator('tbody tr').first()
   const primary = row.locator('.record-list-primary')
-  const actions = row.locator('.record-list-actions')
-  const before = {primary: (await primary.boundingBox())!, actions: (await actions.boundingBox())!,
+  const normalRowHeight = (await row.boundingBox())!.height
+  expect(normalRowHeight).toBeLessThanOrEqual(38)
+  expect((await scroll.locator('thead tr').boundingBox())!.height).toBeLessThanOrEqual(38)
+  const before = {
+    primary: (await primary.boundingBox())!,
     middle: (await row.locator('td').nth(2).boundingBox())!}
   expect(await scroll.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true)
   expect(await scroll.evaluate(el => el.getBoundingClientRect().height - el.clientHeight)).toBeGreaterThan(0)
   await scroll.evaluate(el => {el.scrollLeft = el.scrollWidth})
   await expect.poll(() => scroll.evaluate(el => el.scrollLeft)).toBeGreaterThan(0)
   expect((await primary.boundingBox())!.x).toBeCloseTo(before.primary.x, 0)
-  expect((await actions.boundingBox())!.x).toBeCloseTo(before.actions.x, 0)
   expect((await row.locator('td').nth(2).boundingBox())!.x).toBeLessThan(before.middle.x)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await row.getByRole('checkbox').check()
@@ -193,22 +232,47 @@ for (const dark of [false, true]) test(`列表横向滚动保持主显字段和�
   await page.mouse.move(0, 0)
   expect(await primary.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(
     await row.locator('td').nth(2).evaluate(el => getComputedStyle(el).backgroundColor))
-  const primaryBox = (await primary.boundingBox())!
-  await page.mouse.move(primaryBox.x + primaryBox.width / 2, primaryBox.y + primaryBox.height / 2)
-  expect(await scroll.evaluate(el => el.scrollLeft)).toBeGreaterThan(0)
-  for (const cell of [primary, actions]) {
-    const appearance = await cell.evaluate(el => {
-      const style = getComputedStyle(el)
-      const context = document.createElement('canvas').getContext('2d')!
-      context.fillStyle = style.backgroundColor
-      context.fillRect(0, 0, 1, 1)
-      return {alpha: context.getImageData(0, 0, 1, 1).data[3], shadow: style.boxShadow}
-    })
-    expect(appearance).toEqual({alpha: 255, shadow: 'none'})
+  for (const cell of [scroll.locator('thead th').nth(2), row.locator('td').nth(2)]) {
+    await expect(cell).toHaveCSS('border-right-width', '1px')
+    await expect(cell).toHaveCSS('border-bottom-width', '1px')
   }
-  await page.screenshot({path: `artifacts/record-fixed-columns-${dark ? 'dark' : 'light'}.png`})
-  await row.getByTitle('编辑', {exact: true}).click()
-  await expect(page.getByRole('dialog').getByPlaceholder('请输入申请事由')).toHaveValue('原始申请')
+  await expect(scroll.getByRole('columnheader', {name: '操作', exact: true})).toHaveCount(0)
+  const pencil = primary.getByRole('button', {name: '编辑单元格：申请事由', exact: true})
+  await expect(pencil).toHaveCSS('opacity', '0')
+  await primary.hover()
+  await expect(pencil).toHaveCSS('opacity', '1')
+  await expect(row.getByRole('button', {name: '编辑单元格：申请金额', exact: true})).toHaveCSS('opacity', '0')
+  await page.screenshot({path: `artifacts/record-grid-hover-${dark ? 'dark' : 'light'}.png`, animations: 'disabled'})
+  await pencil.click()
+  await expect(row.getByPlaceholder('请输入申请事由')).toHaveValue('原始申请')
+  expect((await row.boundingBox())!.height).toBeLessThanOrEqual(normalRowHeight + 2)
+  await expect(row.locator('td').nth(2)).toHaveCSS('border-right-width', '1px')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.screenshot({path: `artifacts/record-cell-edit-${dark ? 'dark' : 'light'}.png`, animations: 'disabled'})
+})
+
+test('拖动表头竖线和使用方向键可以单独调整列宽', async ({page}) => {
+  await setupRecords(page)
+  const head = page.locator('thead th[data-field="amount"]')
+  const neighbor = page.locator('thead th[data-field="approved"]')
+  const handle = head.getByRole('separator', {name: '调整申请金额列宽'})
+  const before = (await head.boundingBox())!.width
+  const neighborWidth = (await neighbor.boundingBox())!.width
+  const grip = (await handle.boundingBox())!
+  const x = grip.x + grip.width / 2
+  const y = grip.y + grip.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + 72, y + 15, {steps: 6})
+  await page.mouse.up()
+  expect((await head.boundingBox())!.width).toBeCloseTo(before + 72, 0)
+  expect((await neighbor.boundingBox())!.width).toBeCloseTo(neighborWidth, 0)
+  await expect(head).toHaveAttribute('aria-sort', 'none')
+  const body = page.locator('tbody tr').first().locator('td[data-field="amount"]')
+  expect((await body.boundingBox())!.width).toBeCloseTo(before + 72, 0)
+  await handle.focus()
+  await page.keyboard.press('ArrowLeft')
+  expect((await body.boundingBox())!.width).toBeCloseTo(before + 56, 0)
 })
 
 test('字段较少时表格填满内容区且无需横向滚动', async ({page}) => {
@@ -217,7 +281,7 @@ test('字段较少时表格填满内容区且无需横向滚动', async ({page})
   expect(await scroll.evaluate(el => el.scrollWidth === el.clientWidth)).toBe(true)
   const selection = (await scroll.locator('tbody .record-list-selection').first().boundingBox())!
   const primary = (await scroll.locator('tbody .record-list-primary').first().boundingBox())!
-  expect(selection.width).toBe(48)
+  expect(selection.width).toBe(40)
   expect(primary.x).toBeCloseTo(selection.x + selection.width, 0)
 })
 
@@ -225,11 +289,11 @@ test('表头排序箭头位于文字右侧，三次点击取消排序', async ({
   await setupRecords(page)
   const header = page.locator('thead th').filter({hasText: '申请事由'})
   const sortRequest = (order?: 'ASC' | 'DESC') => page.waitForRequest(request => {
-    const url = new URL(request.url())
-    if (url.pathname !== recordsPath) return false
+    if (new URL(request.url()).pathname !== viewPath) return false
+    const query = request.postDataJSON()
     return order
-      ? url.searchParams.get('sortField') === 'title' && url.searchParams.get('sortOrder') === order
-      : !url.searchParams.has('sortField') && !url.searchParams.has('sortOrder')
+      ? query.sortField === 'title' && query.sortOrder === order
+      : !query.sortField && !query.sortOrder
   })
 
   let next = sortRequest('ASC')
@@ -259,14 +323,15 @@ test('表头排序箭头位于文字右侧，三次点击取消排序', async ({
   await expect(header.locator('svg')).toHaveCount(0)
 })
 
-test('列表直接编辑等待记录加载，回填全部字段并在重开时切换到正确记录', async ({page}) => {
+test('勾选后默认以居中对话框编辑，等待记录加载并回填全部字段', async ({page}) => {
   let release!: () => void
   const pending = new Promise<void>((resolve) => { release = resolve })
   await setupRecords(page, {pending})
-  await page.getByRole('row').filter({hasText: '原始申请'}).getByTitle('编辑', {exact: true}).click()
+  await openSelectedRecordForEdit(page, '原始申请')
   const drawer = page.getByRole('dialog')
   await expect(drawer.getByRole('heading', {name: '编辑采购申请'})).toBeVisible()
   try {
+    await expect(drawer).toHaveCSS('animation-name', 'dialog-in')
     await expect(drawer.getByRole('button', {name: '保存', exact: true})).toBeDisabled()
   } finally {
     release()
@@ -281,7 +346,8 @@ test('列表直接编辑等待记录加载，回填全部字段并在重开时�
   await expect(drawer.locator('input[value="undefined"]')).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(drawer).not.toBeVisible()
-  await page.getByRole('row').filter({hasText: '另一条申请'}).getByTitle('编辑', {exact: true}).click()
+  await page.getByRole('button', {name: '清空选择'}).click()
+  await openSelectedRecordForEdit(page, '另一条申请')
   await expect(drawer.getByPlaceholder('请输入申请事由')).toHaveValue('另一条申请')
   await expect(drawer.getByPlaceholder('请输入申请金额')).toHaveValue('42')
   await expect(drawer.getByRole('checkbox')).toBeChecked()
@@ -310,13 +376,271 @@ test('详情编辑保存后立即显示服务端返回值，再次编辑保留�
   await expect(drawer.getByPlaceholder('请输入申请金额')).toHaveValue('18.5')
 })
 
+test('通过更多菜单切换详情的抽屉、对话框和全屏，并保留未保存的修改', async ({page}) => {
+  await page.emulateMedia({reducedMotion: 'no-preference'})
+  const {writes} = await setupRecords(page)
+  const {width, height} = page.viewportSize()!
+  const openingFrames = await page.evaluateHandle(() => {
+    const frames: { animation: string; x: number; y: number; right: number }[] = []
+    document.addEventListener('animationstart', event => {
+      const panel = event.target
+      if (!(panel instanceof HTMLElement) || panel.getAttribute('role') !== 'dialog'
+        || panel.getAttribute('data-state') !== 'open') return
+      const {x, y, width, height, right} = panel.getBoundingClientRect()
+      frames.push({animation: event.animationName, x: Math.round(x + width / 2), y: Math.round(y + height / 2), right})
+    })
+    return frames
+  })
+  const centerEntries = async () => (await openingFrames.jsonValue()).filter(frame =>
+    frame.animation === 'dialog-in' && frame.x === width / 2 && frame.y === height / 2).length
+  const rightSlides = async () => (await openingFrames.jsonValue()).filter(frame => frame.animation === 'enter' && frame.right > width + 1).length
+  await page.getByRole('row').getByRole('button', {name: '原始申请', exact: true}).click()
+  await expect.poll(centerEntries).toBe(1)
+  const detail = page.getByRole('dialog')
+  const more = detail.getByRole('button', {name: '更多'})
+  const modes = page.getByRole('menu').getByRole('group', {name: '展示方式'})
+  const mode = (name: string) => modes.getByRole('menuitemradio', {name})
+  const switchTo = async (current: string, next: string) => {
+    await more.click()
+    await expect(mode(current)).toBeChecked()
+    await mode(next).click()
+    await expect(modes).toBeHidden()
+  }
+  const title = detail.getByPlaceholder('请输入申请事由')
+  const aside = detail.getByRole('complementary', {name: '记录动态'})
+  const isCentered = async () => {
+    const box = await detail.boundingBox()
+    const viewport = page.viewportSize()!
+    return !!box && box.x > 0 && box.y > 0
+      && Math.abs(box.x * 2 + box.width - viewport.width) < 1
+      && Math.abs(box.y * 2 + box.height - viewport.height) < 1
+  }
+
+  await expect(modes).toBeHidden()
+  await detail.getByRole('button', {name: '展开记录动态'}).click()
+  await more.click()
+  await expect(mode('对话框')).toBeChecked()
+  await mode('对话框').press('ArrowLeft')
+  await expect(mode('抽屉')).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(modes).toBeHidden()
+  await expect.poll(rightSlides).toBe(1)
+  await expect(aside).toBeVisible()
+  await detail.getByRole('button', {name: '编辑', exact: true}).click()
+  await title.fill('切换时保留的申请')
+  await switchTo('抽屉', '对话框')
+  await expect.poll(centerEntries).toBe(2)
+  await expect.poll(isCentered).toBe(true)
+  await expect(title).toHaveValue('切换时保留的申请')
+
+  await switchTo('对话框', '全屏')
+  await expect.poll(() => detail.boundingBox()).toEqual({x: 0, y: 0, width, height})
+  await detail.getByRole('heading', {name: '编辑采购申请', exact: true}).locator('..')
+    .locator('button:has(> .lucide-x)').click()
+  const discard = page.getByRole('dialog', {name: '放弃未保存的修改'})
+  await discard.getByRole('button', {name: '继续编辑'}).click()
+  await expect(title).toHaveValue('切换时保留的申请')
+
+  await switchTo('全屏', '抽屉')
+  await expect.poll(rightSlides).toBe(2)
+  await expect.poll(async () => {
+    const box = await detail.boundingBox()
+    return !!box && box.x > 0 && box.y === 0 && box.height === height && box.x + box.width === width
+  }).toBe(true)
+  await page.setViewportSize({width: 390, height: 844})
+  await page.emulateMedia({reducedMotion: 'reduce'})
+  await more.click()
+  await expect(mode('抽屉')).toBeChecked()
+  await expect(modes).toHaveText('')
+  const positions = await modes.getByRole('menuitemradio').evaluateAll(items => items.map(item => {
+    const {top, left} = item.getBoundingClientRect()
+    return {top, left}
+  }))
+  expect(positions).toHaveLength(3)
+  expect(new Set(positions.map(({top}) => top)).size).toBe(1)
+  expect(positions[0].left).toBeLessThan(positions[1].left)
+  expect(positions[1].left).toBeLessThan(positions[2].left)
+  await mode('对话框').click()
+  await expect.poll(isCentered).toBe(true)
+  await expect(detail).toHaveCSS('animation-name', 'none')
+  expect(writes).toEqual([])
+  await detail.getByRole('button', {name: '保存', exact: true}).click()
+  await expect(page.getByRole('dialog', {name: '切换时保留的申请', exact: true})).toBeVisible()
+  await expect(aside).toBeVisible()
+  expect(writes).toHaveLength(1)
+  expect(writes[0]).toMatchObject({title: '切换时保留的申请'})
+})
+
+for (const mode of ['对话框', '全屏']) test(`关闭${mode}时不触发抽屉入场动画`, async ({page}) => {
+  await page.emulateMedia({reducedMotion: 'no-preference'})
+  await setupRecords(page)
+  await page.getByRole('row').getByRole('button', {name: '原始申请', exact: true}).click()
+  const detail = page.getByRole('dialog', {name: '原始申请', exact: true})
+  await detail.getByRole('button', {name: '更多'}).click()
+  await page.getByRole('menuitemradio', {name: mode}).click()
+  await expect(page.getByRole('menu')).toBeHidden()
+  const closingAnimations = await detail.evaluateHandle(panel => {
+    const animations: string[] = []
+    panel.addEventListener('animationstart', event => {
+      if (event.target === panel && event instanceof AnimationEvent && panel.getAttribute('data-state') === 'closed') {
+        animations.push(event.animationName)
+      }
+    })
+    return animations
+  })
+
+  if (mode === '全屏') await page.keyboard.press('Escape')
+  else await detail.getByRole('heading', {name: '原始申请', exact: true}).locator('..')
+    .locator('button:has(> .lucide-x)').click()
+  await expect(page.locator('[role="dialog"]')).toHaveCount(0)
+  expect(await closingAnimations.jsonValue()).toEqual([])
+  await page.getByRole('row').getByRole('button', {name: '另一条申请', exact: true}).click()
+  await expect(page.getByRole('dialog', {name: '另一条申请', exact: true}))
+    .toHaveCSS('animation-name', mode === '全屏' ? 'fullscreen-in' : 'dialog-in')
+})
+
 test('记录加载失败时显示错误并禁止保存空表单', async ({page}) => {
   const {writes} = await setupRecords(page, {failLoad: true})
-  await page.getByRole('row').filter({hasText: '原始申请'}).getByTitle('编辑', {exact: true}).click()
+  await openSelectedRecordForEdit(page, '原始申请')
   const drawer = page.getByRole('dialog')
   await expect(drawer.getByText('记录读取失败', {exact: true})).toBeVisible()
   await expect(drawer.getByRole('button', {name: '保存', exact: true})).toBeDisabled()
   expect(writes).toHaveLength(0)
+})
+
+test('单元格离开时自动保存，校验和失败重试只提交当前字段', async ({page}) => {
+  const {writes} = await setupRecords(page, {
+    failSave: true, listForm: {
+      ...form,
+      fields: form.fields.map(field => field.name === 'optional' ? {...field, config: {updatable: false}} : field),
+    }
+  })
+  const [first, second] = [page.locator('tbody tr').nth(0), page.locator('tbody tr').nth(1)]
+  const titleCell = first.locator('td[data-field="title"]')
+  const pencil = titleCell.getByRole('button', {name: '编辑单元格：申请事由', exact: true})
+  const title = first.getByPlaceholder('请输入申请事由')
+  const amount = first.getByPlaceholder('请输入申请金额')
+
+  await titleCell.hover()
+  await pencil.click()
+  await expect(title).toBeFocused()
+  await expect(amount).toHaveCount(0)
+  await expect(first.getByRole('button', {name: '编辑单元格：补充信息'})).toHaveCount(0)
+  await expect(second.getByPlaceholder('请输入申请事由')).toHaveCount(0)
+  await expect(page.getByRole('button', {name: '保存', exact: true})).toHaveCount(0)
+  await title.fill('取消的草稿')
+  await title.press('Escape')
+  await expect(first.getByRole('button', {name: '原始申请', exact: true})).toBeVisible()
+  expect(writes).toEqual([])
+
+  await titleCell.hover()
+  await pencil.click()
+  await title.fill('')
+  await title.press('Enter')
+  await expect(page.getByText('申请事由不能为空')).toBeVisible()
+  expect(writes).toEqual([])
+  await title.fill('  行内更新  ')
+  await first.locator('td[data-field="amount"]').click()
+  await expect(page.getByText('记录保存失败', {exact: true})).toBeVisible()
+  await expect(title).toHaveValue('  行内更新  ')
+  await title.press('Tab')
+  await expect(first.getByRole('button', {name: '行内更新', exact: true})).toBeVisible()
+  const noteCell = first.locator('td[data-field="note"]')
+  await noteCell.hover()
+  await noteCell.getByRole('button', {name: '编辑单元格：备注', exact: true}).click()
+  const note = page.getByRole('dialog', {name: '编辑备注'}).locator('textarea')
+  await expect(note).toBeFocused()
+  await note.fill('新增备注')
+  await first.locator('td[data-field="amount"]').click()
+  await expect(first.getByText('新增备注', {exact: true})).toBeVisible()
+  const category = first.locator('td[data-field="category"]')
+  await category.hover()
+  await category.getByRole('button', {name: '选择选项：分类'}).click()
+  await expect(page.getByRole('listbox')).toBeVisible()
+  expect(writes).toHaveLength(3)
+  await page.getByRole('option', {name: '无', exact: true}).click()
+  await expect(category.getByRole('combobox')).toHaveCount(0)
+  expect(writes).toEqual([{title: '  行内更新  '}, {title: '  行内更新  '}, {note: '新增备注'}, {category: null}])
+  await expect(second).toContainText('另一条申请')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('引用与日期图标一次点击就打开各自的选择器', async ({page}) => {
+  await page.addInitScript(() => {
+    const showPicker = HTMLInputElement.prototype.showPicker
+    HTMLInputElement.prototype.showPicker = function () {
+      showPicker.call(this)
+      this.dataset.pickerOpened = 'true'
+    }
+  })
+  const {writes} = await setupRecords(page, {
+    listForm: {
+      ...form,
+      fields: [...form.fields, {name: 'start_date', label: '开始日期', type: 'DATE'}],
+    }
+  })
+  const row = page.locator('tbody tr').nth(1)
+  const supplier = row.locator('td[data-field="supplier"]')
+  const pickSupplier = supplier.getByRole('button', {name: '选择引用：供应商'})
+  await expect(pickSupplier.locator('svg.lucide-square-arrow-out-up-right')).toHaveCount(1)
+  const dialog = page.getByRole('dialog', {name: '请选择供应商'})
+  await supplier.hover()
+  await pickSupplier.click()
+  await expect(dialog.getByRole('grid')).toBeVisible()
+  await dialog.getByText('供应商甲', {exact: true}).click()
+  await dialog.getByRole('button', {name: '取消', exact: true}).click()
+  await expect(dialog).toBeHidden()
+  expect(writes).toEqual([])
+
+  await supplier.hover()
+  await pickSupplier.click()
+  await dialog.getByText('供应商甲', {exact: true}).click()
+  await dialog.getByRole('button', {name: '确定', exact: true}).click()
+  await expect(supplier.getByText('供应商甲', {exact: true})).toBeVisible()
+
+  const date = row.locator('td[data-field="start_date"]')
+  await date.hover()
+  await date.getByRole('button', {name: '选择日期：开始日期'}).click()
+  const input = date.locator('input[type="date"]')
+  await expect(input).toHaveAttribute('data-picker-opened', 'true')
+  await input.fill('2026-11-26')
+  await expect(input).toHaveValue('2026-11-26')
+  await row.locator('td[data-field="amount"]').click()
+  await expect(date).toHaveText('2026-11-26')
+  expect(writes).toEqual([{supplier: 'supplier-1'}, {start_date: '2026-11-26'}])
+})
+
+test('审批中的记录不能行内保存', async ({page}) => {
+  const {writes} = await setupRecords(page, {locked: true})
+  const row = page.locator('tbody tr').first()
+  await row.locator('td[data-field="title"]').hover()
+  await row.getByRole('button', {name: '编辑单元格：申请事由', exact: true}).click()
+  const locked = row.getByText('审批中，已锁定')
+  await expect(locked).toBeVisible()
+  await expect(row.getByPlaceholder('请输入申请事由')).toHaveCount(0)
+  await locked.press('Escape')
+  expect(writes).toEqual([])
+})
+
+for (const sorted of [false, true]) test(`保存单元格后${sorted ? '按显式排序刷新' : '保持无显式排序的记录位置'}`, async ({page}) => {
+  const {writes} = await setupRecords(page, {
+    listForm: {
+      ...form,
+      viewTabs: form.viewTabs.map(view => ({...view, sort: sorted ? {field: 'amount', order: 'ASC'} : null})),
+    }
+  })
+  const rows = page.locator('tbody tr')
+  const amount = rows.nth(1).locator('td[data-field="amount"]')
+  await expect(page.locator('thead th[data-field="amount"]')).toHaveAttribute('aria-sort', sorted ? 'ascending' : 'none')
+  await amount.hover()
+  await amount.getByRole('button', {name: '编辑单元格：申请金额'}).click()
+  await amount.getByRole('spinbutton').fill('-18.5')
+  const refreshed = page.waitForResponse(response => new URL(response.url()).pathname === viewPath && response.ok())
+  await amount.getByRole('spinbutton').press('Enter')
+  await refreshed
+  await expect(rows.nth(sorted ? 0 : 1)).toContainText('-18.5')
+  await expect(rows.first()).toContainText(sorted ? '另一条申请' : '原始申请')
+  expect(writes).toEqual([{amount: -18.5}])
 })
 
 for (const dark of [false, true]) test(`讨论行内回复与本人删除菜单（${dark ? '夜间' : '浅色'}）`, async ({page}) => {
@@ -475,16 +799,46 @@ test('收起的讨论数量随记录切换，零条时只展示展开图标', as
   await expect(page.getByRole('complementary', {name: '记录动态'})).toBeVisible()
 })
 
-test('新建记录保存后详情显示新记录', async ({page}) => {
+test('新建选择的展示方式在详情、编辑和刷新后继续使用', async ({page}) => {
   const {writes} = await setupRecords(page)
   await page.getByRole('button', {name: '新建', exact: true}).click()
   const drawer = page.getByRole('dialog')
+  await expect(drawer).toHaveCSS('animation-name', 'dialog-in')
   await drawer.getByPlaceholder('请输入申请事由').fill('新建申请')
   await drawer.getByPlaceholder('请输入申请金额').fill('12')
+  await drawer.getByRole('button', {name: '更多'}).click()
+  await expect(page.getByRole('menuitemradio', {name: '对话框'})).toBeChecked()
+  await page.getByRole('menuitemradio', {name: '全屏'}).click()
+  await expect(drawer.getByPlaceholder('请输入申请事由')).toHaveValue('新建申请')
   await drawer.getByRole('button', {name: '保存', exact: true}).click()
   await expect(drawer.getByRole('heading', {name: '新建申请', exact: true})).toBeVisible()
+  await expect(drawer).toHaveCSS('animation-name', 'fullscreen-in')
   await expect(drawer.getByText('12', {exact: true})).toBeVisible()
   expect(writes).toHaveLength(1)
+
+  await page.keyboard.press('Escape')
+  await expect(drawer).toHaveCount(0)
+  await openSelectedRecordForEdit(page, '另一条申请')
+  await expect(drawer.getByRole('heading', {name: '编辑采购申请'})).toBeVisible()
+  await expect(drawer).toHaveCSS('animation-name', 'fullscreen-in')
+
+  await page.reload()
+  await page.getByRole('row').getByRole('button', {name: '原始申请', exact: true}).click()
+  await expect(page.getByRole('dialog', {name: '原始申请', exact: true})).toHaveCSS('animation-name', 'fullscreen-in')
+})
+
+test('同源标签页共享记录展示方式', async ({page, context}) => {
+  await setupRecords(page)
+  const otherPage = await context.newPage()
+  await setupRecords(otherPage)
+  await otherPage.getByRole('row').getByRole('button', {name: '另一条申请', exact: true}).click()
+  const otherDetail = otherPage.getByRole('dialog', {name: '另一条申请', exact: true})
+  await expect(otherDetail).toHaveCSS('animation-name', 'dialog-in')
+
+  await page.getByRole('row').getByRole('button', {name: '原始申请', exact: true}).click()
+  await page.getByRole('dialog').getByRole('button', {name: '更多'}).click()
+  await page.getByRole('menuitemradio', {name: '全屏'}).click()
+  await expect(otherDetail).toHaveCSS('animation-name', 'fullscreen-in')
 })
 
 for (const dark of [false, true]) test('高级查询气泡框组合条件与清空（' + (dark ? '夜间' : '浅色') + '）', async ({page}) => {
@@ -506,13 +860,13 @@ for (const dark of [false, true]) test('高级查询气泡框组合条件与清�
   await page.getByRole('option', {name: '任一条件', exact: true}).click()
   await page.screenshot({path: 'test-results/query-' + (dark ? 'dark' : 'light') + '.png'})
   const requested = page.waitForRequest(request => {
-    const url = new URL(request.url())
-    return url.pathname === recordsPath && !!url.searchParams.get('filter')
+    return new URL(request.url()).pathname === viewPath && !!request.postDataJSON().filter
   })
   await panel.getByRole('button', {name: '应用查询'}).click()
-  const url = new URL((await requested).url())
-  expect(JSON.parse(url.searchParams.get('filter')!)).toEqual({_or: [{amount: {_eq: 0}}, {approved: {_eq: false}}]})
-  expect(url.searchParams.get('page')).toBe('1')
+  expect((await requested).postDataJSON()).toMatchObject({
+    page: 1,
+    filter: {_or: [{amount: {_eq: 0}}, {approved: {_eq: false}}]}
+  })
   await expect(panel).not.toBeVisible()
   await expect(page.getByText('已启用高级查询：2 个条件（任一满足）')).toBeVisible()
   await page.getByRole('button', {name: '高级查询', exact: true}).click()
@@ -521,7 +875,7 @@ for (const dark of [false, true]) test('高级查询气泡框组合条件与清�
   await panel.getByRole('button', {name: '取消', exact: true}).click()
   await page.getByRole('button', {name: '高级查询', exact: true}).click()
   await expect(panel.getByRole('spinbutton')).toHaveValue('0')
-  const cleared = page.waitForRequest(request => new URL(request.url()).pathname === recordsPath && !new URL(request.url()).searchParams.has('filter'))
+  const cleared = page.waitForRequest(request => new URL(request.url()).pathname === viewPath && !request.postDataJSON().filter)
   await panel.getByRole('button', {name: '清空查询'}).click()
   await cleared
   await expect(page.getByText('已启用高级查询：')).toHaveCount(0)

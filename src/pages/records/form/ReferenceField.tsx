@@ -136,12 +136,14 @@ function ReferenceTable({id, records, columns, selectedId, activeIndex, onSelect
   </div>
 }
 
-export function ReferenceField({appId, field, value, options, disabled, onChange}: {
+export function ReferenceField({appId, field, value, options, disabled, openPicker = false, onPickerCancel, onChange}: {
   appId: string
   field: AppFormField
   value: unknown
   options?: ReferenceOption[]
   disabled?: boolean
+  openPicker?: boolean
+  onPickerCancel?: () => void
   onChange: (value: string) => void
 }) {
   const valueId = String(value ?? '')
@@ -153,8 +155,9 @@ export function ReferenceField({appId, field, value, options, disabled, onChange
   const [resolved, setResolved] = React.useState({id: '', label: ''})
   const [search, setSearch] = React.useState<string | null>(null)
   const [dropdownOpen, setDropdownOpen] = React.useState(false)
-  const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [draft, setDraft] = React.useState<ReferenceOption | null>(null)
+  const [dialogOpen, setDialogOpen] = React.useState(openPicker)
+  const [draft, setDraft] = React.useState<ReferenceOption | null>(() =>
+    openPicker && valueId ? {value: valueId, label: valueId} : null)
   const [keyword, setKeyword] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [size, setSize] = React.useState(20)
@@ -215,6 +218,10 @@ export function ReferenceField({appId, field, value, options, disabled, onChange
   const closeDialog = () => {
     setDialogOpen(false)
     requestAnimationFrame(() => input.current?.focus())
+  }
+  const cancelDialog = () => {
+    closeDialog()
+    onPickerCancel?.()
   }
   const openDialog = () => {
     setKeyword(search?.trim() ?? '')
@@ -299,9 +306,14 @@ export function ReferenceField({appId, field, value, options, disabled, onChange
       </PopoverContent>
     </Popover>
     <BizDialog open={dialogOpen} onOpenChange={open => {
-      if (!open) closeDialog()
+      if (!open) cancelDialog()
     }} title={`请选择${field.label}`} width={1100} height="min(80vh, 760px)"
-               footer={<><Button type="button" variant="secondary" onClick={closeDialog}>取消</Button>
+               footer={<>{openPicker && !field.required && valueId && <Button type="button" variant="ghost"
+                                                                              disabled={disabled} onClick={() => {
+                 onChange('')
+                 closeDialog()
+               }}>清空</Button>}
+                 <Button type="button" variant="secondary" onClick={cancelDialog}>取消</Button>
                  <Button type="button" disabled={!draft || disabled} onClick={() => {
                    if (draft) choose(draft)
                    closeDialog()

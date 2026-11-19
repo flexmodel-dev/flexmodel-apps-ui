@@ -2,7 +2,6 @@ import * as React from 'react'
 import {isFieldWritable} from '@/lib/fieldConfig'
 import {useNavigate} from 'react-router-dom'
 import {Check, Info, LockKeyhole, Pencil, Send, Trash2, X} from 'lucide-react'
-import {BizDrawer} from '@/components/ui/drawer'
 import {BizDialog, ConfirmDialog} from '@/components/ui/dialog'
 import {Button} from '@/components/ui/button'
 import {message} from '@/components/ui/message'
@@ -10,7 +9,7 @@ import {AppLoading} from '@/components/shared/AppLoading'
 import {AppFormSectionTitle} from '@/pages/records/AppFormSectionTitle'
 import {AppReferenceValue} from '@/pages/records/AppReferenceValue'
 import {AppSubformRecords} from '@/pages/records/AppSubformRecords'
-import {FormMoreMenu} from '@/pages/records/FormMoreMenu'
+import {RecordModal} from '@/pages/records/RecordModal'
 import {ApprovalProgressPanel} from '@/pages/approvals/ApprovalProgress'
 import {RecordActivityAside, type RecordAsideTab} from '@/pages/records/RecordActivityAside'
 import {useRecordApproval} from '@/pages/approvals/useRecordApproval'
@@ -55,7 +54,7 @@ function renderViewValue(field: AppFormField, value: unknown) {
 }
 
 /**
- * 记录统一抽屉：查看 / 编辑 / 新建在同一抽屉内原地切换。
+ * 查看、编辑和新建共用同一个记录弹层。
  * 查看态展示文本与记录动态（流程/讨论/历史）；编辑/新建态切换为输入控件，同一布局保持字段位置连续。
  */
 export function AppRecordDrawer({
@@ -488,24 +487,20 @@ export function AppRecordDrawer({
 
   return (
     <>
-      <BizDrawer
+      <RecordModal
         open={open}
         onOpenChange={(next) => {
           if (!next) requestClose()
           else onOpenChange(next)
         }}
         title={title}
-        moreMenu={form ? (
-          <FormMoreMenu
-            onPrint={mode === 'view' && record && !isFormLoading && !error
-              ? () => printRecord(contentRef.current, title)
-              : undefined}
-            onOpenDesign={() => {
-              onOpenChange(false)
-              navigate(`/admin/apps/${appId}/forms/${encodeURIComponent(formName)}/form-design`)
-            }}
-          />
-        ) : undefined}
+        onPrint={mode === 'view' && record && !isFormLoading && !error
+          ? () => printRecord(contentRef.current, title)
+          : undefined}
+        onOpenDesign={form ? () => {
+          onOpenChange(false)
+          navigate(`/admin/apps/${appId}/forms/${encodeURIComponent(formName)}/form-design`)
+        } : undefined}
         footer={footer}
         aside={showActivity ? (
           <RecordActivityAside
@@ -611,7 +606,7 @@ export function AppRecordDrawer({
             })}
           </div>
         )}
-      </BizDrawer>
+      </RecordModal>
 
       <BizDialog
         open={!!discardKind}

@@ -395,11 +395,16 @@ test('顶部文字和选中标记居中，倒三角不影响宽度', async ({pag
   state.navs[1].name = '基础数据'
   await page.reload()
   const header = page.locator('header').first()
+  await expect(header).toHaveCSS('height', '56px')
+  await expect(page.locator('aside').first()).toHaveCSS('top', '56px')
+  const main = page.locator('main')
+  await expect(main).toHaveCSS('margin-top', '56px')
+  await expect(main).toHaveCSS('height', `${page.viewportSize()!.height - 56}px`)
   const geometry = (name: string) => header.getByRole('link', {name, exact: true}).evaluate((link) => {
     const tab = link.parentElement!
     const label = link.querySelector('span')!.getBoundingClientRect()
     const tabRect = tab.getBoundingClientRect()
-    const marker = tab.querySelector(':scope > span')!.getBoundingClientRect()
+    const marker = tab.querySelector(':scope > span:last-child')!.getBoundingClientRect()
     return {
       textX: label.x + label.width / 2, textY: label.y + label.height / 2,
       centerX: tabRect.x + tabRect.width / 2, centerY: tabRect.y + tabRect.height / 2,

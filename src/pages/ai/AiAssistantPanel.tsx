@@ -71,7 +71,7 @@ export function AiAssistantPanel() {
                                                 onClose={ai.closeAssistant}/></div>}
   </>
   return desktop ? <aside aria-label="AI 助手" style={{width}}
-                          className="fixed bottom-0 right-0 top-16 z-40 flex flex-col border-l bg-background shadow-sm">
+                          className="fixed bottom-0 right-0 top-[var(--app-header-height)] z-40 flex flex-col border-l bg-background shadow-sm">
       <div role="separator" aria-orientation="vertical" aria-label="调整 AI 助手面板宽度" title="拖动调整宽度"
            onPointerDown={event => {
              event.preventDefault();

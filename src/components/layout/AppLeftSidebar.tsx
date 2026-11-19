@@ -378,9 +378,8 @@ export function AppLeftSidebar({
     <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
-          'fixed left-0 z-30 border-r bg-background transition-[width] duration-200',
-          headerHidden ? 'block top-0 h-screen' : 'hidden top-16 h-[calc(100vh-4rem)] md:block',
-          headerHidden ? 'top-0 h-screen' : 'top-16 h-[calc(100vh-4rem)]',
+          'fixed bottom-0 left-0 z-30 border-r bg-background transition-[width] duration-200',
+          headerHidden ? 'block top-0' : 'hidden top-[var(--app-header-height)] md:block',
           collapsed ? 'w-16' : 'w-64',
         )}
       >

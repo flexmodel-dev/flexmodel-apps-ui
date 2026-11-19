@@ -28,7 +28,7 @@ export function AdminLeftSidebar({
     <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
-          'fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-background transition-[width] duration-200 md:block',
+          'fixed bottom-0 left-0 top-[var(--app-header-height)] z-30 hidden border-r bg-background transition-[width] duration-200 md:block',
           collapsed ? 'w-16' : 'w-64',
         )}
       >

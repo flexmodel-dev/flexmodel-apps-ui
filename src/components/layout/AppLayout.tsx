@@ -342,7 +342,7 @@ export function AppLayout({
 
       <main
         className={cn(
-          hideHeader ? 'mt-0 h-screen md:ml-0' : 'mt-16 h-[calc(100vh-4rem)]',
+          hideHeader ? 'mt-0 h-screen md:ml-0' : 'mt-[var(--app-header-height)] h-[calc(100vh-var(--app-header-height))]',
           noOuterScroll ? 'overflow-hidden' : 'overflow-y-auto',
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
           hideHeader ? '' : showSidebar ? (collapsed ? 'md:ml-16' : 'md:ml-64') : 'md:ml-0',

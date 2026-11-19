@@ -86,7 +86,7 @@ export function AdminLayout({
       {showFormSidebar && (
         <aside
           className={cn(
-            'fixed bottom-6 top-[5.5rem] z-30 hidden w-56 overflow-hidden rounded-xl border bg-card lg:block',
+            'fixed bottom-6 top-[calc(var(--app-header-height)+1.5rem)] z-30 hidden w-56 overflow-hidden rounded-xl border bg-card lg:block',
             collapsed ? 'left-[5.5rem]' : 'left-[17.5rem]',
           )}
         >
@@ -105,7 +105,7 @@ export function AdminLayout({
 
       <main
         className={cn(
-          hideHeader ? 'mt-0 h-screen md:ml-0' : 'mt-16 h-[calc(100vh-4rem)]',
+          hideHeader ? 'mt-0 h-screen md:ml-0' : 'mt-[var(--app-header-height)] h-[calc(100vh-var(--app-header-height))]',
           noOuterScroll ? 'overflow-hidden' : 'overflow-y-auto',
           noPadding ? '' : 'px-4 pb-4 md:px-6 md:pb-6',
           hideHeader

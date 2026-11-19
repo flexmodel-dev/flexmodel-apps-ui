@@ -37,6 +37,8 @@ export function FieldControl({
                                options,
                                referenceOptions,
                                disabled,
+                               openPicker = false,
+                               onPickerCancel,
                                onChange,
                                onUploadStart,
                              }: {
@@ -47,6 +49,8 @@ export function FieldControl({
   options: Array<{ id?: string; text?: string; color?: string }>
   referenceOptions?: ReferenceOption[]
   disabled?: boolean
+  openPicker?: boolean
+  onPickerCancel?: () => void
   onChange: (value: unknown) => void
   onUploadStart?: () => () => void
 }) {
@@ -69,7 +73,7 @@ export function FieldControl({
         </label>
       })}
     </div>
-    if (field.config?.displayStyle === 'DROPDOWN') return <Popover>
+    if (field.config?.displayStyle === 'DROPDOWN') return <Popover defaultOpen={openPicker}>
       <PopoverTrigger asChild><Button type="button" variant="secondary" disabled={disabled}
                                       className="w-full justify-start truncate">
         {selected.length ? options.filter(option => selected.includes(option.id ?? option.text ?? '')).map(option => option.text ?? option.id).join('、') : `请选择${field.label}`}
@@ -93,12 +97,13 @@ export function FieldControl({
         <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onChange('')}>清空</Button>}
     </div>
     return (
-      <Select value={String(value || emptyOption)} onValueChange={value => onChange(value === emptyOption ? '' : value)}
+      <Select defaultOpen={openPicker} value={String(value || emptyOption)}
+              onValueChange={value => onChange(value === emptyOption ? '' : value)}
               disabled={disabled}>
         <SelectTrigger>
           <SelectValue placeholder={`请选择${field.label}`}/>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent onEscapeKeyDown={onPickerCancel}>
           {!field.required && <SelectItem value={emptyOption}>无</SelectItem>}
           {options.map((option) => (
             <SelectItem key={option.id ?? option.text} value={option.id ?? option.text ?? ''}>
@@ -137,6 +142,7 @@ export function FieldControl({
 
   if (field.type === 'REFERENCE') {
     return <ReferenceField appId={appId} field={field} value={value} options={referenceOptions} disabled={disabled}
+                           openPicker={openPicker} onPickerCancel={onPickerCancel}
                            onChange={onChange}/>
   }
 

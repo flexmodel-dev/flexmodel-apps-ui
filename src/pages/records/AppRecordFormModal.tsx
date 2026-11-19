@@ -2,7 +2,6 @@ import * as React from 'react'
 import {isFieldWritable} from '@/lib/fieldConfig'
 import {useNavigate} from 'react-router-dom'
 import {Info} from 'lucide-react'
-import {BizDrawer} from '@/components/ui/drawer'
 import {Button} from '@/components/ui/button'
 import {message} from '@/components/ui/message'
 import {cn, toErrorMessage} from '@/lib/utils'
@@ -29,7 +28,7 @@ import {useReferenceOptions} from '@/pages/records/form/useReferenceOptions'
 import {useAttachmentUploads} from '@/pages/records/form/useAttachmentUploads'
 import {FlowStartDialog, useFormApprovalFlows} from '@/pages/workflows/flowLaunch'
 import {AppSubformRecords} from '@/pages/records/AppSubformRecords'
-import {FormMoreMenu} from '@/pages/records/FormMoreMenu'
+import {RecordModal} from '@/pages/records/RecordModal'
 import {
   type AppForm,
   type AppFormItem,
@@ -68,7 +67,7 @@ export function AppRecordFormModal({
   open: boolean
   onOpenChange: (open: boolean) => void
   appId: string
-  /** 表单定义可能尚未加载（例如右上角新增记录先展开抽屉再取表单） */
+  /** 快捷新建打开时，表单定义可能仍在加载。 */
   form: AppForm | null
   formError?: string | null
   launchFlow?: ApprovalFlow
@@ -272,20 +271,16 @@ export function AppRecordFormModal({
 
   return (
     <>
-      <BizDrawer
+      <RecordModal
         open={open}
         onOpenChange={value => {
           if (!isSubmitting && !isStarting) onOpenChange(value)
         }}
         title={launchFlow ? `发起流程：${launchFlow.name}` : form ? (effectiveRecordId ? `编辑${form.label}` : `新建${form.label}`) : '新建记录'}
-        moreMenu={form ? (
-          <FormMoreMenu
-            onOpenDesign={() => {
-              onOpenChange(false)
-              navigate(designPath ?? `/admin/apps/${appId}/forms/${encodeURIComponent(formName)}/form-design`)
-            }}
-          />
-        ) : undefined}
+        onOpenDesign={form ? () => {
+          onOpenChange(false)
+          navigate(designPath ?? `/admin/apps/${appId}/forms/${encodeURIComponent(formName)}/form-design`)
+        } : undefined}
         footer={form ? (
           <>
             <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting || isStarting}>
@@ -361,7 +356,7 @@ export function AppRecordFormModal({
             )
           })}
         </div>
-      </BizDrawer>
+      </RecordModal>
       <FlowStartDialog
         open={flowOpen}
         onOpenChange={setFlowOpen}
